@@ -61,36 +61,30 @@ configs = json.load(open(configs_json, "r"))
 os.environ["TORCH_FORCE_NO_WEIGHTS_ONLY_LOAD"] = "1"
 os.environ["TORCH_FORCE_WEIGHTS_ONLY_LOAD"] = "0"
 
-if config.device in ["cpu", "mps"]  and configs.get("fp16", False):
+if config.device in ["cpu", "mps"] and configs.get("fp16", False):
     logger.warning(translations["fp16_not_support"])
     configs["fp16"] = config.is_half = False
     with open(configs_json, "w") as f:
         json.dump(configs, f, indent=4)
 
 models, model_options = {}, {}
-
 method_f0 = ["mangio-crepe-full", "crepe-full", "fcpe", "rmvpe", "harvest", "pyin"]
 method_f0_full = ["pm", "dio", "mangio-crepe-tiny", "mangio-crepe-small", "mangio-crepe-medium", "mangio-crepe-large", "mangio-crepe-full", "crepe-tiny", "crepe-small", "crepe-medium", "crepe-large", "crepe-full", "fcpe", "fcpe-legacy", "rmvpe", "rmvpe-legacy", "harvest", "yin", "pyin", "swipe"]
-
 embedders_mode = ["fairseq", "onnx", "transformers", "spin"]
 embedders_model = ["contentvec_base", "hubert_base", "japanese_hubert_base", "korean_hubert_base", "chinese_hubert_base", "portuguese_hubert_base", "custom"]
-
 paths_for_files = sorted([os.path.abspath(os.path.join(root, f)) for root, _, files in os.walk("audios") for f in files if os.path.splitext(f)[1].lower() in (".wav", ".mp3", ".flac", ".ogg", ".opus", ".m4a", ".mp4", ".aac", ".alac", ".wma", ".aiff", ".webm", ".ac3")])
-model_name, index_path, delete_index = sorted(list(model for model in os.listdir(os.path.join("assets", "weights")) if model.endswith((".pth", ".onnx")) and not model.startswith("G_") and not model.startswith("D_"))), sorted([os.path.join(root, name) for root, _, files in os.walk(os.path.join("assets", "logs"), topdown=False) for name in files if name.endswith(".index") and "trained" not in name]), sorted([os.path.join("assets", "logs", f) for f in os.listdir(os.path.join("assets", "logs")) if "mute" not in f and os.path.isdir(os.path.join("assets", "logs", f))])
+model_name, index_path = sorted(list(model for model in os.listdir(os.path.join("assets", "weights")) if model.endswith((".pth", ".onnx")) and not model.startswith("G_") and not model.startswith("D_"))), sorted([os.path.join(root, name) for root, _, files in os.walk(os.path.join("assets", "logs"), topdown=False) for name in files if name.endswith(".index") and "trained" not in name])
 pretrainedD, pretrainedG, Allpretrained = ([model for model in os.listdir(os.path.join("assets", "models", "pretrained_custom")) if model.endswith(".pth") and "D" in model], [model for model in os.listdir(os.path.join("assets", "models", "pretrained_custom")) if model.endswith(".pth") and "G" in model], [os.path.join("assets", "models", path, model) for path in ["pretrained_v1", "pretrained_v2", "pretrained_custom"] for model in os.listdir(os.path.join("assets", "models", path)) if model.endswith(".pth") and ("D" in model or "G" in model)])
-
 separate_model = sorted([os.path.join("assets", "models", "uvr5", models) for models in os.listdir(os.path.join("assets", "models", "uvr5")) if models.endswith((".th", ".yaml", ".onnx"))])
 presets_file = sorted(list(f for f in os.listdir(os.path.join("assets", "presets")) if f.endswith(".json")))
 f0_file = sorted([os.path.abspath(os.path.join(root, f)) for root, _, files in os.walk(os.path.join("assets", "f0")) for f in files if f.endswith(".txt")])
-
 language, theme, edgetts, google_tts_voice, mdx_model, uvr_model, font = configs.get("language", "vi-VN"), configs.get("theme", "NoCrypt/miku"), configs.get("edge_tts", ["vi-VN-HoaiMyNeural", "vi-VN-NamMinhNeural"]), configs.get("google_tts_voice", ["vi", "en"]), configs.get("mdx_model", "MDXNET_Main"), (configs.get("demucs_model", "HD_MMI") + configs.get("mdx_model", "MDXNET_Main")), configs.get("font", "https://fonts.googleapis.com/css2?family=Courgette&display=swap")
-
+sample_rate_choice = [8000, 11025, 12000, 16000, 22050, 24000, 32000, 44100, 48000, 96000]
 csv_path = os.path.join("assets", "spreadsheet.csv")
 logger.info(config.device)
 
 if "--allow_all_disk" in sys.argv:
     import win32api
-
     allow_disk = win32api.GetLogicalDriveStrings().split('\x00')[:-1]
 else: allow_disk = []
 
@@ -113,8 +107,6 @@ for _, row in cached_data.iterrows():
             break
 
     if url: models[filename] = url
-
-
 
 def gr_info(message):
     gr.Info(message, duration=2)
@@ -705,7 +697,7 @@ def model_info(path):
     gr_info(translations["success"])
     return translations["model_info"].format(model_name=model_name, model_author=model_author, epochs=epochs, steps=steps, version=version, sr=sr, pitch_guidance=pitch_guidance, model_hash=model_hash, creation_date_str=creation_date_str, vocoder=vocoder)
 
-def audio_effects(input_path, output_path, resample, resample_sr, chorus_depth, chorus_rate, chorus_mix, chorus_delay, chorus_feedback, distortion_drive, reverb_room_size, reverb_damping, reverb_wet_level, reverb_dry_level, reverb_width, reverb_freeze_mode, pitch_shift, delay_seconds, delay_feedback, delay_mix, compressor_threshold, compressor_ratio, compressor_attack_ms, compressor_release_ms, limiter_threshold, limiter_release, gain_db, bitcrush_bit_depth, clipping_threshold, phaser_rate_hz, phaser_depth, phaser_centre_frequency_hz, phaser_feedback, phaser_mix, bass_boost_db, bass_boost_frequency, treble_boost_db, treble_boost_frequency, fade_in_duration, fade_out_duration, export_format, chorus, distortion, reverb, delay, compressor, limiter, gain, bitcrush, clipping, phaser, treble_bass_boost, fade_in_out, audio_combination, audio_combination_input):
+def audio_effects(input_path, output_path, resample, resample_sr, chorus_depth, chorus_rate, chorus_mix, chorus_delay, chorus_feedback, distortion_drive, reverb_room_size, reverb_damping, reverb_wet_level, reverb_dry_level, reverb_width, reverb_freeze_mode, pitch_shift, delay_seconds, delay_feedback, delay_mix, compressor_threshold, compressor_ratio, compressor_attack_ms, compressor_release_ms, limiter_threshold, limiter_release, gain_db, bitcrush_bit_depth, clipping_threshold, phaser_rate_hz, phaser_depth, phaser_centre_frequency_hz, phaser_feedback, phaser_mix, bass_boost_db, bass_boost_frequency, treble_boost_db, treble_boost_frequency, fade_in_duration, fade_out_duration, export_format, chorus, distortion, reverb, delay, compressor, limiter, gain, bitcrush, clipping, phaser, treble_bass_boost, fade_in_out, audio_combination, audio_combination_input, main_vol, combine_vol):
     if not input_path or not os.path.exists(input_path) or os.path.isdir(input_path): 
         gr_warning(translations["input_not_valid"])
         return None
@@ -721,7 +713,7 @@ def audio_effects(input_path, output_path, resample, resample_sr, chorus_depth, 
     if os.path.exists(output_path): os.remove(output_path)
     
     gr_info(translations["start"].format(start=translations["apply_effect"]))
-    subprocess.run([python, "main/inference/audio_effects.py", "--input_path", input_path, "--output_path", output_path, "--resample", str(resample), "--resample_sr", str(resample_sr), "--chorus_depth", str(chorus_depth), "--chorus_rate", str(chorus_rate), "--chorus_mix", str(chorus_mix), "--chorus_delay", str(chorus_delay), "--chorus_feedback", str(chorus_feedback), "--drive_db", str(distortion_drive), "--reverb_room_size", str(reverb_room_size), "--reverb_damping", str(reverb_damping), "--reverb_wet_level", str(reverb_wet_level), "--reverb_dry_level", str(reverb_dry_level), "--reverb_width", str(reverb_width), "--reverb_freeze_mode", str(reverb_freeze_mode), "--pitch_shift", str(pitch_shift), "--delay_seconds", str(delay_seconds), "--delay_feedback", str(delay_feedback), "--delay_mix", str(delay_mix), "--compressor_threshold", str(compressor_threshold), "--compressor_ratio", str(compressor_ratio), "--compressor_attack_ms", str(compressor_attack_ms), "--compressor_release_ms", str(compressor_release_ms), "--limiter_threshold", str(limiter_threshold), "--limiter_release", str(limiter_release), "--gain_db", str(gain_db), "--bitcrush_bit_depth", str(bitcrush_bit_depth), "--clipping_threshold", str(clipping_threshold), "--phaser_rate_hz", str(phaser_rate_hz), "--phaser_depth", str(phaser_depth), "--phaser_centre_frequency_hz", str(phaser_centre_frequency_hz), "--phaser_feedback", str(phaser_feedback), "--phaser_mix", str(phaser_mix), "--bass_boost_db", str(bass_boost_db), "--bass_boost_frequency", str(bass_boost_frequency), "--treble_boost_db", str(treble_boost_db), "--treble_boost_frequency", str(treble_boost_frequency), "--fade_in_duration", str(fade_in_duration), "--fade_out_duration", str(fade_out_duration), "--export_format", export_format, "--chorus", str(chorus), "--distortion", str(distortion), "--reverb", str(reverb), "--pitchshift", str(pitch_shift != 0), "--delay", str(delay), "--compressor", str(compressor), "--limiter", str(limiter), "--gain", str(gain), "--bitcrush", str(bitcrush), "--clipping", str(clipping), "--phaser", str(phaser), "--treble_bass_boost", str(treble_bass_boost), "--fade_in_out", str(fade_in_out), "--audio_combination", str(audio_combination), "--audio_combination_input", audio_combination_input])
+    subprocess.run([python, "main/inference/audio_effects.py", "--input_path", input_path, "--output_path", output_path, "--resample", str(resample), "--resample_sr", str(resample_sr), "--chorus_depth", str(chorus_depth), "--chorus_rate", str(chorus_rate), "--chorus_mix", str(chorus_mix), "--chorus_delay", str(chorus_delay), "--chorus_feedback", str(chorus_feedback), "--drive_db", str(distortion_drive), "--reverb_room_size", str(reverb_room_size), "--reverb_damping", str(reverb_damping), "--reverb_wet_level", str(reverb_wet_level), "--reverb_dry_level", str(reverb_dry_level), "--reverb_width", str(reverb_width), "--reverb_freeze_mode", str(reverb_freeze_mode), "--pitch_shift", str(pitch_shift), "--delay_seconds", str(delay_seconds), "--delay_feedback", str(delay_feedback), "--delay_mix", str(delay_mix), "--compressor_threshold", str(compressor_threshold), "--compressor_ratio", str(compressor_ratio), "--compressor_attack_ms", str(compressor_attack_ms), "--compressor_release_ms", str(compressor_release_ms), "--limiter_threshold", str(limiter_threshold), "--limiter_release", str(limiter_release), "--gain_db", str(gain_db), "--bitcrush_bit_depth", str(bitcrush_bit_depth), "--clipping_threshold", str(clipping_threshold), "--phaser_rate_hz", str(phaser_rate_hz), "--phaser_depth", str(phaser_depth), "--phaser_centre_frequency_hz", str(phaser_centre_frequency_hz), "--phaser_feedback", str(phaser_feedback), "--phaser_mix", str(phaser_mix), "--bass_boost_db", str(bass_boost_db), "--bass_boost_frequency", str(bass_boost_frequency), "--treble_boost_db", str(treble_boost_db), "--treble_boost_frequency", str(treble_boost_frequency), "--fade_in_duration", str(fade_in_duration), "--fade_out_duration", str(fade_out_duration), "--export_format", export_format, "--chorus", str(chorus), "--distortion", str(distortion), "--reverb", str(reverb), "--pitchshift", str(pitch_shift != 0), "--delay", str(delay), "--compressor", str(compressor), "--limiter", str(limiter), "--gain", str(gain), "--bitcrush", str(bitcrush), "--clipping", str(clipping), "--phaser", str(phaser), "--treble_bass_boost", str(treble_bass_boost), "--fade_in_out", str(fade_in_out), "--audio_combination", str(audio_combination), "--audio_combination_input", audio_combination_input, "--main_volume", str(main_vol), "--combination_volume", str(combine_vol)])
 
     gr_info(translations["success"])
     return output_path.replace("wav", export_format)
@@ -866,7 +858,7 @@ def convert_audio(clean, autotune, use_audio, use_original, convert_backing, not
     if use_audio:
         output_audio = os.path.join("audios", input_audio_name)
 
-        from main.library.utils import pydub_convert, pydub_load
+        from main.library.utils import pydub_load
         
         def get_audio_file(label):
             matching_files = [f for f in os.listdir(output_audio) if label in f]
@@ -933,7 +925,7 @@ def convert_audio(clean, autotune, use_audio, use_original, convert_backing, not
 
                 gr_info(translations["merge_backup"])
 
-                pydub_convert(pydub_load(output_path)).overlay(pydub_convert(pydub_load(backing_source))).export(output_merge_backup, format=format)
+                pydub_load(output_path, volume=-4).overlay(pydub_load(backing_source, volume=-6)).export(output_merge_backup, format=format)
 
                 gr_info(translations["merge_success"])
 
@@ -949,7 +941,7 @@ def convert_audio(clean, autotune, use_audio, use_original, convert_backing, not
                 if instruments == translations["notfound"]: 
                     gr_warning(translations["not_found_instruments"])
                     output_merge_instrument = None
-                else: pydub_convert(pydub_load(instruments)).overlay(pydub_convert(pydub_load(vocals))).export(output_merge_instrument, format=format)
+                else: pydub_load(instruments, volume=-7).overlay(pydub_load(vocals, volume=-4 if use_original else None)).export(output_merge_instrument, format=format)
                 
                 gr_info(translations["merge_success"])
         except:
@@ -1026,7 +1018,7 @@ def convert_with_whisper(num_spk, model_size, cleaner, clean_strength, autotune,
     from main.library.speaker_diarization.audio import Audio
     from main.library.speaker_diarization.segment import Segment
     from main.library.speaker_diarization.whisper import load_model
-    from main.library.utils import check_spk_diarization, pydub_convert, pydub_load
+    from main.library.utils import check_spk_diarization, pydub_load
     from main.library.speaker_diarization.embedding import SpeechBrainPretrainedSpeakerEmbedding
     
     check_spk_diarization(model_size)
@@ -1126,7 +1118,7 @@ def convert_with_whisper(num_spk, model_size, cleaner, clean_strength, autotune,
 
         gr_info(translations["process_audio"])
 
-        audio = pydub_convert(pydub_load(input_audio))
+        audio = pydub_load(input_audio)
         output_folder = "audios_temp"
 
         if os.path.exists(output_folder): shutil.rmtree(output_folder, ignore_errors=True)
@@ -1234,12 +1226,11 @@ def create_dataset(input_audio, output_dataset, clean_dataset, clean_strength, s
     for log in log_read(os.path.join("assets", "logs", "create_dataset.log"), done):
         yield log
 
-def preprocess(model_name, sample_rate, cpu_core, cut_preprocess, process_effects, path, clean_dataset, clean_strength):
-    dataset = os.path.join(path)
+def preprocess(model_name, sample_rate, cpu_core, cut_preprocess, process_effects, dataset, clean_dataset, clean_strength):
     sr = int(float(sample_rate.rstrip("k")) * 1000)
 
     if not model_name: return gr_warning(translations["provide_name"])
-    if not any(f.lower().endswith(("wav", "mp3", "flac", "ogg", "opus", "m4a", "mp4", "aac", "alac", "wma", "aiff", "webm", "ac3")) for f in os.listdir(dataset) if os.path.isfile(os.path.join(dataset, f))): return gr_warning(translations["not_found_data"])
+    if not os.path.exists(dataset) or not any(f.lower().endswith(("wav", "mp3", "flac", "ogg", "opus", "m4a", "mp4", "aac", "alac", "wma", "aiff", "webm", "ac3")) for f in os.listdir(dataset) if os.path.isfile(os.path.join(dataset, f))): return gr_warning(translations["not_found_data"])
     
     model_dir = os.path.join("assets", "logs", model_name)
     if os.path.exists(model_dir): shutil.rmtree(model_dir, ignore_errors=True)
@@ -1258,10 +1249,13 @@ def extract(model_name, version, method, pitch_guidance, hop_length, cpu_cores, 
     sr = int(float(sample_rate.rstrip("k")) * 1000)
 
     if not model_name: return gr_warning(translations["provide_name"])
-
     model_dir = os.path.join("assets", "logs", model_name)
-    if not any(os.path.isfile(os.path.join(model_dir, "sliced_audios", f)) for f in os.listdir(os.path.join(model_dir, "sliced_audios"))) or not any(os.path.isfile(os.path.join(model_dir, "sliced_audios_16k", f)) for f in os.listdir(os.path.join(model_dir, "sliced_audios_16k"))): return gr_warning(translations["not_found_data_preprocess"])
 
+    try:
+        if not any(os.path.isfile(os.path.join(model_dir, "sliced_audios", f)) for f in os.listdir(os.path.join(model_dir, "sliced_audios"))) or not any(os.path.isfile(os.path.join(model_dir, "sliced_audios_16k", f)) for f in os.listdir(os.path.join(model_dir, "sliced_audios_16k"))): return gr_warning(translations["not_found_data_preprocess"])
+    except:
+        return gr_warning(translations["not_found_data_preprocess"])
+    
     p = subprocess.Popen(f'{python} main/inference/extract.py --model_name "{model_name}" --rvc_version {version} --f0_method {method} --pitch_guidance {pitch_guidance} --hop_length {hop_length} --cpu_cores {cpu_cores} --gpu {gpu} --sample_rate {sr} --embedder_model {embedder_model} --f0_onnx {onnx_f0_mode} --embedders_mode {embedders_mode}', shell=True)
     done = [False]
 
@@ -1274,9 +1268,12 @@ def extract(model_name, version, method, pitch_guidance, hop_length, cpu_cores, 
 def create_index(model_name, rvc_version, index_algorithm):
     if not model_name: return gr_warning(translations["provide_name"])
     model_dir = os.path.join("assets", "logs", model_name)
-
-    if not any(os.path.isfile(os.path.join(model_dir, f"{rvc_version}_extracted", f)) for f in os.listdir(os.path.join(model_dir, f"{rvc_version}_extracted"))): return gr_warning(translations["not_found_data_extract"])
-
+    
+    try:
+        if not any(os.path.isfile(os.path.join(model_dir, f"{rvc_version}_extracted", f)) for f in os.listdir(os.path.join(model_dir, f"{rvc_version}_extracted"))): return gr_warning(translations["not_found_data_extract"])
+    except:
+        return gr_warning(translations["not_found_data_extract"])
+    
     p = subprocess.Popen(f'{python} main/inference/create_index.py --model_name "{model_name}" --rvc_version {rvc_version} --index_algorithm {index_algorithm}', shell=True)
     done = [False]
 
@@ -1286,15 +1283,18 @@ def create_index(model_name, rvc_version, index_algorithm):
     for log in log_read(os.path.join(model_dir, "create_index.log"), done):
         yield log
 
-def training(model_name, rvc_version, save_every_epoch, save_only_latest, save_every_weights, total_epoch, sample_rate, batch_size, gpu, pitch_guidance, not_pretrain, custom_pretrained, pretrain_g, pretrain_d, detector, threshold, clean_up, cache, model_author, vocoder, checkpointing, deterministic, benchmark):
+def training(model_name, rvc_version, save_every_epoch, save_only_latest, save_every_weights, total_epoch, sample_rate, batch_size, gpu, pitch_guidance, not_pretrain, custom_pretrained, pretrain_g, pretrain_d, detector, threshold, clean_up, cache, model_author, vocoder, checkpointing, deterministic, benchmark, optimizer):
     sr = int(float(sample_rate.rstrip("k")) * 1000)
     if not model_name: return gr_warning(translations["provide_name"])
 
     model_dir = os.path.join("assets", "logs", model_name)
     if os.path.exists(os.path.join(model_dir, "train_pid.txt")): os.remove(os.path.join(model_dir, "train_pid.txt"))
-
-    if not any(os.path.isfile(os.path.join(model_dir, f"{rvc_version}_extracted", f)) for f in os.listdir(os.path.join(model_dir, f"{rvc_version}_extracted"))): return gr_warning(translations["not_found_data_extract"])
-
+    
+    try:
+        if not any(os.path.isfile(os.path.join(model_dir, f"{rvc_version}_extracted", f)) for f in os.listdir(os.path.join(model_dir, f"{rvc_version}_extracted"))): return gr_warning(translations["not_found_data_extract"])
+    except:
+        return gr_warning(translations["not_found_data_extract"])
+    
     if not not_pretrain:
         if not custom_pretrained: 
             pretrained_selector = {True: {32000: ("f0G32k.pth", "f0D32k.pth"), 40000: ("f0G40k.pth", "f0D40k.pth"), 48000: ("f0G48k.pth", "f0D48k.pth")}, False: {32000: ("G32k.pth", "D32k.pth"), 40000: ("G40k.pth", "D40k.pth"), 48000: ("G48k.pth", "D48k.pth")}}
@@ -1320,15 +1320,17 @@ def training(model_name, rvc_version, save_every_epoch, save_only_latest, save_e
                     huggingface.HF_download_file("".join([download_version, vocoder, "_", pd]) if vocoder != 'Default' else (download_version + pd), os.path.join("assets", "models", f"pretrained_{rvc_version}", f"{vocoder}_{pd}" if vocoder != 'Default' else pd))
             except:
                 gr_warning(translations["not_use_pretrain_error_download"])
-                pretrained_G, pretrained_D = None, None
+                pretrained_G = pretrained_D = None
         else:
             if not os.path.exists(pretrained_G): return gr_warning(translations["not_found_pretrain"].format(dg="G"))
             if not os.path.exists(pretrained_D): return gr_warning(translations["not_found_pretrain"].format(dg="D"))
-    else: gr_warning(translations["not_use_pretrain"])
+    else: 
+        pretrained_G = pretrained_D = None
+        gr_warning(translations["not_use_pretrain"])
 
     gr_info(translations["start"].format(start=translations["training"]))
 
-    p = subprocess.Popen(f'{python} main/inference/train.py --model_name "{model_name}" --rvc_version {rvc_version} --save_every_epoch {save_every_epoch} --save_only_latest {save_only_latest} --save_every_weights {save_every_weights} --total_epoch {total_epoch} --sample_rate {sr} --batch_size {batch_size} --gpu {gpu} --pitch_guidance {pitch_guidance} --overtraining_detector {detector} --overtraining_threshold {threshold} --cleanup {clean_up} --cache_data_in_gpu {cache} --g_pretrained_path "{pretrained_G}" --d_pretrained_path "{pretrained_D}" --model_author "{model_author}" --vocoder "{vocoder}" --checkpointing {checkpointing} --deterministic {deterministic} --benchmark {benchmark}', shell=True)
+    p = subprocess.Popen(f'{python} main/inference/train.py --model_name "{model_name}" --rvc_version {rvc_version} --save_every_epoch {save_every_epoch} --save_only_latest {save_only_latest} --save_every_weights {save_every_weights} --total_epoch {total_epoch} --sample_rate {sr} --batch_size {batch_size} --gpu {gpu} --pitch_guidance {pitch_guidance} --overtraining_detector {detector} --overtraining_threshold {threshold} --cleanup {clean_up} --cache_data_in_gpu {cache} --g_pretrained_path "{pretrained_G}" --d_pretrained_path "{pretrained_D}" --model_author "{model_author}" --vocoder "{vocoder}" --checkpointing {checkpointing} --deterministic {deterministic} --benchmark {benchmark} --optimizer {optimizer}', shell=True)
     done = [False]
 
     with open(os.path.join(model_dir, "train_pid.txt"), "w") as pid_file:
@@ -1337,7 +1339,8 @@ def training(model_name, rvc_version, save_every_epoch, save_only_latest, save_e
     threading.Thread(target=if_done, args=(done, p)).start()
 
     for log in log_read(os.path.join(model_dir, "train.log"), done):
-        if len(log.split("\n")) > 100: log = log[-100:]
+        lines = log.splitlines()
+        if len(lines) > 100: log = "\n".join(lines[-100:])
         yield log
 
 def stop_pid(pid_file, model_name=None, train=False):
@@ -1532,8 +1535,6 @@ def unlock_ver(value, vocoder):
 def visible_embedders(value):
     return {"visible": value != "spin", "__type__": "update"}
 
-
-
 with gr.Blocks(title="📱 Vietnamese-RVC GUI BY ANH", theme=theme, css="<style> @import url('{fonts}'); * {{font-family: 'Courgette', cursive !important;}} body, html {{font-family: 'Courgette', cursive !important;}} h1, h2, h3, h4, h5, h6, p, button, input, textarea, label, span, div, select {{font-family: 'Courgette', cursive !important;}} </style>".format(fonts=font or "https://fonts.googleapis.com/css2?family=Courgette&display=swap")) as app:
     gr.HTML("<h1 style='text-align: center;'>🎵VIETNAMESE RVC BY ANH🎵</h1>")
     gr.HTML(f"<h3 style='text-align: center;'>{translations['title']}</h3>")
@@ -1581,7 +1582,7 @@ with gr.Blocks(title="📱 Vietnamese-RVC GUI BY ANH", theme=theme, css="<style>
                 with gr.Column():
                     with gr.Row():
                         clean_strength = gr.Slider(label=translations["clean_strength"], info=translations["clean_strength_info"], minimum=0, maximum=1, value=0.5, step=0.1, interactive=True, visible=cleaner.value)
-                        sample_rate1 = gr.Slider(minimum=8000, maximum=96000, step=1, value=44100, label=translations["sr"], info=translations["sr_info"], interactive=True)
+                        sample_rate1 = gr.Radio(choices=sample_rate_choice, value=44100, label=translations["sr"], info=translations["sr_info"], interactive=True)
                     with gr.Accordion(translations["input_output"], open=False):
                         format = gr.Radio(label=translations["export_format"], info=translations["export_info"], choices=["wav", "mp3", "flac", "ogg", "opus", "m4a", "mp4", "aac", "alac", "wma", "aiff", "webm", "ac3"], value="wav", interactive=True)
                         input_audio = gr.Dropdown(label=translations["audio_path"], value="", choices=paths_for_files, allow_custom_value=True, interactive=True)
@@ -1733,7 +1734,7 @@ with gr.Blocks(title="📱 Vietnamese-RVC GUI BY ANH", theme=theme, css="<style>
                                 split_audio = gr.Checkbox(label=translations["split_audio"], value=False, interactive=True)
                                 formant_shifting = gr.Checkbox(label=translations["formantshift"], value=False, interactive=True)
                             f0_autotune_strength = gr.Slider(minimum=0, maximum=1, label=translations["autotune_rate"], info=translations["autotune_rate_info"], value=1, step=0.1, interactive=True, visible=autotune.value)
-                            resample_sr = gr.Slider(minimum=0, maximum=96000, label=translations["resample"], info=translations["resample_info"], value=0, step=1, interactive=True)
+                            resample_sr = gr.Radio(choices=[0]+sample_rate_choice, label=translations["resample"], info=translations["resample_info"], value=0, interactive=True)
                             filter_radius = gr.Slider(minimum=0, maximum=7, label=translations["filter_radius"], info=translations["filter_radius_info"], value=3, step=1, interactive=True)
                             volume_envelope = gr.Slider(minimum=0, maximum=1, label=translations["volume_envelope"], info=translations["volume_envelope_info"], value=1, step=0.1, interactive=True)
                             protect = gr.Slider(minimum=0, maximum=1, label=translations["protect"], info=translations["protect_info"], value=0.5, step=0.01, interactive=True)
@@ -1998,7 +1999,7 @@ with gr.Blocks(title="📱 Vietnamese-RVC GUI BY ANH", theme=theme, css="<style>
                         with gr.Column():      
                             clean_strength3 = gr.Slider(label=translations["clean_strength"], info=translations["clean_strength_info"], minimum=0, maximum=1, value=0.5, step=0.1, interactive=True, visible=cleaner2.value)
                             f0_autotune_strength3 = gr.Slider(minimum=0, maximum=1, label=translations["autotune_rate"], info=translations["autotune_rate_info"], value=1, step=0.1, interactive=True, visible=autotune.value)
-                            resample_sr3 = gr.Slider(minimum=0, maximum=96000, label=translations["resample"], info=translations["resample_info"], value=0, step=1, interactive=True)
+                            resample_sr3 = gr.Radio(choices=[0]+sample_rate_choice, label=translations["resample"], info=translations["resample_info"], value=0, interactive=True)
                             filter_radius3 = gr.Slider(minimum=0, maximum=7, label=translations["filter_radius"], info=translations["filter_radius_info"], value=3, step=1, interactive=True)
                             volume_envelope3 = gr.Slider(minimum=0, maximum=1, label=translations["volume_envelope"], info=translations["volume_envelope_info"], value=1, step=0.1, interactive=True)
                             protect3 = gr.Slider(minimum=0, maximum=1, label=translations["protect"], info=translations["protect_info"], value=0.5, step=0.01, interactive=True)
@@ -2140,7 +2141,7 @@ with gr.Blocks(title="📱 Vietnamese-RVC GUI BY ANH", theme=theme, css="<style>
                         with gr.Column():
                             f0_autotune_strength0 = gr.Slider(minimum=0, maximum=1, label=translations["autotune_rate"], info=translations["autotune_rate_info"], value=1, step=0.1, interactive=True, visible=autotune3.value)
                             clean_strength1 = gr.Slider(label=translations["clean_strength"], info=translations["clean_strength_info"], minimum=0, maximum=1, value=0.5, step=0.1, interactive=True, visible=cleaner1.value)
-                            resample_sr0 = gr.Slider(minimum=0, maximum=96000, label=translations["resample"], info=translations["resample_info"], value=0, step=1, interactive=True)
+                            resample_sr0 = gr.Radio(choices=[0]+sample_rate_choice, label=translations["resample"], info=translations["resample_info"], value=0, interactive=True)
                             filter_radius0 = gr.Slider(minimum=0, maximum=7, label=translations["filter_radius"], info=translations["filter_radius_info"], value=3, step=1, interactive=True)
                             volume_envelope0 = gr.Slider(minimum=0, maximum=1, label=translations["volume_envelope"], info=translations["volume_envelope_info"], value=1, step=0.1, interactive=True)
                             protect0 = gr.Slider(minimum=0, maximum=1, label=translations["protect"], info=translations["protect_info"], value=0.5, step=0.01, interactive=True)
@@ -2257,7 +2258,7 @@ with gr.Blocks(title="📱 Vietnamese-RVC GUI BY ANH", theme=theme, css="<style>
                             src_prompt = gr.Textbox(label=translations["source_prompt"], lines=2, interactive=True, info=translations["source_prompt_info"], placeholder="A recording of a happy upbeat classical music piece")
                         with gr.Row():
                             with gr.Column(): 
-                                audioldm2_sample_rate = gr.Slider(minimum=8000, maximum=96000, label=translations["sr"], info=translations["sr_info"], value=44100, step=1, interactive=True)
+                                audioldm2_sample_rate = gr.Radio(choices=sample_rate_choice, label=translations["sr"], info=translations["sr_info"], value=44100, interactive=True)
                                 t_start = gr.Slider(minimum=15, maximum=85, value=45, step=1, label=translations["t_start"], interactive=True, info=translations["t_start_info"])
                                 steps = gr.Slider(value=50, step=1, minimum=10, maximum=300, label=translations["steps_label"], info=translations["steps_info"], interactive=True)
             with gr.Row():
@@ -2313,6 +2314,9 @@ with gr.Blocks(title="📱 Vietnamese-RVC GUI BY ANH", theme=theme, css="<style>
                         with gr.Column():
                             audio_combination = gr.Checkbox(label=translations["merge_instruments"], value=False, interactive=True)
                             audio_combination_input = gr.Dropdown(label=translations["input_audio"], value="", choices=paths_for_files, info=translations["provide_audio"], interactive=True, allow_custom_value=True, visible=audio_combination.value)
+                    with gr.Row():
+                        main_vol = gr.Slider(minimum=-80, maximum=80, label=translations["main_volume"], info=translations["main_volume_info"], value=-4, step=1, interactive=True, visible=audio_combination.value)
+                        combine_vol = gr.Slider(minimum=-80, maximum=80, label=translations["combination_volume"], info=translations["combination_volume_info"], value=-7, step=1, interactive=True, visible=audio_combination.value)
                     with gr.Row():
                         audio_effects_refesh = gr.Button(translations["refesh"])
                     with gr.Row():
@@ -2371,7 +2375,7 @@ with gr.Blocks(title="📱 Vietnamese-RVC GUI BY ANH", theme=theme, css="<style>
                                     limiter_release_ms = gr.Slider(minimum=10, maximum=1000, step=1, value=100, label=translations["limiter_release_ms"], info=translations["limiter_release_ms_info"], interactive=True)
                             with gr.Column():
                                 pitch_shift_semitones = gr.Slider(minimum=-20, maximum=20, step=1, value=0, label=translations["pitch"], info=translations["pitch_info"], interactive=True)
-                                audio_effect_resample_sr = gr.Slider(minimum=0, maximum=96000, step=1, value=0, label=translations["resample"], info=translations["resample_info"], interactive=True, visible=resample_checkbox.value)
+                                audio_effect_resample_sr = gr.Radio(choices=[0]+sample_rate_choice, value=0, label=translations["resample"], info=translations["resample_info"], interactive=True, visible=resample_checkbox.value)
                                 distortion_drive_db = gr.Slider(minimum=0, maximum=50, step=1, value=20, label=translations["distortion"], info=translations["distortion_info"], interactive=True, visible=distortion_checkbox.value)
                                 gain_db = gr.Slider(minimum=-60, maximum=60, step=1, value=0, label=translations["gain"], info=translations["gain_info"], interactive=True, visible=gain_checkbox.value)
                                 clipping_threashold_db = gr.Slider(minimum=-60, maximum=0, step=1, value=-1, label=translations["clipping_threashold_db"], info=translations["clipping_threashold_db_info"], interactive=True, visible=clipping_checkbox.value)
@@ -2419,6 +2423,7 @@ with gr.Blocks(title="📱 Vietnamese-RVC GUI BY ANH", theme=theme, css="<style>
             with gr.Row():
                 more_options.change(fn=lambda: [False]*8, inputs=[], outputs=[fade, bass_or_treble, limiter, resample_checkbox, distortion_checkbox, gain_checkbox, clipping_checkbox, bitcrush_checkbox])
                 audio_combination.change(fn=visible, inputs=[audio_combination], outputs=[audio_combination_input])
+                audio_combination.change(fn=lambda a: [visible(a)]*2, inputs=[audio_combination], outputs=[main_vol, combine_vol])
             with gr.Row():
                 apply_effects_button.click(
                     fn=audio_effects,
@@ -2477,7 +2482,9 @@ with gr.Blocks(title="📱 Vietnamese-RVC GUI BY ANH", theme=theme, css="<style>
                         bass_or_treble, 
                         fade,
                         audio_combination,
-                        audio_combination_input
+                        audio_combination_input,
+                        main_vol,
+                        combine_vol
                     ],
                     outputs=[audio_play_output],
                     api_name="audio_effects"
@@ -2505,7 +2512,7 @@ with gr.Blocks(title="📱 Vietnamese-RVC GUI BY ANH", theme=theme, css="<style>
                         with gr.Row():
                             kim_vocal_segments_size = gr.Slider(label=translations["segments_size"], info=translations["segments_size_info"], minimum=32, maximum=3072, value=256, step=32, interactive=True)
                         with gr.Row():
-                            sample_rate0 = gr.Slider(minimum=8000, maximum=96000, step=1, value=44100, label=translations["sr"], info=translations["sr_info"], interactive=True)
+                            sample_rate0 = gr.Radio(choices=sample_rate_choice, value=44100, label=translations["sr"], info=translations["sr_info"], interactive=True)
                 with gr.Column():
                     create_button = gr.Button(translations["createdataset"], variant="primary", scale=2, min_width=4000)
                     with gr.Group():
@@ -2604,7 +2611,7 @@ with gr.Blocks(title="📱 Vietnamese-RVC GUI BY ANH", theme=theme, css="<style>
                                 custom_dataset = gr.Checkbox(label=translations["custom_dataset"], info=translations["custom_dataset_info"], value=False, interactive=True)
                                 overtraining_detector = gr.Checkbox(label=translations["overtraining_detector"], info=translations["overtraining_detector_info"], value=False, interactive=True)
                                 clean_up = gr.Checkbox(label=translations["cleanup_training"], info=translations["cleanup_training_info"], value=False, interactive=True)
-                                cache_in_gpu = gr.Checkbox(label=translations["cache_in_gpu"], info=translations["cache_in_gpu_info"], value=False, interactive=True)
+                                cache_in_gpu = gr.Checkbox(label=translations["cache_in_gpu"], info=translations["cache_in_gpu_info"], value=True, interactive=True)
                             with gr.Column():
                                 dataset_path = gr.Textbox(label=translations["dataset_folder"], value="dataset", interactive=True, visible=custom_dataset.value)
                             with gr.Column():
@@ -2625,6 +2632,8 @@ with gr.Blocks(title="📱 Vietnamese-RVC GUI BY ANH", theme=theme, css="<style>
                             with gr.Row():
                                 deterministic = gr.Checkbox(label=translations["deterministic"], info=translations["deterministic_info"], value=False, interactive=True)
                                 benchmark = gr.Checkbox(label=translations["benchmark"], info=translations["benchmark_info"], value=False, interactive=True)
+                            with gr.Row():
+                                optimizer = gr.Radio(label=translations["optimizer"], info=translations["optimizer_info"], value="AdamW", choices=["AdamW", "RAdam"], interactive=True)
                             with gr.Row():
                                 model_author = gr.Textbox(label=translations["training_author"], info=translations["training_author_info"], value="", placeholder=translations["training_author"], interactive=True)
                             with gr.Row():
@@ -2749,7 +2758,8 @@ with gr.Blocks(title="📱 Vietnamese-RVC GUI BY ANH", theme=theme, css="<style>
                         vocoders,
                         checkpointing1,
                         deterministic, 
-                        benchmark
+                        benchmark,
+                        optimizer
                     ],
                     outputs=[training_info],
                     api_name="training_model"

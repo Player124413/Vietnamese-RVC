@@ -21,7 +21,7 @@ from tqdm import tqdm
 from collections import OrderedDict
 from random import randint, shuffle
 from torch.utils.checkpoint import checkpoint
-from torch.cuda.amp import GradScaler, autocast
+from torch.amp import GradScaler, autocast
 from torch.utils.tensorboard import SummaryWriter
 
 from time import time as ttime
@@ -96,12 +96,12 @@ def parse_arguments():
     parser.add_argument("--checkpointing", type=lambda x: bool(strtobool(x)), default=False)
     parser.add_argument("--deterministic", type=lambda x: bool(strtobool(x)), default=False)
     parser.add_argument("--benchmark", type=lambda x: bool(strtobool(x)), default=False)
+    parser.add_argument("--optimizer", type=str, default="AdamW")
 
     return parser.parse_args()
 
 args = parse_arguments()
-model_name, save_every_epoch, total_epoch, pretrainG, pretrainD, version, gpus, batch_size, sample_rate, pitch_guidance, save_only_latest, save_every_weights, cache_data_in_gpu, overtraining_detector, overtraining_threshold, cleanup, model_author, vocoder, checkpointing = args.model_name, args.save_every_epoch, args.total_epoch, args.g_pretrained_path, args.d_pretrained_path, args.rvc_version, args.gpu, args.batch_size, args.sample_rate, args.pitch_guidance, args.save_only_latest, args.save_every_weights, args.cache_data_in_gpu, args.overtraining_detector, args.overtraining_threshold, args.cleanup, args.model_author, args.vocoder, args.checkpointing
-
+model_name, save_every_epoch, total_epoch, pretrainG, pretrainD, version, gpus, batch_size, sample_rate, pitch_guidance, save_only_latest, save_every_weights, cache_data_in_gpu, overtraining_detector, overtraining_threshold, cleanup, model_author, vocoder, checkpointing, optimizer_choice = args.model_name, args.save_every_epoch, args.total_epoch, args.g_pretrained_path, args.d_pretrained_path, args.rvc_version, args.gpu, args.batch_size, args.sample_rate, args.pitch_guidance, args.save_only_latest, args.save_every_weights, args.cache_data_in_gpu, args.overtraining_detector, args.overtraining_threshold, args.cleanup, args.model_author, args.vocoder, args.checkpointing, args.optimizer
 experiment_dir = os.path.join("assets", "logs", model_name)
 training_file_path = os.path.join(experiment_dir, "training_data.json")
 config_save_path = os.path.join(experiment_dir, "config.json")
@@ -110,7 +110,6 @@ torch.backends.cudnn.benchmark = args.benchmark
 lowest_value = {"step": 0, "value": float("inf"), "epoch": 0}
 global_step, last_loss_gen_all, overtrain_save_epoch = 0, 0, 0
 loss_gen_history, smoothed_loss_gen_history, loss_disc_history, smoothed_loss_disc_history = [], [], [], []
-
 with open(config_save_path, "r") as f:
     config = json.load(f)
 
@@ -130,20 +129,20 @@ else:
     logger.addHandler(file_handler)
     logger.setLevel(logging.DEBUG)
 
-log_data = {translations['modelname']: model_name, translations["save_every_epoch"]: save_every_epoch, translations["total_e"]: total_epoch, translations["dorg"].format(pretrainG=pretrainG, pretrainD=pretrainD): "", translations['training_version']: version, "Gpu": gpus, translations['batch_size']: batch_size, translations['pretrain_sr']: sample_rate, translations['training_f0']: pitch_guidance, translations['save_only_latest']: save_only_latest, translations['save_every_weights']: save_every_weights, translations['cache_in_gpu']: cache_data_in_gpu, translations['overtraining_detector']: overtraining_detector, translations['threshold']: overtraining_threshold, translations['cleanup_training']: cleanup, translations['memory_efficient_training']: checkpointing}
-if model_author: log_data[translations["model_author"].format(model_author=model_author)] = ""
-if vocoder != "Default": log_data[translations['vocoder']] = vocoder
-
-for key, value in log_data.items():
-    logger.debug(f"{key}: {value}" if value != "" else f"{key} {value}")
-
 def main():
     global training_file_path, last_loss_gen_all, smoothed_loss_gen_history, loss_gen_history, loss_disc_history, smoothed_loss_disc_history, overtrain_save_epoch, model_author, vocoder, checkpointing, gpus
-    
+
+    log_data = {translations['modelname']: model_name, translations["save_every_epoch"]: save_every_epoch, translations["total_e"]: total_epoch, translations["dorg"].format(pretrainG=pretrainG, pretrainD=pretrainD): "", translations['training_version']: version, "Gpu": gpus, translations['batch_size']: batch_size, translations['pretrain_sr']: sample_rate, translations['training_f0']: pitch_guidance, translations['save_only_latest']: save_only_latest, translations['save_every_weights']: save_every_weights, translations['cache_in_gpu']: cache_data_in_gpu, translations['overtraining_detector']: overtraining_detector, translations['threshold']: overtraining_threshold, translations['cleanup_training']: cleanup, translations['memory_efficient_training']: checkpointing, translations["optimizer"]: optimizer_choice}
+    if model_author: log_data[translations["model_author"].format(model_author=model_author)] = ""
+    if vocoder != "Default": log_data[translations['vocoder']] = vocoder
+
+    for key, value in log_data.items():
+        logger.debug(f"{key}: {value}" if value != "" else f"{key} {value}")
+
     try:
         os.environ["MASTER_ADDR"] = "localhost"
         os.environ["MASTER_PORT"] = str(randint(20000, 55555))
-
+        
         if torch.cuda.is_available():
             device, gpus = torch.device("cuda"), [int(item) for item in gpus.split("-")]
             n_gpus = len(gpus)
@@ -158,7 +157,6 @@ def main():
         def start():
             children = []
             pid_data = {"process_pids": []}
-
             with open(config_save_path, "r") as pid_file:
                 try:
                     pid_data.update(json.load(pid_file))
@@ -258,10 +256,7 @@ def load_checkpoint(checkpoint_path, model, optimizer=None, load_opt=1):
     assert os.path.isfile(checkpoint_path), translations["not_found_checkpoint"].format(checkpoint_path=checkpoint_path)
     checkpoint_dict = replace_keys_in_dict(replace_keys_in_dict(torch.load(checkpoint_path, map_location="cpu"), ".weight_v", ".parametrizations.weight.original1"), ".weight_g", ".parametrizations.weight.original0")
     new_state_dict = {k: checkpoint_dict["model"].get(k, v) for k, v in (model.module.state_dict() if hasattr(model, "module") else model.state_dict()).items()}
-
-    if hasattr(model, "module"): model.module.load_state_dict(new_state_dict, strict=False)
-    else: model.load_state_dict(new_state_dict, strict=False)
-
+    model.module.load_state_dict(new_state_dict, strict=False) if hasattr(model, "module") else model.load_state_dict(new_state_dict, strict=False)
     if optimizer and load_opt == 1: optimizer.load_state_dict(checkpoint_dict.get("optimizer", {}))
     logger.debug(translations["save_checkpoint"].format(checkpoint_path=checkpoint_path, checkpoint_dict=checkpoint_dict['iteration']))
     return (model, optimizer, checkpoint_dict.get("learning_rate", 0), checkpoint_dict["iteration"])
@@ -293,7 +288,6 @@ def feature_loss(fmap_r, fmap_g):
 def discriminator_loss(disc_real_outputs, disc_generated_outputs):
     loss = 0
     r_losses, g_losses = [], []
-
     for dr, dg in zip(disc_real_outputs, disc_generated_outputs):
         dr = dr.float()
         dg = dg.float()
@@ -307,7 +301,6 @@ def discriminator_loss(disc_real_outputs, disc_generated_outputs):
 def generator_loss(disc_outputs):
     loss = 0
     gen_losses = []
-
     for dg in disc_outputs:
         l = torch.mean((1 - dg.float()) ** 2)
         gen_losses.append(l)
@@ -361,7 +354,6 @@ class TextAudioLoaderMultiNSFsid(tdata.Dataset):
         dv = self.get_sid(audiopath_and_text[4])
         len_phone = phone.size()[0]
         len_spec = spec.size()[-1]
-
         if len_phone != len_spec:
             len_min = min(len_phone, len_spec)
             len_wav = len_min * self.hop_length
@@ -379,7 +371,6 @@ class TextAudioLoaderMultiNSFsid(tdata.Dataset):
         if sample_rate != self.sample_rate: raise ValueError(translations["sr_does_not_match"].format(sample_rate=sample_rate, sample_rate2=self.sample_rate))
         audio_norm = audio.unsqueeze(0)
         spec_filename = filename.replace(".wav", ".spec.pt")
-
         if os.path.exists(spec_filename):
             try:
                 spec = torch.load(spec_filename)
@@ -415,7 +406,6 @@ class TextAudioCollateMultiNSFsid:
         pitch_padded.zero_()
         pitchf_padded.zero_()
         sid = torch.LongTensor(len(batch))
-
         for i in range(len(ids_sorted_decreasing)):
             row = batch[ids_sorted_decreasing[i]]
             spec = row[0]
@@ -473,7 +463,6 @@ class TextAudioLoader(tdata.Dataset):
         dv = self.get_sid(audiopath_and_text[2])
         len_phone = phone.size()[0]
         len_spec = spec.size()[-1]
-
         if len_phone != len_spec:
             len_min = min(len_phone, len_spec)
             len_wav = len_min * self.hop_length
@@ -491,7 +480,6 @@ class TextAudioLoader(tdata.Dataset):
         if sample_rate != self.sample_rate: raise ValueError(translations["sr_does_not_match"].format(sample_rate=sample_rate, sample_rate2=self.sample_rate))
         audio_norm = audio.unsqueeze(0)
         spec_filename = filename.replace(".wav", ".spec.pt")
-
         if os.path.exists(spec_filename):
             try:
                 spec = torch.load(spec_filename)
@@ -583,7 +571,6 @@ class DistributedBucketSampler(tdata.distributed.DistributedSampler):
             ids_bucket = indices[i]
             rem = self.num_samples_per_bucket[i] - len_bucket
             ids_bucket = (ids_bucket + ids_bucket * (rem // len_bucket) + ids_bucket[: (rem % len_bucket)])[self.rank :: self.num_replicas]
-
             for j in range(len(ids_bucket) // self.batch_size):
                 batches.append([bucket[idx] for idx in ids_bucket[j * self.batch_size : (j + 1) * self.batch_size]])
 
@@ -594,7 +581,6 @@ class DistributedBucketSampler(tdata.distributed.DistributedSampler):
 
     def _bisect(self, x, lo=0, hi=None):
         if hi is None: hi = len(self.boundaries) - 1
-
         if hi > lo:
             mid = (hi + lo) // 2
             if self.boundaries[mid] < x and x <= self.boundaries[mid + 1]: return mid
@@ -661,7 +647,6 @@ class DiscriminatorP(torch.nn.Module):
     def forward(self, x):
         fmap = []
         b, c, t = x.shape
-
         if t % self.period != 0: x = F.pad(x, (0, (self.period - (t % self.period))), "reflect")
         x = x.view(b, c, -1, self.period)
 
@@ -725,7 +710,6 @@ def extract_model(ckpt, sr, pitch_guidance, name, model_path, epoch, step, versi
     try:
         logger.info(translations["savemodel"].format(model_dir=model_path, epoch=epoch, step=step))
         os.makedirs(os.path.dirname(model_path), exist_ok=True)
-
         opt = OrderedDict(weight={key: value.half() for key, value in ckpt.items() if "enc_q" not in key})
         opt["config"] = [hps.data.filter_length // 2 + 1, 32, hps.model.inter_channels, hps.model.hidden_channels, hps.model.filter_channels, hps.model.n_heads, hps.model.n_layers, hps.model.kernel_size, hps.model.p_dropout, hps.model.resblock, hps.model.resblock_kernel_sizes, hps.model.resblock_dilation_sizes, hps.model.upsample_rates, hps.model.upsample_initial_channel, hps.model.upsample_kernel_sizes, hps.model.spk_embed_dim, hps.model.gin_channels, hps.data.sample_rate]
         opt["epoch"] = f"{epoch}epoch"
@@ -738,16 +722,12 @@ def extract_model(ckpt, sr, pitch_guidance, name, model_path, epoch, step, versi
         opt["model_name"] = name
         opt["author"] = model_author
         opt["vocoder"] = vocoder
-
         torch.save(replace_keys_in_dict(replace_keys_in_dict(opt, ".parametrizations.weight.original1", ".weight_v"), ".parametrizations.weight.original0", ".weight_g"), model_path)
     except Exception as e:
         logger.error(f"{translations['extract_model_error']}: {e}")
 
 def run(rank, n_gpus, experiment_dir, pretrainG, pretrainD, pitch_guidance, custom_total_epoch, custom_save_every_weights, config, device, device_id, model_author, vocoder, checkpointing):
-    global global_step
-
-    if rank == 0: writer_eval = SummaryWriter(log_dir=os.path.join(experiment_dir, "eval"))
-    else: writer_eval = None
+    global global_step, optimizer_choice
 
     try:
         dist.init_process_group(backend=("gloo" if sys.platform == "win32" or device.type != "cuda" else "nccl"), init_method="env://", world_size=n_gpus, rank=rank)
@@ -757,13 +737,13 @@ def run(rank, n_gpus, experiment_dir, pretrainG, pretrainD, pitch_guidance, cust
     torch.manual_seed(config.train.seed)
     if torch.cuda.is_available(): torch.cuda.set_device(device_id)
 
+    writer_eval = SummaryWriter(log_dir=os.path.join(experiment_dir, "eval")) if rank == 0 else None
     train_dataset = TextAudioLoaderMultiNSFsid(config.data) if pitch_guidance else TextAudioLoader(config.data)
     train_loader = tdata.DataLoader(train_dataset, num_workers=4, shuffle=False, pin_memory=True, collate_fn=TextAudioCollateMultiNSFsid() if pitch_guidance else TextAudioCollate(), batch_sampler=DistributedBucketSampler(train_dataset, batch_size * n_gpus, [100, 200, 300, 400, 500, 600, 700, 800, 900], num_replicas=n_gpus, rank=rank, shuffle=True), persistent_workers=True, prefetch_factor=8)
-
     net_g, net_d = Synthesizer(config.data.filter_length // 2 + 1, config.train.segment_size // config.data.hop_length, **config.model, use_f0=pitch_guidance, sr=sample_rate, vocoder=vocoder, checkpointing=checkpointing), MultiPeriodDiscriminator(version, config.model.use_spectral_norm, checkpointing=checkpointing)
     net_g, net_d = (net_g.cuda(device_id), net_d.cuda(device_id)) if torch.cuda.is_available() else (net_g.to(device), net_d.to(device))
-
-    optim_g, optim_d = torch.optim.AdamW(net_g.parameters(), config.train.learning_rate, betas=config.train.betas, eps=config.train.eps), torch.optim.AdamW(net_d.parameters(), config.train.learning_rate, betas=config.train.betas, eps=config.train.eps)
+    optimizer_optim = torch.optim.AdamW if optimizer_choice == "AdamW" else torch.optim.RAdam
+    optim_g, optim_d = optimizer_optim(net_g.parameters(), config.train.learning_rate, betas=config.train.betas, eps=config.train.eps), optimizer_optim(net_d.parameters(), config.train.learning_rate, betas=config.train.betas, eps=config.train.eps)
     net_g, net_d = (DDP(net_g, device_ids=[device_id]), DDP(net_d, device_ids=[device_id])) if torch.cuda.is_available() else (DDP(net_g), DDP(net_d))
 
     try:
@@ -779,24 +759,19 @@ def run(rank, n_gpus, experiment_dir, pretrainG, pretrainD, pitch_guidance, cust
             if rank == 0:
                 verify_checkpoint_shapes(pretrainG, net_g)
                 logger.info(translations["import_pretrain"].format(dg="G", pretrain=pretrainG))
-
-            if hasattr(net_g, "module"): net_g.module.load_state_dict(torch.load(pretrainG, map_location="cpu")["model"])
-            else: net_g.load_state_dict(torch.load(pretrainG, map_location="cpu")["model"])
+            net_g.module.load_state_dict(torch.load(pretrainG, map_location="cpu")["model"]) if hasattr(net_g, "module") else net_g.load_state_dict(torch.load(pretrainG, map_location="cpu")["model"])
         else: logger.warning(translations["not_using_pretrain"].format(dg="G"))
 
         if pretrainD != "" and pretrainD != "None":
             if rank == 0:
                 verify_checkpoint_shapes(pretrainD, net_d)
                 logger.info(translations["import_pretrain"].format(dg="D", pretrain=pretrainD))
-
-            if hasattr(net_d, "module"): net_d.module.load_state_dict(torch.load(pretrainD, map_location="cpu")["model"])
-            else: net_d.load_state_dict(torch.load(pretrainD, map_location="cpu")["model"])
+            net_d.module.load_state_dict(torch.load(pretrainD, map_location="cpu")["model"]) if hasattr(net_d, "module") else net_d.load_state_dict(torch.load(pretrainD, map_location="cpu")["model"])
         else: logger.warning(translations["not_using_pretrain"].format(dg="D"))
 
     scheduler_g, scheduler_d = torch.optim.lr_scheduler.ExponentialLR(optim_g, gamma=config.train.lr_decay, last_epoch=epoch_str - 2), torch.optim.lr_scheduler.ExponentialLR(optim_d, gamma=config.train.lr_decay, last_epoch=epoch_str - 2)
-    optim_d.step(); optim_g.step()
-
     scaler = GradScaler(enabled=main_config.is_half and device.type == "cuda")
+    optim_g.step(); optim_d.step()
     cache = []
 
     for info in train_loader:
@@ -818,7 +793,6 @@ def train_and_evaluate(rank, epoch, hps, nets, optims, scaler, train_loader, wri
     net_g, net_d = nets
     optim_g, optim_d = optims
     train_loader.batch_sampler.set_epoch(epoch)
-
     net_g.train(); net_d.train()
 
     if device.type == "cuda" and cache_data_in_gpu:
@@ -830,27 +804,25 @@ def train_and_evaluate(rank, epoch, hps, nets, optims, scaler, train_loader, wri
     else: data_iterator = enumerate(train_loader)
 
     epoch_recorder = EpochRecorder()
+    autocast_enabled = main_config.is_half and device.type == "cuda"
     with tqdm(total=len(train_loader), leave=False) as pbar:
         for batch_idx, info in data_iterator:
             if device.type == "cuda" and not cache_data_in_gpu: info = [tensor.cuda(device_id, non_blocking=True) for tensor in info]
             elif device.type != "cuda": info = [tensor.to(device) for tensor in info]
-
             phone, phone_lengths, pitch, pitchf, spec, spec_lengths, wave, _, sid = info
             pitch = pitch if pitch_guidance else None
             pitchf = pitchf if pitch_guidance else None
 
-            with autocast(enabled=main_config.is_half and device.type == "cuda"):
+            with autocast(device.type, enabled=autocast_enabled):
                 y_hat, ids_slice, _, z_mask, (_, z_p, m_p, logs_p, _, logs_q) = net_g(phone, phone_lengths, pitch, pitchf, spec, spec_lengths, sid)
                 mel = spec_to_mel_torch(spec, config.data.filter_length, config.data.n_mel_channels, config.data.sample_rate, config.data.mel_fmin, config.data.mel_fmax)
                 y_mel = slice_segments(mel, ids_slice, config.train.segment_size // config.data.hop_length, dim=3)
-
-                with autocast(enabled=main_config.is_half and device.type == "cuda"):
+                with autocast(device.type, enabled=autocast_enabled):
                     y_hat_mel = mel_spectrogram_torch(y_hat.float().squeeze(1), config.data.filter_length, config.data.n_mel_channels, config.data.sample_rate, config.data.hop_length, config.data.win_length, config.data.mel_fmin, config.data.mel_fmax)
-
+                
                 wave = slice_segments(wave, ids_slice * config.data.hop_length, config.train.segment_size, dim=3)
                 y_d_hat_r, y_d_hat_g, _, _ = net_d(wave, y_hat.detach())
-
-                with autocast(enabled=main_config.is_half and device.type == "cuda"):
+                with autocast(device.type, enabled=autocast_enabled):
                     loss_disc, losses_disc_r, losses_disc_g = discriminator_loss(y_d_hat_r, y_d_hat_g)
 
             optim_d.zero_grad()
@@ -859,19 +831,15 @@ def train_and_evaluate(rank, epoch, hps, nets, optims, scaler, train_loader, wri
             grad_norm_d = clip_grad_value(net_d.parameters(), None)
             scaler.step(optim_d)
 
-            with autocast(enabled=main_config.is_half and device.type == "cuda"):
+            with autocast(device.type, enabled=autocast_enabled):
                 y_d_hat_r, y_d_hat_g, fmap_r, fmap_g = net_d(wave, y_hat)
-                with autocast(enabled=main_config.is_half and device.type == "cuda"):
+                with autocast(device.type, enabled=autocast_enabled):     
                     loss_mel = F.l1_loss(y_mel, y_hat_mel) * config.train.c_mel
                     loss_kl = (kl_loss(z_p, logs_q, m_p, logs_p, z_mask) * config.train.c_kl)
                     loss_fm = feature_loss(fmap_r, fmap_g)
                     loss_gen, losses_gen = generator_loss(y_d_hat_g)
                     loss_gen_all = loss_gen + loss_fm + loss_mel + loss_kl
-                    if loss_gen_all < lowest_value["value"]:
-                        lowest_value["value"] = loss_gen_all
-                        lowest_value["step"] = global_step
-                        lowest_value["epoch"] = epoch
-                        if epoch > lowest_value["epoch"]: logger.warning(translations["training_warning"])
+                    if loss_gen_all < lowest_value["value"]: lowest_value = {"step": global_step, "value": loss_gen_all, "epoch": epoch}
 
             optim_g.zero_grad()
             scaler.scale(loss_gen_all).backward()
@@ -925,20 +893,15 @@ def train_and_evaluate(rank, epoch, hps, nets, optims, scaler, train_loader, wri
 
         if overtraining_detector and epoch > 1:
             current_loss_disc = float(loss_disc)
-            loss_disc_history.append(current_loss_disc)
-            smoothed_value_disc = update_exponential_moving_average(smoothed_loss_disc_history, current_loss_disc)
-            is_overtraining_disc = check_overtraining(smoothed_loss_disc_history, overtraining_threshold * 2)
-
-            if is_overtraining_disc: consecutive_increases_disc += 1
-            else: consecutive_increases_disc = 0
-
             current_loss_gen = float(lowest_value["value"])
+            loss_disc_history.append(current_loss_disc)
             loss_gen_history.append(current_loss_gen)
+            smoothed_value_disc = update_exponential_moving_average(smoothed_loss_disc_history, current_loss_disc)
             smoothed_value_gen = update_exponential_moving_average(smoothed_loss_gen_history, current_loss_gen)
+            is_overtraining_disc = check_overtraining(smoothed_loss_disc_history, overtraining_threshold * 2)
             is_overtraining_gen = check_overtraining(smoothed_loss_gen_history, overtraining_threshold, 0.01)
-
-            if is_overtraining_gen: consecutive_increases_gen += 1
-            else: consecutive_increases_gen = 0
+            consecutive_increases_disc = (consecutive_increases_disc + 1) if is_overtraining_disc else 0
+            consecutive_increases_gen = (consecutive_increases_gen + 1) if is_overtraining_gen else 0
 
             if epoch % save_every_epoch == 0: save_to_json(training_file_path, loss_disc_history, smoothed_loss_disc_history, loss_gen_history, smoothed_loss_gen_history)
 
@@ -955,7 +918,6 @@ def train_and_evaluate(rank, epoch, hps, nets, optims, scaler, train_loader, wri
         if epoch >= custom_total_epoch:
             logger.info(translations["success_training"].format(epoch=epoch, global_step=global_step, loss_gen_all=round(loss_gen_all.item(), 3)))
             logger.info(translations["training_info"].format(lowest_value_rounded=round(float(lowest_value["value"]), 3), lowest_value_epoch=lowest_value['epoch'], lowest_value_step=lowest_value['step']))
-
             pid_file_path = os.path.join(experiment_dir, "config.json")
             with open(pid_file_path, "r") as pid_file:
                 pid_data = json.load(pid_file)
@@ -977,11 +939,9 @@ def train_and_evaluate(rank, epoch, hps, nets, optims, scaler, train_loader, wri
                 extract_model(ckpt=ckpt, sr=sample_rate, pitch_guidance=pitch_guidance == True, name=model_name, model_path=m, epoch=epoch, step=global_step, version=version, hps=hps, model_author=model_author, vocoder=vocoder)
 
         lowest_value_rounded = round(float(lowest_value["value"]), 3)
-
         if epoch > 1 and overtraining_detector: logger.info(translations["model_training_info"].format(model_name=model_name, epoch=epoch, global_step=global_step, epoch_recorder=epoch_recorder.record(), lowest_value_rounded=lowest_value_rounded, lowest_value_epoch=lowest_value['epoch'], lowest_value_step=lowest_value['step'], remaining_epochs_gen=(overtraining_threshold - consecutive_increases_gen), remaining_epochs_disc=((overtraining_threshold * 2) - consecutive_increases_disc), smoothed_value_gen=f"{smoothed_value_gen:.3f}", smoothed_value_disc=f"{smoothed_value_disc:.3f}"))
         elif epoch > 1 and overtraining_detector == False: logger.info(translations["model_training_info_2"].format(model_name=model_name, epoch=epoch, global_step=global_step, epoch_recorder=epoch_recorder.record(), lowest_value_rounded=lowest_value_rounded, lowest_value_epoch=lowest_value['epoch'], lowest_value_step=lowest_value['step']))
         else: logger.info(translations["model_training_info_3"].format(model_name=model_name, epoch=epoch, global_step=global_step, epoch_recorder=epoch_recorder.record()))
-
         last_loss_gen_all = loss_gen_all
         if done: os._exit(0)
 

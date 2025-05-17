@@ -24,10 +24,9 @@ logger = logging.getLogger(__name__)
 for l in ["numba.core.byteflow", "numba.core.ssa", "numba.core.interpreter"]:
     logging.getLogger(l).setLevel(logging.ERROR)
 
-OVERLAP, MAX_AMPLITUDE, ALPHA, HIGH_PASS_CUTOFF, SAMPLE_RATE_16K = 0.3, 0.9, 0.75, 48, 16000
-
 config = Config()
 translations = config.translations
+OVERLAP, MAX_AMPLITUDE, ALPHA, HIGH_PASS_CUTOFF, SAMPLE_RATE_16K = 0.3, 0.9, 0.75, 48, 16000
 
 def parse_arguments():
     parser = argparse.ArgumentParser()
@@ -56,7 +55,6 @@ class Slicer:
 
     def _apply_slice(self, waveform, begin, end):
         start_idx = begin * self.hop_size
-
         if len(waveform.shape) > 1: return waveform[:, start_idx:min(waveform.shape[1], end * self.hop_size)]
         else: return waveform[start_idx:min(waveform.shape[0], end * self.hop_size)]
 
@@ -73,10 +71,8 @@ class Slicer:
                 continue
 
             if silence_start is None: continue
-
             is_leading_silence = silence_start == 0 and i > self.max_sil_kept
             need_slice_middle = (i - silence_start >= self.min_interval and i - clip_start >= self.min_length)
-
             if not is_leading_silence and not need_slice_middle:
                 silence_start = None
                 continue
@@ -89,7 +85,6 @@ class Slicer:
                 pos = rms_list[i - self.max_sil_kept : silence_start + self.max_sil_kept + 1].argmin()
                 pos += i - self.max_sil_kept
                 pos_r = (rms_list[i - self.max_sil_kept : i + 1].argmin() + i - self.max_sil_kept)
-
                 if silence_start == 0:
                     sil_tags.append((0, pos_r))
                     clip_start = pos_r
@@ -155,7 +150,6 @@ class PreProcess:
     def process_audio(self, path, idx0, sid, cut_preprocess, process_effects, clean_dataset, clean_strength):
         try:
             audio = load_audio(logger, path, self.sr)
-
             if process_effects: 
                 audio = signal.lfilter(self.b_high, self.a_high, audio)
                 audio = self._normalize_audio(audio)
@@ -199,7 +193,6 @@ def preprocess_training_set(input_root, sr, num_processes, exp_dir, per, cut_pre
     for root, _, filenames in os.walk(input_root):
         try:
             sid = 0 if root == input_root else int(os.path.basename(root))
-
             for f in filenames:
                 if f.lower().endswith(("wav", "mp3", "flac", "ogg", "opus", "m4a", "mp4", "aac", "alac", "wma", "aiff", "webm", "ac3")):
                     files.append((os.path.join(root, f), idx, sid))
@@ -216,7 +209,6 @@ def preprocess_training_set(input_root, sr, num_processes, exp_dir, per, cut_pre
                 except Exception as e:
                     raise RuntimeError(f"{translations['process_error']}: {e}")
                 pbar.update(1)
-                logger.debug(pbar.format_meter(pbar.n, pbar.total, pbar.format_dict["elapsed"]))
 
     elapsed_time = time.time() - start_time
     logger.info(translations["preprocess_success"].format(elapsed_time=f"{elapsed_time:.2f}"))
@@ -224,11 +216,9 @@ def preprocess_training_set(input_root, sr, num_processes, exp_dir, per, cut_pre
 def main():
     args = parse_arguments()
     experiment_directory = os.path.join("assets", "logs", args.model_name)
-
     num_processes = args.cpu_cores
     num_processes = 2 if num_processes is None else int(num_processes)
     dataset, sample_rate, cut_preprocess, preprocess_effects, clean_dataset, clean_strength = args.dataset_path, args.sample_rate, args.cut_preprocess, args.process_effects, args.clean_dataset, args.clean_strength
-
     os.makedirs(experiment_directory, exist_ok=True)
     
     if logger.hasHandlers(): logger.handlers.clear()

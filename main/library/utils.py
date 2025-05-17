@@ -20,7 +20,6 @@ for l in ["httpx", "httpcore"]:
 
 translations = Config().translations
 
-
 def check_predictors(method, f0_onnx=False):
     if f0_onnx and method not in ["harvest", "dio"]: method += "-onnx"
 
@@ -111,13 +110,7 @@ def load_audio(logger, file, sample_rate=16000, formant_shifting=False, formant_
     
     return audio.flatten()
 
-def pydub_convert(audio):
-    samples = np.frombuffer(audio.raw_data, dtype=np.int16)
-    if samples.dtype != np.int16: samples = (samples * 32767).astype(np.int16)
-
-    return AudioSegment(samples.tobytes(), frame_rate=audio.frame_rate, sample_width=samples.dtype.itemsize, channels=audio.channels)
-
-def pydub_load(input_path):
+def pydub_load(input_path, volume = None):
     try:
         if input_path.endswith(".wav"): audio = AudioSegment.from_wav(input_path)
         elif input_path.endswith(".mp3"): audio = AudioSegment.from_mp3(input_path)
@@ -126,7 +119,7 @@ def pydub_load(input_path):
     except:
         audio = AudioSegment.from_file(input_path)
         
-    return audio
+    return audio if volume is None else audio + volume
 
 def load_embedders_model(embedder_model, embedders_mode="fairseq", providers=None):
     if embedders_mode == "fairseq": embedder_model += ".pt"
@@ -140,17 +133,14 @@ def load_embedders_model(embedder_model, embedders_mode="fairseq", providers=Non
         if embedders_mode == "fairseq":
             from main.library.architectures import fairseq
 
-            models, saved_cfg, _ = fairseq.load_model(embedder_model_path)
-            
             embed_suffix = ".pt"
-            hubert_model = models[0]
+            hubert_model = fairseq.load_model(embedder_model_path)
         elif embedders_mode == "onnx":
             import onnxruntime
 
             sess_options = onnxruntime.SessionOptions()
             sess_options.log_severity_level = 3
-
-            embed_suffix, saved_cfg = ".onnx", None
+            embed_suffix = ".onnx"
             hubert_model = onnxruntime.InferenceSession(embedder_model_path, sess_options=sess_options, providers=providers)
         elif embedders_mode == "transformers":
             from torch import nn
@@ -161,13 +151,13 @@ def load_embedders_model(embedder_model, embedders_mode="fairseq", providers=Non
                     super().__init__(config)
                     self.final_proj = nn.Linear(config.hidden_size, config.classifier_proj_size)
                     
-            embed_suffix, saved_cfg = ".safetensors", None
+            embed_suffix = ".safetensors"
             hubert_model = HubertModelWithFinalProj.from_pretrained(embedder_model_path)
         else: raise ValueError(translations["option_not_valid"])
     except Exception as e:
         raise RuntimeError(translations["read_model_error"].format(e=e))
 
-    return hubert_model, saved_cfg, embed_suffix
+    return hubert_model, embed_suffix
 
 def cut(audio, sr, db_thresh=-60, min_interval=250):
     from main.inference.preprocess import Slicer, get_rms

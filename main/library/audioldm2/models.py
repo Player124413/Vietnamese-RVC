@@ -257,7 +257,7 @@ class AudioLDM2(Pipeline):
         if not torch.is_tensor(timesteps):
             is_mps = sample.device.type == "mps"
 
-            dtype = (torch.float16 if is_mps else torch.float32) if isinstance(timestep, float) else (torch.int16 if is_mps else torch.int32)
+            dtype = (torch.float32 if is_mps else torch.float64) if isinstance(timestep, float) else (torch.int32 if is_mps else torch.int64)
 
             timesteps = torch.tensor([timesteps], dtype=dtype, device=sample.device)
         elif len(timesteps.shape) == 0: timesteps = timesteps[None].to(sample.device)

@@ -12,7 +12,6 @@ class ConvBlockRes(nn.Module):
     def __init__(self, in_channels, out_channels, momentum=0.01):
         super(ConvBlockRes, self).__init__()
         self.conv = nn.Sequential(nn.Conv2d(in_channels=in_channels, out_channels=out_channels, kernel_size=(3, 3), stride=(1, 1), padding=(1, 1), bias=False), nn.BatchNorm2d(out_channels, momentum=momentum), nn.ReLU(), nn.Conv2d(in_channels=out_channels, out_channels=out_channels, kernel_size=(3, 3), stride=(1, 1), padding=(1, 1), bias=False), nn.BatchNorm2d(out_channels, momentum=momentum), nn.ReLU())
-
         if in_channels != out_channels:
             self.shortcut = nn.Conv2d(in_channels, out_channels, (1, 1))
             self.is_shortcut = True
@@ -164,14 +163,12 @@ class MelSpectrogram(torch.nn.Module):
         win_length_new = int(np.round(self.win_length * factor))
         keyshift_key = str(keyshift) + "_" + str(audio.device)
         if keyshift_key not in self.hann_window: self.hann_window[keyshift_key] = torch.hann_window(win_length_new).to(audio.device)
-
         fft = torch.stft(audio, n_fft=int(np.round(self.n_fft * factor)), hop_length=int(np.round(self.hop_length * speed)), win_length=win_length_new, window=self.hann_window[keyshift_key], center=center, return_complex=True)
         magnitude = torch.sqrt(fft.real.pow(2) + fft.imag.pow(2))
 
         if keyshift != 0:
             size = self.n_fft // 2 + 1
             resize = magnitude.size(1)
-
             if resize < size: magnitude = F.pad(magnitude, (0, 0, 0, size - resize))
             magnitude = magnitude[:, :size, :] * self.win_length / win_length_new
 
@@ -190,7 +187,6 @@ class RMVPE:
 
             sess_options = ort.SessionOptions()
             sess_options.log_severity_level = 3
-
             self.model = ort.InferenceSession(model_path, sess_options=sess_options, providers=providers)
         else:
             model = E2E(4, 1, (2, 2))
@@ -257,4 +253,8 @@ class BiGRU(nn.Module):
         self.gru = nn.GRU(input_features, hidden_features, num_layers=num_layers, batch_first=True, bidirectional=True)
 
     def forward(self, x):
-        return self.gru(x)[0]
+        try:
+            return self.gru(x)[0]
+        except:
+            torch.backends.cudnn.enabled = False
+            return self.gru(x)[0]

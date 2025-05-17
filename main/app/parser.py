@@ -89,6 +89,8 @@ elif argv_is_allows[9] in argv:
         16. Kết hợp âm thanh:
             - `--audio_combination`: Bật/tắt ghép nhiều tệp âm thanh.
             - `--audio_combination_input`: Đường dẫn tệp âm thanh bổ sung.
+            - `--main_volume`: Âm lượng của âm thanh chính.
+            - `--combination_volume`:: Âm lượng của âm thanh cần kết hợp.
     """)
     quit()
 elif argv_is_allows[10] in argv:
@@ -312,6 +314,7 @@ elif argv_is_allows[17] in argv:
             - `--checkpointing` (mặc định: `False`): Bật/tắt checkpointing để tiết kiệm RAM.
             - `--deterministic` (mặc định: `False`): Khi bật sẽ sử dụng các thuật toán có tính xác định cao, đảm bảo rằng mỗi lần chạy cùng một dữ liệu đầu vào sẽ cho kết quả giống nhau.
             - `--benchmark` (mặc định: `False`): Khi bật sẽ thử nghiệm và chọn thuật toán tối ưu nhất cho phần cứng và kích thước cụ thể.
+            - `--optimizer` (mặc định: `AdamW`): Trình tối ưu hóa được sử dụng (`AdamW`, `RAdam`).
     """)
     quit()
 elif argv_is_allows[18] in argv:
@@ -328,13 +331,10 @@ elif argv_is_allows[18] in argv:
     """)
     quit()
 
-
 if __name__ == "__main__":
-    if "--train" in argv:
-        import torch.multiprocessing as mp
-        mp.set_start_method("spawn")
-        
-    try:
-        main()
-    except:
-        pass
+    import torch.multiprocessing as mp
+
+    if "--train" in argv: mp.set_start_method("spawn")
+    if "--preprocess" in argv or "--extract" in argv: mp.set_start_method("spawn", force=True)
+
+    main()

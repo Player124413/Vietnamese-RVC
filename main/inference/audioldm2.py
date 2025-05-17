@@ -110,7 +110,7 @@ def sample(output_audio, sr, ldm_stable, zs, wts, extra_info, prompt_tar, tstart
     audio = audio.float().squeeze().cpu().numpy()
     orig_sr = 16000
 
-    if sr != 16000 and sr > 0: 
+    if orig_sr != sr and sr > 0: 
         audio = librosa.resample(audio, orig_sr=orig_sr, target_sr=sr, res_type="soxr_vhq")
         orig_sr = sr
 

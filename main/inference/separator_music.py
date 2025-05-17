@@ -13,7 +13,7 @@ sys.path.append(os.getcwd())
 
 from main.configs.config import Config
 from main.library.algorithm.separator import Separator
-from main.library.utils import pydub_convert, pydub_load
+from main.library.utils import pydub_load
 
 config = Config()
 translations = config.translations 
@@ -169,7 +169,7 @@ def separator_music_demucs(input, output, format, shifts, overlap, segments_size
         elif '_(Other)_' in f: other = path
         elif '_(Vocals)_' in f: os.rename(path, os.path.join(output, f"Original_Vocals.{format}"))
 
-    pydub_convert(pydub_load(drums)).overlay(pydub_convert(pydub_load(bass))).overlay(pydub_convert(pydub_load(other))).export(os.path.join(output, f"Instruments.{format}"), format=format)
+    pydub_load(drums).overlay(pydub_load(bass)).overlay(pydub_load(other)).export(os.path.join(output, f"Instruments.{format}"), format=format)
 
     for f in [drums, bass, other]:
         if os.path.exists(f): os.remove(f)

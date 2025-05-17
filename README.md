@@ -126,22 +126,7 @@ Vietnamese-RVC-main
 │   │   ├── en-US.json
 │   │   └── vi-VN.json
 │   ├── logs
-│   │   ├── mute
-│   │   │   ├── f0
-│   │   │   │   └── mute.wav.npy
-│   │   │   ├── f0_voiced
-│   │   │   │   └── mute.wav.npy
-│   │   │   ├── sliced_audios
-│   │   │   │   ├── mute32000.wav
-│   │   │   │   ├── mute40000.wav
-│   │   │   │   └── mute48000.wav
-│   │   │   ├── sliced_audios_16k
-│   │   │   │   └── mute.wav
-│   │   │   ├── v1_extracted
-│   │   │   │   └── mute.npy
-│   │   │   └── v2_extracted
-│   │   │       └── mute.npy
-│   │   └── mute_spin
+│   │   └── mute
 │   │       ├── f0
 │   │       │   └── mute.wav.npy
 │   │       ├── f0_voiced
@@ -153,9 +138,11 @@ Vietnamese-RVC-main
 │   │       ├── sliced_audios_16k
 │   │       │   └── mute.wav
 │   │       ├── v1_extracted
-│   │       │   └── mute.npy
-│   │       └── v2_extracted
-│   │           └── mute.npy
+│   │       │   ├── mute.npy
+│   │       │   └── mute_spin.npy
+│   │       └── v2_extracted_spin
+│   │           ├── mute.npy
+│   │           └── mute_spin.npy
 │   ├── models
 │   │   ├── audioldm2
 │   │   ├── embedders
@@ -221,6 +208,7 @@ Vietnamese-RVC-main
 │   │   ├── predictors
 │   │   │   ├── CREPE.py
 │   │   │   ├── FCPE.py
+│   │   │   ├── Generator.py
 │   │   │   ├── RMVPE.py
 │   │   │   ├── SWIPE.py
 │   │   │   └── WORLD_WRAPPER.py
