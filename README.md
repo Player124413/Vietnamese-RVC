@@ -258,7 +258,8 @@ Vietnamese-RVC-main
 - **Dự án này chỉ hỗ trợ trên gpu của NVIDIA (Có thể sẽ hỗ trợ AMD sau nếu tôi có gpu AMD để thử)**
 - **Hiện tại các bộ mã hóa mới như MRF HIFIGAN vẫn chưa đầy đủ các bộ huấn luyện trước**
 - **Bộ mã hóa MRF HIFIGAN và REFINEGAN không hỗ trợ huấn luyện khi không không huấn luyện cao độ**
-
+- **Các mô hình trong kho lưu trữ Vietnamese-RVC được thu thập rải rác trên AI Hub, HuggingFace và các các kho lưu trữ khác. Có thể mang các giấy phép bản quyền khác nhau**
+ 
 # Điều khoản sử dụng
 
 - Bạn phải đảm bảo rằng các nội dung âm thanh bạn tải lên và chuyển đổi qua dự án này không vi phạm quyền sở hữu trí tuệ của bên thứ ba.
@@ -271,26 +272,28 @@ Vietnamese-RVC-main
 
 # Dự án này được xây dựng dựa trên các dự án như sau
 
-- **[Applio](https://github.com/IAHispano/Applio/tree/main)** - IAHispano - MIT License
-- **[Python-audio-separator](https://github.com/nomadkaraoke/python-audio-separator/tree/main)** - Nomad Karaoke - MIT License
-- **[Retrieval-based-Voice-Conversion-WebUI](https://github.com/RVC-Project/Retrieval-based-Voice-Conversion-WebUI/tree/main)** - RVC Project - MIT License
-- **[RVC-ONNX-INFER-BY-Anh](https://github.com/PhamHuynhAnh16/RVC_Onnx_Infer)** - Phạm Huỳnh Anh - MIT License
-- **[Torch-Onnx-Crepe-By-Anh](https://github.com/PhamHuynhAnh16/TORCH-ONNX-CREPE)** - Phạm Huỳnh Anh - MIT License
-- **[Hubert-No-Fairseq](https://github.com/PhamHuynhAnh16/hubert-no-fairseq)** - Phạm Huỳnh Anh - MIT License
-- **[Local-attention](https://github.com/lucidrains/local-attention)** - Phil Wang - MIT License
-- **[TorchFcpe](https://github.com/CNChTu/FCPE/tree/main)** - CN_ChiTu - MIT License
-- **[FcpeONNX](https://github.com/deiteris/voice-changer/blob/master-custom/server/utils/fcpe_onnx.py)** - Yury - MIT License
-- **[ContentVec](https://github.com/auspicious3000/contentvec)** - Kaizhi Qian - MIT License
-- **[Mediafiredl](https://github.com/Gann4Life/mediafiredl)** - Santiago Ariel Mansilla - MIT License
-- **[Noisereduce](https://github.com/timsainb/noisereduce)** - Tim Sainburg - MIT License
-- **[World.py-By-Anh](https://github.com/PhamHuynhAnh16/world.py)** - Phạm Huỳnh Anh - MIT License
-- **[Mega.py](https://github.com/odwyersoftware/mega.py)** - O'Dwyer Software - Apache 2.0 License
-- **[Gdown](https://github.com/wkentaro/gdown)** - Kentaro Wada - MIT License
-- **[Whisper](https://github.com/openai/whisper)** - OpenAI - MIT License
-- **[PyannoteAudio](https://github.com/pyannote/pyannote-audio)** - pyannote - MIT License
-- **[AudioEditingCode](https://github.com/HilaManor/AudioEditingCode)** - Hila Manor - MIT License
-- **[StftPitchShift](https://github.com/jurihock/stftPitchShift)** - Jürgen Hock - MIT License
-- **[Codename-RVC-Fork-3](https://github.com/codename0og/codename-rvc-fork-3)** - Codename;0 - MIT License
+|                                                            Tác Phẩm                                                            |         Tác Giả         |  Giấy Phép  |
+|--------------------------------------------------------------------------------------------------------------------------------|-------------------------|-------------|
+| **[Applio](https://github.com/IAHispano/Applio/tree/main)**                                                                    | IAHispano               | MIT License |
+| **[Python-audio-separator](https://github.com/nomadkaraoke/python-audio-separator/tree/main)**                                 | Nomad Karaoke           | MIT License |
+| **[Retrieval-based-Voice-Conversion-WebUI](https://github.com/RVC-Project/Retrieval-based-Voice-Conversion-WebUI/tree/main)**  | RVC Project             | MIT License |
+| **[RVC-ONNX-INFER-BY-Anh](https://github.com/PhamHuynhAnh16/RVC_Onnx_Infer)**                                                  | Phạm Huỳnh Anh          | MIT License |
+| **[Torch-Onnx-Crepe-By-Anh](https://github.com/PhamHuynhAnh16/TORCH-ONNX-CREPE)**                                              | Phạm Huỳnh Anh          | MIT License |
+| **[Hubert-No-Fairseq](https://github.com/PhamHuynhAnh16/hubert-no-fairseq)**                                                   | Phạm Huỳnh Anh          | MIT License |
+| **[Local-attention](https://github.com/lucidrains/local-attention)**                                                           | Phil Wang               | MIT License |
+| **[TorchFcpe](https://github.com/CNChTu/FCPE/tree/main)**                                                                      | CN_ChiTu                | MIT License |
+| **[FcpeONNX](https://github.com/deiteris/voice-changer/blob/master-custom/server/utils/fcpe_onnx.py)**                         | Yury                    | MIT License |
+| **[ContentVec](https://github.com/auspicious3000/contentvec)**                                                                 | Kaizhi Qian             | MIT License |
+| **[Mediafiredl](https://github.com/Gann4Life/mediafiredl)**                                                                    | Santiago Ariel Mansilla | MIT License |
+| **[Noisereduce](https://github.com/timsainb/noisereduce)**                                                                     | Tim Sainburg            | MIT License |
+| **[World.py-By-Anh](https://github.com/PhamHuynhAnh16/world.py)**                                                              | Phạm Huỳnh Anh          | MIT License |
+| **[Mega.py](https://github.com/3v1n0/mega.py)**                                                                                | Marco Trevisan          | No License  |
+| **[Gdown](https://github.com/wkentaro/gdown)**                                                                                 | Kentaro Wada            | MIT License |
+| **[Whisper](https://github.com/openai/whisper)**                                                                               | OpenAI                  | MIT License |
+| **[PyannoteAudio](https://github.com/pyannote/pyannote-audio)**                                                                | pyannote                | MIT License |
+| **[AudioEditingCode](https://github.com/HilaManor/AudioEditingCode)**                                                          | Hila Manor              | MIT License |
+| **[StftPitchShift](https://github.com/jurihock/stftPitchShift)**                                                               | Jürgen Hock             | MIT License |
+| **[Codename-RVC-Fork-3](https://github.com/codename0og/codename-rvc-fork-3)**                                                  | Codename;0              | MIT License |
 
 # Kho mô hình của công cụ tìm kiếm mô hình
 

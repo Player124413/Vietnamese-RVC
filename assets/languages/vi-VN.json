@@ -347,7 +347,7 @@
     "download_markdown_2": "Tải xuống mô hình giọng nói, mô hình huấn luyện trước, mô hình nhúng",
     "model_download": "Tải xuống mô hình giọng nói",
     "model_url": "Đường dẫn liên kết đến mô hình",
-    "15s": "Vui lòng đợi khoảng 15 giây. Hệ thống sẽ tự khởi động lại!",
+    "30s": "Vui lòng đợi khoảng 30 giây. Hệ thống sẽ tự khởi động lại!",
     "model_download_select": "Chọn cách tải mô hình",
     "model_warehouse": "Kho mô hình",
     "get_model": "Nhận mô hình",
@@ -806,5 +806,10 @@
     "main_volume": "Âm lượng tệp âm thanh chính",
     "main_volume_info": "Âm lượng tệp âm thanh chính. Nên để từ -4 đến 0.",
     "combination_volume": "Âm lượng tệp âm thanh kết hợp",
-    "combination_volume_info": "Âm lượng tệp âm thanh kết hợp. Nên để âm lượng của tệp kết hợp nhỏ hơn âm thanh chính."
+    "combination_volume_info": "Âm lượng tệp âm thanh kết hợp. Nên để âm lượng của tệp kết hợp nhỏ hơn âm thanh chính.",
+    "separate&edit": "Tách Và Sửa Nhạc",
+    "convert&effects": "Chuyển Đổi Và Hiệu Ứng Âm Thanh",
+    "extra": "Thêm",
+    "running_local_url": "Giao Diện Đang Chạy Trên Liên Kết Cục Bộ",
+    "running_share_url": "Giao Diện Đang Chạy Trên Liên Kết Công Khai"
 }

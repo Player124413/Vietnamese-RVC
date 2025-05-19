@@ -347,7 +347,7 @@
     "download_markdown_2": "Download voice models, pre-trained models, and embedding models",
     "model_download": "Download voice model",
     "model_url": "Link to the model",
-    "15s": "Please wait about 15 seconds. The system will restart automatically!",
+    "30s": "Please wait about 30 seconds. The system will restart automatically!",
     "model_download_select": "Choose a model download method",
     "model_warehouse": "Model repository",
     "get_model": "Retrieve model",
@@ -806,5 +806,10 @@
     "main_volume": "Main audio file volume",
     "main_volume_info": "Main audio file volume. Should be between -4 and 0.",
     "combination_volume": "Combination audio file volume",
-    "combination_volume_info": "Combination audio file volume. Should keep the volume of the combination file lower than the main audio."
+    "combination_volume_info": "Combination audio file volume. Should keep the volume of the combination file lower than the main audio.",
+    "separate&edit": "Separate And Edit Music",
+    "convert&effects": "Convert Audio And Audio Effects",
+    "extra": "Extra",
+    "running_local_url": "Running Interface On Local Url",
+    "running_share_url": "Running Interface On Public Url"
 }
