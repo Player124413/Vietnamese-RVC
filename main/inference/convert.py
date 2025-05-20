@@ -130,6 +130,7 @@ def run_convert_script(pitch=0, filter_radius=3, index_rate=0.5, volume_envelope
 
             logger.info(f"{translations['convert_audio']} '{audio_path}'...")
             if os.path.exists(output_audio): os.remove(output_audio)
+
             cvt.convert_audio(pitch=pitch, filter_radius=filter_radius, index_rate=index_rate, volume_envelope=volume_envelope, protect=protect, hop_length=hop_length, f0_method=f0_method, audio_input_path=audio_path, audio_output_path=output_audio, index_path=index_path, f0_autotune=f0_autotune, f0_autotune_strength=f0_autotune_strength, clean_audio=clean_audio, clean_strength=clean_strength, export_format=export_format, embedder_model=embedder_model, resample_sr=resample_sr, checkpointing=checkpointing, f0_file=f0_file, f0_onnx=f0_onnx, embedders_mode=embedders_mode, formant_shifting=formant_shifting, formant_qfrency=formant_qfrency, formant_timbre=formant_timbre, split_audio=split_audio)
 
         logger.info(translations["convert_batch_success"].format(elapsed_time=f"{(time.time() - start_time):.2f}", output_path=output_path.replace('wav', export_format)))
@@ -140,8 +141,8 @@ def run_convert_script(pitch=0, filter_radius=3, index_rate=0.5, volume_envelope
 
         logger.info(f"{translations['convert_audio']} '{input_path}'...")
         if os.path.exists(output_path): os.remove(output_path)
-        cvt.convert_audio(pitch=pitch, filter_radius=filter_radius, index_rate=index_rate, volume_envelope=volume_envelope, protect=protect, hop_length=hop_length, f0_method=f0_method, audio_input_path=input_path, audio_output_path=output_path, index_path=index_path, f0_autotune=f0_autotune, f0_autotune_strength=f0_autotune_strength, clean_audio=clean_audio, clean_strength=clean_strength, export_format=export_format, embedder_model=embedder_model, resample_sr=resample_sr, checkpointing=checkpointing, f0_file=f0_file, f0_onnx=f0_onnx, embedders_mode=embedders_mode, formant_shifting=formant_shifting, formant_qfrency=formant_qfrency, formant_timbre=formant_timbre, split_audio=split_audio)
 
+        cvt.convert_audio(pitch=pitch, filter_radius=filter_radius, index_rate=index_rate, volume_envelope=volume_envelope, protect=protect, hop_length=hop_length, f0_method=f0_method, audio_input_path=input_path, audio_output_path=output_path, index_path=index_path, f0_autotune=f0_autotune, f0_autotune_strength=f0_autotune_strength, clean_audio=clean_audio, clean_strength=clean_strength, export_format=export_format, embedder_model=embedder_model, resample_sr=resample_sr, checkpointing=checkpointing, f0_file=f0_file, f0_onnx=f0_onnx, embedders_mode=embedders_mode, formant_shifting=formant_shifting, formant_qfrency=formant_qfrency, formant_timbre=formant_timbre, split_audio=split_audio)
         logger.info(translations["convert_audio_success"].format(input_path=input_path, elapsed_time=f"{(time.time() - start_time):.2f}", output_path=output_path.replace('wav', export_format)))
 
     if os.path.exists(pid_path): os.remove(pid_path)
@@ -152,6 +153,7 @@ def change_rms(source_audio, source_rate, target_audio, target_rate, rate):
 
 def clear_gpu_cache():
     gc.collect()
+
     if torch.cuda.is_available(): torch.cuda.empty_cache()
     elif torch.backends.mps.is_available(): torch.mps.empty_cache()
 
@@ -206,10 +208,13 @@ class VC:
     def get_f0(self, x, p_len, pitch, f0_method, filter_radius, hop_length, f0_autotune, f0_autotune_strength, inp_f0=None, onnx_mode=False):
         self.f0_generator.hop_length, self.f0_generator.f0_onnx_mode = hop_length, onnx_mode
         f0 = self.f0_generator.calculator(f0_method, x, p_len, filter_radius)
+
         if f0_autotune: f0 = Autotune.autotune_f0(self, f0, f0_autotune_strength)
         if isinstance(f0, tuple): f0 = f0[0]
+
         f0 *= pow(2, pitch / 12)
         tf0 = self.sample_rate // self.window
+
         if inp_f0 is not None:
             replace_f0 = np.interp(list(range(np.round((inp_f0[:, 0].max() - inp_f0[:, 0].min()) * tf0 + 1).astype(np.int16))), inp_f0[:, 0] * 100, inp_f0[:, 1])
             f0[self.x_pad * tf0 : self.x_pad * tf0 + len(replace_f0)] = replace_f0[:f0[self.x_pad * tf0 : self.x_pad * tf0 + len(replace_f0)].shape[0]]
@@ -261,12 +266,10 @@ class VC:
             if protect < 0.5 and pitch_guidance: feats0 = F.interpolate(feats0.permute(0, 2, 1), scale_factor=2).permute(0, 2, 1)
 
             p_len = audio0.shape[0] // self.window
-            
+
             if feats.shape[1] < p_len:
                 p_len = feats.shape[1]
-                if pitch_guidance:
-                    pitch = pitch[:, :p_len]
-                    pitchf = pitchf[:, :p_len]
+                if pitch_guidance: pitch, pitchf = pitch[:, :p_len], pitchf[:, :p_len]
 
             if protect < 0.5 and pitch_guidance:
                 pitchff = pitchf.clone()
@@ -282,6 +285,7 @@ class VC:
         if self.embed_suffix == ".pt": del padding_mask
         del feats, p_len, net_g
         clear_gpu_cache()
+
         return audio1
     
     def pipeline(self, model, net_g, sid, audio, pitch, f0_method, file_index, index_rate, pitch_guidance, filter_radius, volume_envelope, version, protect, hop_length, f0_autotune, f0_autotune_strength, suffix, embed_suffix, f0_file=None, f0_onnx=False, pbar=None):
@@ -304,6 +308,7 @@ class VC:
 
         if audio_pad.shape[0] > self.t_max:
             audio_sum = np.zeros_like(audio)
+
             for i in range(self.window):
                 audio_sum += audio_pad[i : i - self.window]
 
@@ -320,8 +325,10 @@ class VC:
             try:
                 with open(f0_file.name, "r") as f:
                     raw_lines = f.read()
+
                     if len(raw_lines) > 0:
                         inp_f0 = []
+
                         for line in raw_lines.strip("\n").split("\n"):
                             inp_f0.append([float(i) for i in line.split(",")])
 
@@ -344,11 +351,14 @@ class VC:
             
         audio_opt.append(self.voice_conversion(model, net_g, sid, audio_pad[t:], (pitch[:, t // self.window :] if t is not None else pitch) if pitch_guidance else None, (pitchf[:, t // self.window :] if t is not None else pitchf) if pitch_guidance else None, index, big_npy, index_rate, version, protect)[self.t_pad_tgt : -self.t_pad_tgt])
         audio_opt = np.concatenate(audio_opt)
+
         if volume_envelope != 1: audio_opt = change_rms(audio, self.sample_rate, audio_opt, self.sample_rate, volume_envelope)
         audio_max = np.abs(audio_opt).max() / 0.99
         if audio_max > 1: audio_opt /= audio_max
+
         if pitch_guidance: del pitch, pitchf
         del sid
+
         clear_gpu_cache()
         pbar.update(1)
         return audio_opt
