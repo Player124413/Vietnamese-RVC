@@ -258,8 +258,9 @@ Vietnamese-RVC-main
 - **Dự án này chỉ hỗ trợ trên gpu của NVIDIA (Có thể sẽ hỗ trợ AMD sau nếu tôi có gpu AMD để thử)**
 - **Hiện tại các bộ mã hóa mới như MRF HIFIGAN vẫn chưa đầy đủ các bộ huấn luyện trước**
 - **Bộ mã hóa MRF HIFIGAN và REFINEGAN không hỗ trợ huấn luyện khi không không huấn luyện cao độ**
-- **Các mô hình trong kho lưu trữ Vietnamese-RVC được thu thập rải rác trên AI Hub, HuggingFace và các các kho lưu trữ khác. Có thể mang các giấy phép bản quyền khác nhau**
- 
+- **Các mô hình trong kho lưu trữ Vietnamese-RVC được thu thập rải rác trên AI Hub, HuggingFace và các các kho lưu trữ khác. Có thể mang các giấy phép bản quyền khác nhau (Ví dụ: Audioldm2 có các trọng số mô hình với điều khoản "Phi Thương Mại")**
+- **Mã nguồn này có chứa thành phần phần mềm bên thứ ba được cấp phép với điều khoản "phi thương mại". Bất kỳ hành vi sử dụng thương mại nào, bao gồm kêu gọi tài trợ hoặc tài chính hóa phần mềm phái sinh, đều có thể vi phạm giấy phép và sẽ phải chịu trách nhiệm pháp lý tương ứng.**
+
 # Điều khoản sử dụng
 
 - Bạn phải đảm bảo rằng các nội dung âm thanh bạn tải lên và chuyển đổi qua dự án này không vi phạm quyền sở hữu trí tuệ của bên thứ ba.
