@@ -7,7 +7,6 @@ import shutil
 import logging
 import argparse
 import warnings
-import onnxruntime
 import logging.handlers
 import concurrent.futures
 
@@ -21,7 +20,7 @@ sys.path.append(os.getcwd())
 
 from main.configs.config import Config
 from main.library.predictors.Generator import Generator
-from main.library.utils import check_predictors, check_embedders, load_audio, load_embedders_model
+from main.library.utils import check_predictors, check_embedders, load_audio, load_embedders_model, get_providers
 
 logger = logging.getLogger(__name__)
 config = Config()
@@ -82,15 +81,6 @@ def setup_paths(exp_dir, version = None):
         output_root1, output_root2 = os.path.join(exp_dir, "f0"), os.path.join(exp_dir, "f0_voiced")
         os.makedirs(output_root1, exist_ok=True); os.makedirs(output_root2, exist_ok=True)
         return wav_path, output_root1, output_root2
-
-def get_providers():
-    ort_providers = onnxruntime.get_available_providers()
-
-    if "CUDAExecutionProvider" in ort_providers: providers = ["CUDAExecutionProvider"]
-    elif "CoreMLExecutionProvider" in ort_providers: providers = ["CoreMLExecutionProvider"]
-    else: providers = ["CPUExecutionProvider"]
-
-    return providers
 
 class FeatureInput:
     def __init__(self, sample_rate=16000, hop_size=160, is_half=False, device=config.device):

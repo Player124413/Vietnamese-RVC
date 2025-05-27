@@ -4,21 +4,31 @@ import sys
 import codecs
 import librosa
 import logging
+import onnxruntime
 
 import numpy as np
+import torch.nn as nn
 import soundfile as sf
 
 from pydub import AudioSegment
+from transformers import HubertModel
 
 sys.path.append(os.getcwd())
 
 from main.tools import huggingface
 from main.configs.config import Config
+from main.library.architectures import fairseq
 
 for l in ["httpx", "httpcore"]:
     logging.getLogger(l).setLevel(logging.ERROR)
 
-translations = Config().translations
+config = Config()
+translations = config.translations
+
+class HubertModelWithFinalProj(HubertModel):
+    def __init__(self, config):
+        super().__init__(config)
+        self.final_proj = nn.Linear(config.hidden_size, config.classifier_proj_size)
 
 def check_predictors(method, f0_onnx=False):
     if f0_onnx and method not in ["harvest", "dio"]: method += "-onnx"
@@ -131,26 +141,14 @@ def load_embedders_model(embedder_model, embedders_mode="fairseq", providers=Non
 
     try:
         if embedders_mode == "fairseq":
-            from main.library.architectures import fairseq
-
             embed_suffix = ".pt"
             hubert_model = fairseq.load_model(embedder_model_path)
         elif embedders_mode == "onnx":
-            import onnxruntime
-
             sess_options = onnxruntime.SessionOptions()
             sess_options.log_severity_level = 3
             embed_suffix = ".onnx"
             hubert_model = onnxruntime.InferenceSession(embedder_model_path, sess_options=sess_options, providers=providers)
-        elif embedders_mode == "transformers":
-            from torch import nn
-            from transformers import HubertModel
-
-            class HubertModelWithFinalProj(HubertModel):
-                def __init__(self, config):
-                    super().__init__(config)
-                    self.final_proj = nn.Linear(config.hidden_size, config.classifier_proj_size)
-                    
+        elif embedders_mode == "transformers":      
             embed_suffix = ".safetensors"
             hubert_model = HubertModelWithFinalProj.from_pretrained(embedder_model_path)
         else: raise ValueError(translations["option_not_valid"])
@@ -160,68 +158,7 @@ def load_embedders_model(embedder_model, embedders_mode="fairseq", providers=Non
     return hubert_model, embed_suffix
 
 def cut(audio, sr, db_thresh=-60, min_interval=250):
-    from main.inference.preprocess import Slicer, get_rms
-
-    class Slicer2(Slicer):
-        def slice2(self, waveform):
-            samples = waveform.mean(axis=0) if len(waveform.shape) > 1 else waveform
-
-            if samples.shape[0] <= self.min_length: return [(waveform, 0, samples.shape[0])]
-            rms_list = get_rms(y=samples, frame_length=self.win_size, hop_length=self.hop_size).squeeze(0)
-
-            sil_tags = []
-            silence_start, clip_start = None, 0
-
-            for i, rms in enumerate(rms_list):
-                if rms < self.threshold:
-                    if silence_start is None: silence_start = i
-                    continue
-
-                if silence_start is None: continue
-
-                is_leading_silence = silence_start == 0 and i > self.max_sil_kept
-                need_slice_middle = (i - silence_start >= self.min_interval and i - clip_start >= self.min_length)
-
-                if not is_leading_silence and not need_slice_middle:
-                    silence_start = None
-                    continue
-
-                if i - silence_start <= self.max_sil_kept:
-                    pos = rms_list[silence_start : i + 1].argmin() + silence_start
-                    sil_tags.append((0, pos) if silence_start == 0 else (pos, pos))   
-                    clip_start = pos
-                elif i - silence_start <= self.max_sil_kept * 2:
-                    pos = rms_list[i - self.max_sil_kept : silence_start + self.max_sil_kept + 1].argmin()
-                    pos += i - self.max_sil_kept
-
-                    pos_r = (rms_list[i - self.max_sil_kept : i + 1].argmin() + i - self.max_sil_kept)
-
-                    if silence_start == 0:
-                        sil_tags.append((0, pos_r))
-                        clip_start = pos_r
-                    else:
-                        sil_tags.append((min((rms_list[silence_start : silence_start + self.max_sil_kept + 1].argmin() + silence_start), pos), max(pos_r, pos)))
-                        clip_start = max(pos_r, pos)
-                else:
-                    pos_r = (rms_list[i - self.max_sil_kept : i + 1].argmin() + i - self.max_sil_kept)
-                    sil_tags.append((0, pos_r) if silence_start == 0 else ((rms_list[silence_start : silence_start + self.max_sil_kept + 1].argmin() + silence_start), pos_r))
-                    clip_start = pos_r
-
-                silence_start = None
-
-            total_frames = rms_list.shape[0]
-            if (silence_start is not None and total_frames - silence_start >= self.min_interval): sil_tags.append((rms_list[silence_start : min(total_frames, silence_start + self.max_sil_kept) + 1].argmin() + silence_start, total_frames + 1))
-
-            if not sil_tags: return [(waveform, 0, samples.shape[-1])]
-            else:
-                chunks = []
-                if sil_tags[0][0] > 0: chunks.append((self._apply_slice(waveform, 0, sil_tags[0][0]), 0, sil_tags[0][0] * self.hop_size))
-
-                for i in range(len(sil_tags) - 1):
-                    chunks.append((self._apply_slice(waveform, sil_tags[i][1], sil_tags[i + 1][0]), sil_tags[i][1] * self.hop_size, sil_tags[i + 1][0] * self.hop_size))
-
-                if sil_tags[-1][1] < total_frames: chunks.append((self._apply_slice(waveform, sil_tags[-1][1], total_frames), sil_tags[-1][1] * self.hop_size, samples.shape[-1]))
-                return chunks
+    from main.inference.preprocess.slicer2 import Slicer2
 
     slicer = Slicer2(sr=sr, threshold=db_thresh, min_interval=min_interval)
     return slicer.slice2(audio)
@@ -238,3 +175,12 @@ def restore(segments, total_len, dtype=np.float32):
 
     if last_end < total_len: out.append(np.zeros(total_len - last_end, dtype=dtype))
     return np.concatenate(out, axis=-1)
+
+def get_providers():
+    ort_providers = onnxruntime.get_available_providers()
+
+    if "CUDAExecutionProvider" in ort_providers: providers = ["CUDAExecutionProvider"]
+    elif "CoreMLExecutionProvider" in ort_providers: providers = ["CoreMLExecutionProvider"]
+    else: providers = ["CPUExecutionProvider"]
+
+    return providers

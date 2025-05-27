@@ -10,9 +10,6 @@ import datetime
 import warnings
 import logging.handlers
 
-import numpy as np
-import soundfile as sf
-import matplotlib.pyplot as plt
 import torch.distributed as dist
 import torch.utils.data as tdata
 import torch.multiprocessing as mp
@@ -20,59 +17,29 @@ import torch.multiprocessing as mp
 from tqdm import tqdm
 from collections import OrderedDict
 from random import randint, shuffle
-from torch.utils.checkpoint import checkpoint
 from torch.amp import GradScaler, autocast
 from torch.utils.tensorboard import SummaryWriter
 
 from time import time as ttime
 from torch.nn import functional as F
 from distutils.util import strtobool
-from librosa.filters import mel as librosa_mel_fn
 from torch.nn.parallel import DistributedDataParallel as DDP
-from torch.nn.utils.parametrizations import spectral_norm, weight_norm
 
 sys.path.append(os.getcwd())
 
 from main.configs.config import Config
-from main.library.algorithm.residuals import LRELU_SLOPE
 from main.library.algorithm.synthesizers import Synthesizer
-from main.library.algorithm.commons import get_padding, slice_segments, clip_grad_value
+from main.library.algorithm.discriminators import MultiPeriodDiscriminator
+from main.library.algorithm.commons import slice_segments, clip_grad_value
+from main.library.training.mel_processing import spec_to_mel_torch, mel_spectrogram_torch
+from main.library.training.losses import discriminator_loss, kl_loss, feature_loss, generator_loss
+from main.library.training.data_utils import TextAudioCollate, TextAudioCollateMultiNSFsid, TextAudioLoader, TextAudioLoaderMultiNSFsid, DistributedBucketSampler
+from main.library.training.utils import HParams, replace_keys_in_dict, load_checkpoint, latest_checkpoint_path, save_checkpoint, summarize, plot_spectrogram_to_numpy
 
-MATPLOTLIB_FLAG = False
 main_config = Config()
 translations = main_config.translations
-
 warnings.filterwarnings("ignore")
 logging.getLogger("torch").setLevel(logging.ERROR)
-
-class HParams:
-    def __init__(self, **kwargs):
-        for k, v in kwargs.items():
-            self[k] = HParams(**v) if isinstance(v, dict) else v
-
-    def keys(self):
-        return self.__dict__.keys()
-    
-    def items(self):
-        return self.__dict__.items()
-    
-    def values(self):
-        return self.__dict__.values()
-    
-    def __len__(self):
-        return len(self.__dict__)
-    
-    def __getitem__(self, key):
-        return self.__dict__[key]
-
-    def __setitem__(self, key, value):
-        self.__dict__[key] = value
-
-    def __contains__(self, key):
-        return key in self.__dict__
-    
-    def __repr__(self):
-        return repr(self.__dict__)
 
 def parse_arguments():
     parser = argparse.ArgumentParser()
@@ -215,28 +182,6 @@ def main():
         import traceback
         logger.debug(traceback.format_exc())
 
-def plot_spectrogram_to_numpy(spectrogram):
-    global MATPLOTLIB_FLAG
-
-    if not MATPLOTLIB_FLAG:
-        plt.switch_backend("Agg")
-        MATPLOTLIB_FLAG = True
-
-    fig, ax = plt.subplots(figsize=(10, 2))
-    plt.colorbar(ax.imshow(spectrogram, aspect="auto", origin="lower", interpolation="none"), ax=ax)
-    plt.xlabel("Frames")
-    plt.ylabel("Channels")
-    plt.tight_layout()
-    fig.canvas.draw()
-    plt.close(fig)
-
-    try:
-        data = np.array(fig.canvas.renderer.buffer_rgba(), dtype=np.uint8).reshape(fig.canvas.get_width_height()[::-1] + (4,))[:, :, :3]
-    except:
-        data = np.fromstring(fig.canvas.tostring_rgb(), dtype=np.uint8, sep="").reshape(fig.canvas.get_width_height()[::-1] + (3,))
-
-    return data
-
 def verify_checkpoint_shapes(checkpoint_path, model):
     checkpoint = torch.load(checkpoint_path, map_location="cpu")
     checkpoint_state_dict = checkpoint["model"]
@@ -248,466 +193,6 @@ def verify_checkpoint_shapes(checkpoint_path, model):
         sys.exit(1)
     else: del checkpoint, checkpoint_state_dict, model_state_dict
 
-def summarize(writer, global_step, scalars={}, histograms={}, images={}, audios={}, audio_sample_rate=22050):
-    for k, v in scalars.items():
-        writer.add_scalar(k, v, global_step)
-
-    for k, v in histograms.items():
-        writer.add_histogram(k, v, global_step)
-
-    for k, v in images.items():
-        writer.add_image(k, v, global_step, dataformats="HWC")
-
-    for k, v in audios.items():
-        writer.add_audio(k, v, global_step, audio_sample_rate)
-
-def load_checkpoint(checkpoint_path, model, optimizer=None, load_opt=1):
-    assert os.path.isfile(checkpoint_path), translations["not_found_checkpoint"].format(checkpoint_path=checkpoint_path)
-
-    checkpoint_dict = replace_keys_in_dict(replace_keys_in_dict(torch.load(checkpoint_path, map_location="cpu"), ".weight_v", ".parametrizations.weight.original1"), ".weight_g", ".parametrizations.weight.original0")
-    new_state_dict = {k: checkpoint_dict["model"].get(k, v) for k, v in (model.module.state_dict() if hasattr(model, "module") else model.state_dict()).items()}
-    model.module.load_state_dict(new_state_dict, strict=False) if hasattr(model, "module") else model.load_state_dict(new_state_dict, strict=False)
-
-    if optimizer and load_opt == 1: optimizer.load_state_dict(checkpoint_dict.get("optimizer", {}))
-    logger.debug(translations["save_checkpoint"].format(checkpoint_path=checkpoint_path, checkpoint_dict=checkpoint_dict['iteration']))
-
-    return (model, optimizer, checkpoint_dict.get("learning_rate", 0), checkpoint_dict["iteration"])
-
-def save_checkpoint(model, optimizer, learning_rate, iteration, checkpoint_path):
-    state_dict = (model.module.state_dict() if hasattr(model, "module") else model.state_dict())
-    torch.save(replace_keys_in_dict(replace_keys_in_dict({"model": state_dict, "iteration": iteration, "optimizer": optimizer.state_dict(), "learning_rate": learning_rate}, ".parametrizations.weight.original1", ".weight_v"), ".parametrizations.weight.original0", ".weight_g"), checkpoint_path)
-    logger.info(translations["save_model"].format(checkpoint_path=checkpoint_path, iteration=iteration))
-
-def latest_checkpoint_path(dir_path, regex="G_*.pth"):
-    checkpoints = sorted(glob.glob(os.path.join(dir_path, regex)), key=lambda f: int("".join(filter(str.isdigit, f))))
-    return checkpoints[-1] if checkpoints else None
-
-def load_wav_to_torch(full_path):
-    data, sample_rate = sf.read(full_path, dtype=np.float32)
-    return torch.FloatTensor(data.astype(np.float32)), sample_rate
-
-def load_filepaths_and_text(filename, split="|"):
-    with open(filename, encoding="utf-8") as f:
-        return [line.strip().split(split) for line in f]
-
-def feature_loss(fmap_r, fmap_g):
-    loss = 0
-    for dr, dg in zip(fmap_r, fmap_g):
-        for rl, gl in zip(dr, dg):
-            loss += torch.mean(torch.abs(rl.float().detach() - gl.float()))
-
-    return loss * 2
-
-def discriminator_loss(disc_real_outputs, disc_generated_outputs):
-    loss = 0
-    r_losses, g_losses = [], []
-    for dr, dg in zip(disc_real_outputs, disc_generated_outputs):
-        dr = dr.float()
-        dg = dg.float()
-        r_loss = torch.mean((1 - dr) ** 2)
-        g_loss = torch.mean(dg**2)
-        loss += r_loss + g_loss
-        r_losses.append(r_loss.item())
-        g_losses.append(g_loss.item())
-
-    return loss, r_losses, g_losses
-
-def generator_loss(disc_outputs):
-    loss = 0
-    gen_losses = []
-    for dg in disc_outputs:
-        l = torch.mean((1 - dg.float()) ** 2)
-        gen_losses.append(l)
-        loss += l
-
-    return loss, gen_losses
-
-def kl_loss(z_p, logs_q, m_p, logs_p, z_mask):
-    z_p = z_p.float()
-    logs_q = logs_q.float()
-    m_p = m_p.float()
-    logs_p = logs_p.float()
-    z_mask = z_mask.float()
-
-    kl = logs_p - logs_q - 0.5
-    kl += 0.5 * ((z_p - m_p) ** 2) * torch.exp(-2.0 * logs_p)
-
-    return torch.sum(kl * z_mask) / torch.sum(z_mask)
-
-class TextAudioLoaderMultiNSFsid(tdata.Dataset):
-    def __init__(self, hparams):
-        self.audiopaths_and_text = load_filepaths_and_text(hparams.training_files)
-        self.max_wav_value = hparams.max_wav_value
-        self.sample_rate = hparams.sample_rate
-        self.filter_length = hparams.filter_length
-        self.hop_length = hparams.hop_length
-        self.win_length = hparams.win_length
-        self.sample_rate = hparams.sample_rate
-        self.min_text_len = getattr(hparams, "min_text_len", 1)
-        self.max_text_len = getattr(hparams, "max_text_len", 5000)
-        self._filter()
-
-    def _filter(self):
-        audiopaths_and_text_new, lengths = [], []
-        for audiopath, text, pitch, pitchf, dv in self.audiopaths_and_text:
-            if self.min_text_len <= len(text) and len(text) <= self.max_text_len:
-                audiopaths_and_text_new.append([audiopath, text, pitch, pitchf, dv])
-                lengths.append(os.path.getsize(audiopath) // (3 * self.hop_length))
-
-        self.audiopaths_and_text = audiopaths_and_text_new
-        self.lengths = lengths
-
-    def get_sid(self, sid):
-        try:
-            sid = torch.LongTensor([int(sid)])
-        except ValueError as e:
-            logger.error(translations["sid_error"].format(sid=sid, e=e))
-            sid = torch.LongTensor([0])
-
-        return sid
-
-    def get_audio_text_pair(self, audiopath_and_text):
-        phone, pitch, pitchf = self.get_labels(audiopath_and_text[1], audiopath_and_text[2], audiopath_and_text[3])
-        spec, wav = self.get_audio(audiopath_and_text[0])
-        dv = self.get_sid(audiopath_and_text[4])
-
-        len_phone = phone.size()[0]
-        len_spec = spec.size()[-1]
-
-        if len_phone != len_spec:
-            len_min = min(len_phone, len_spec)
-            len_wav = len_min * self.hop_length
-            spec, wav, phone = spec[:, :len_min], wav[:, :len_wav], phone[:len_min, :]
-            pitch, pitchf = pitch[:len_min], pitchf[:len_min]
-
-        return (spec, wav, phone, pitch, pitchf, dv)
-
-    def get_labels(self, phone, pitch, pitchf):
-        phone = np.repeat(np.load(phone), 2, axis=0)
-        n_num = min(phone.shape[0], 900)
-        return torch.FloatTensor(phone[:n_num, :]), torch.LongTensor(np.load(pitch)[:n_num]), torch.FloatTensor(np.load(pitchf)[:n_num])
-
-    def get_audio(self, filename):
-        audio, sample_rate = load_wav_to_torch(filename)
-        if sample_rate != self.sample_rate: raise ValueError(translations["sr_does_not_match"].format(sample_rate=sample_rate, sample_rate2=self.sample_rate))
-
-        audio_norm = audio.unsqueeze(0)
-        spec_filename = filename.replace(".wav", ".spec.pt")
-
-        if os.path.exists(spec_filename):
-            try:
-                spec = torch.load(spec_filename)
-            except Exception as e:
-                logger.error(translations["spec_error"].format(spec_filename=spec_filename, e=e))
-                spec = torch.squeeze(spectrogram_torch(audio_norm, self.filter_length, self.hop_length, self.win_length, center=False), 0)
-                torch.save(spec, spec_filename, _use_new_zipfile_serialization=False)
-        else: 
-            spec = torch.squeeze(spectrogram_torch(audio_norm, self.filter_length, self.hop_length, self.win_length, center=False), 0)
-            torch.save(spec, spec_filename, _use_new_zipfile_serialization=False)
-
-        return spec, audio_norm
-
-    def __getitem__(self, index):
-        return self.get_audio_text_pair(self.audiopaths_and_text[index])
-
-    def __len__(self):
-        return len(self.audiopaths_and_text)
-
-class TextAudioCollateMultiNSFsid:
-    def __init__(self, return_ids=False):
-        self.return_ids = return_ids
-
-    def __call__(self, batch):
-        _, ids_sorted_decreasing = torch.sort(torch.LongTensor([x[0].size(1) for x in batch]), dim=0, descending=True)
-        spec_lengths, wave_lengths = torch.LongTensor(len(batch)), torch.LongTensor(len(batch))
-        spec_padded, wave_padded = torch.FloatTensor(len(batch), batch[0][0].size(0), max([x[0].size(1) for x in batch])), torch.FloatTensor(len(batch), 1, max([x[1].size(1) for x in batch]))
-        spec_padded.zero_()
-        wave_padded.zero_()
-
-        max_phone_len = max([x[2].size(0) for x in batch])
-        phone_lengths, phone_padded = torch.LongTensor(len(batch)), torch.FloatTensor(len(batch), max_phone_len, batch[0][2].shape[1])
-        pitch_padded, pitchf_padded = torch.LongTensor(len(batch), max_phone_len), torch.FloatTensor(len(batch), max_phone_len)
-        phone_padded.zero_()
-        pitch_padded.zero_()
-        pitchf_padded.zero_()
-        sid = torch.LongTensor(len(batch))
-
-        for i in range(len(ids_sorted_decreasing)):
-            row = batch[ids_sorted_decreasing[i]]
-            spec = row[0]
-            spec_padded[i, :, : spec.size(1)] = spec
-            spec_lengths[i] = spec.size(1)
-            wave = row[1]
-            wave_padded[i, :, : wave.size(1)] = wave
-            wave_lengths[i] = wave.size(1)
-            phone = row[2]
-            phone_padded[i, : phone.size(0), :] = phone
-            phone_lengths[i] = phone.size(0)
-            pitch = row[3]
-            pitch_padded[i, : pitch.size(0)] = pitch
-            pitchf = row[4]
-            pitchf_padded[i, : pitchf.size(0)] = pitchf
-            sid[i] = row[5]
-
-        return (phone_padded, phone_lengths, pitch_padded, pitchf_padded, spec_padded, spec_lengths, wave_padded, wave_lengths, sid)
-
-class TextAudioLoader(tdata.Dataset):
-    def __init__(self, hparams):
-        self.audiopaths_and_text = load_filepaths_and_text(hparams.training_files)
-        self.max_wav_value = hparams.max_wav_value
-        self.sample_rate = hparams.sample_rate
-        self.filter_length = hparams.filter_length
-        self.hop_length = hparams.hop_length
-        self.win_length = hparams.win_length
-        self.sample_rate = hparams.sample_rate
-        self.min_text_len = getattr(hparams, "min_text_len", 1)
-        self.max_text_len = getattr(hparams, "max_text_len", 5000)
-        self._filter()
-
-    def _filter(self):
-        audiopaths_and_text_new, lengths = [], []
-        for entry in self.audiopaths_and_text:
-            if len(entry) >= 3:
-                audiopath, text, dv = entry[:3]
-                if self.min_text_len <= len(text) and len(text) <= self.max_text_len:
-                    audiopaths_and_text_new.append([audiopath, text, dv])
-                    lengths.append(os.path.getsize(audiopath) // (3 * self.hop_length))
-
-        self.audiopaths_and_text = audiopaths_and_text_new
-        self.lengths = lengths
-
-    def get_sid(self, sid):
-        try:
-            sid = torch.LongTensor([int(sid)])
-        except ValueError as e:
-            logger.error(translations["sid_error"].format(sid=sid, e=e))
-            sid = torch.LongTensor([0])
-
-        return sid
-
-    def get_audio_text_pair(self, audiopath_and_text):
-        phone = self.get_labels(audiopath_and_text[1])
-        spec, wav = self.get_audio(audiopath_and_text[0])
-        dv = self.get_sid(audiopath_and_text[2])
-
-        len_phone = phone.size()[0]
-        len_spec = spec.size()[-1]
-
-        if len_phone != len_spec:
-            len_min = min(len_phone, len_spec)
-            len_wav = len_min * self.hop_length
-            spec = spec[:, :len_min]
-            wav = wav[:, :len_wav]
-            phone = phone[:len_min, :]
-
-        return (spec, wav, phone, dv)
-
-    def get_labels(self, phone):
-        phone = np.repeat(np.load(phone), 2, axis=0)
-        return torch.FloatTensor(phone[:min(phone.shape[0], 900), :])
-
-    def get_audio(self, filename):
-        audio, sample_rate = load_wav_to_torch(filename)
-        if sample_rate != self.sample_rate: raise ValueError(translations["sr_does_not_match"].format(sample_rate=sample_rate, sample_rate2=self.sample_rate))
-
-        audio_norm = audio.unsqueeze(0)
-        spec_filename = filename.replace(".wav", ".spec.pt")
-
-        if os.path.exists(spec_filename):
-            try:
-                spec = torch.load(spec_filename)
-            except Exception as e:
-                logger.error(translations["spec_error"].format(spec_filename=spec_filename, e=e))
-                spec = torch.squeeze(spectrogram_torch(audio_norm, self.filter_length, self.hop_length, self.win_length, center=False), 0)
-                torch.save(spec, spec_filename, _use_new_zipfile_serialization=False)
-        else:
-            spec = torch.squeeze(spectrogram_torch(audio_norm, self.filter_length, self.hop_length, self.win_length, center=False), 0)
-            torch.save(spec, spec_filename, _use_new_zipfile_serialization=False)
-
-        return spec, audio_norm
-
-    def __getitem__(self, index):
-        return self.get_audio_text_pair(self.audiopaths_and_text[index])
-
-    def __len__(self):
-        return len(self.audiopaths_and_text)
-
-class TextAudioCollate:
-    def __init__(self, return_ids=False):
-        self.return_ids = return_ids
-
-    def __call__(self, batch):
-        _, ids_sorted_decreasing = torch.sort(torch.LongTensor([x[0].size(1) for x in batch]), dim=0, descending=True)
-        spec_lengths, wave_lengths = torch.LongTensor(len(batch)), torch.LongTensor(len(batch))
-        spec_padded, wave_padded = torch.FloatTensor(len(batch), batch[0][0].size(0), max([x[0].size(1) for x in batch])), torch.FloatTensor(len(batch), 1, max([x[1].size(1) for x in batch]))
-        spec_padded.zero_()
-        wave_padded.zero_()
-
-        max_phone_len = max([x[2].size(0) for x in batch])
-        phone_lengths, phone_padded = torch.LongTensor(len(batch)), torch.FloatTensor(len(batch), max_phone_len, batch[0][2].shape[1])
-        phone_padded.zero_()
-        sid = torch.LongTensor(len(batch))
-
-        for i in range(len(ids_sorted_decreasing)):
-            row = batch[ids_sorted_decreasing[i]]
-            spec = row[0]
-            spec_padded[i, :, : spec.size(1)] = spec
-            spec_lengths[i] = spec.size(1)
-            wave = row[1]
-            wave_padded[i, :, : wave.size(1)] = wave
-            wave_lengths[i] = wave.size(1)
-            phone = row[2]
-            phone_padded[i, : phone.size(0), :] = phone
-            phone_lengths[i] = phone.size(0)
-            sid[i] = row[3]
-
-        return (phone_padded, phone_lengths, spec_padded, spec_lengths, wave_padded, wave_lengths, sid)
-
-class DistributedBucketSampler(tdata.distributed.DistributedSampler):
-    def __init__(self, dataset, batch_size, boundaries, num_replicas=None, rank=None, shuffle=True):
-        super().__init__(dataset, num_replicas=num_replicas, rank=rank, shuffle=shuffle)
-        self.lengths = dataset.lengths
-        self.batch_size = batch_size
-        self.boundaries = boundaries
-        self.buckets, self.num_samples_per_bucket = self._create_buckets()
-        self.total_size = sum(self.num_samples_per_bucket)
-        self.num_samples = self.total_size // self.num_replicas
-
-    def _create_buckets(self):
-        buckets = [[] for _ in range(len(self.boundaries) - 1)]
-
-        for i in range(len(self.lengths)):
-            idx_bucket = self._bisect(self.lengths[i])
-            if idx_bucket != -1: buckets[idx_bucket].append(i)
-
-        for i in range(len(buckets) - 1, -1, -1):  
-            if len(buckets[i]) == 0:
-                buckets.pop(i)
-                self.boundaries.pop(i + 1)
-
-        num_samples_per_bucket = []
-
-        for i in range(len(buckets)):
-            len_bucket = len(buckets[i])
-            total_batch_size = self.num_replicas * self.batch_size
-            num_samples_per_bucket.append(len_bucket + ((total_batch_size - (len_bucket % total_batch_size)) % total_batch_size))
-
-        return buckets, num_samples_per_bucket
-
-    def __iter__(self):
-        g = torch.Generator()
-        g.manual_seed(self.epoch)
-        indices, batches = [], []
-
-        if self.shuffle:
-            for bucket in self.buckets:
-                indices.append(torch.randperm(len(bucket), generator=g).tolist())
-        else:
-            for bucket in self.buckets:
-                indices.append(list(range(len(bucket))))
-
-        for i in range(len(self.buckets)):
-            bucket = self.buckets[i]
-            len_bucket = len(bucket)
-            ids_bucket = indices[i]
-            rem = self.num_samples_per_bucket[i] - len_bucket
-            ids_bucket = (ids_bucket + ids_bucket * (rem // len_bucket) + ids_bucket[: (rem % len_bucket)])[self.rank :: self.num_replicas]
-
-            for j in range(len(ids_bucket) // self.batch_size):
-                batches.append([bucket[idx] for idx in ids_bucket[j * self.batch_size : (j + 1) * self.batch_size]])
-
-        if self.shuffle: batches = [batches[i] for i in torch.randperm(len(batches), generator=g).tolist()]
-        self.batches = batches
-        assert len(self.batches) * self.batch_size == self.num_samples
-
-        return iter(self.batches)
-
-    def _bisect(self, x, lo=0, hi=None):
-        if hi is None: hi = len(self.boundaries) - 1
-
-        if hi > lo:
-            mid = (hi + lo) // 2
-
-            if self.boundaries[mid] < x and x <= self.boundaries[mid + 1]: return mid
-            elif x <= self.boundaries[mid]: return self._bisect(x, lo, mid)
-            else: return self._bisect(x, mid + 1, hi)
-        else: return -1
-
-    def __len__(self):
-        return self.num_samples // self.batch_size
-
-class MultiPeriodDiscriminator(torch.nn.Module):
-    def __init__(self, version, use_spectral_norm=False, checkpointing=False):
-        super(MultiPeriodDiscriminator, self).__init__()
-        self.checkpointing = checkpointing
-        periods = ([2, 3, 5, 7, 11, 17] if version == "v1" else [2, 3, 5, 7, 11, 17, 23, 37])
-        self.discriminators = torch.nn.ModuleList([DiscriminatorS(use_spectral_norm=use_spectral_norm, checkpointing=checkpointing)] + [DiscriminatorP(p, use_spectral_norm=use_spectral_norm, checkpointing=checkpointing) for p in periods])
-
-    def forward(self, y, y_hat):
-        y_d_rs, y_d_gs, fmap_rs, fmap_gs = [], [], [], []
-
-        for d in self.discriminators:
-            if self.training and self.checkpointing:
-                def forward_discriminator(d, y, y_hat):
-                    y_d_r, fmap_r = d(y)
-                    y_d_g, fmap_g = d(y_hat)
-
-                    return y_d_r, fmap_r, y_d_g, fmap_g
-                y_d_r, fmap_r, y_d_g, fmap_g = checkpoint(forward_discriminator, d, y, y_hat, use_reentrant=False)
-            else:
-                y_d_r, fmap_r = d(y)
-                y_d_g, fmap_g = d(y_hat)
-
-            y_d_rs.append(y_d_r); fmap_rs.append(fmap_r)
-            y_d_gs.append(y_d_g); fmap_gs.append(fmap_g)
-
-        return y_d_rs, y_d_gs, fmap_rs, fmap_gs
-
-class DiscriminatorS(torch.nn.Module):
-    def __init__(self, use_spectral_norm=False, checkpointing=False):
-        super(DiscriminatorS, self).__init__()
-        self.checkpointing = checkpointing
-        norm_f = spectral_norm if use_spectral_norm else weight_norm
-        self.convs = torch.nn.ModuleList([norm_f(torch.nn.Conv1d(1, 16, 15, 1, padding=7)), norm_f(torch.nn.Conv1d(16, 64, 41, 4, groups=4, padding=20)), norm_f(torch.nn.Conv1d(64, 256, 41, 4, groups=16, padding=20)), norm_f(torch.nn.Conv1d(256, 1024, 41, 4, groups=64, padding=20)), norm_f(torch.nn.Conv1d(1024, 1024, 41, 4, groups=256, padding=20)), norm_f(torch.nn.Conv1d(1024, 1024, 5, 1, padding=2))])
-        self.conv_post = norm_f(torch.nn.Conv1d(1024, 1, 3, 1, padding=1))
-        self.lrelu = torch.nn.LeakyReLU(LRELU_SLOPE)
-
-    def forward(self, x):
-        fmap = []
-
-        for conv in self.convs:
-            x = checkpoint(self.lrelu, checkpoint(conv, x, use_reentrant = False), use_reentrant = False) if self.training and self.checkpointing else self.lrelu(conv(x))
-            fmap.append(x)
-
-        x = self.conv_post(x)
-        fmap.append(x)
-
-        return torch.flatten(x, 1, -1), fmap
-
-class DiscriminatorP(torch.nn.Module):
-    def __init__(self, period, kernel_size=5, stride=3, use_spectral_norm=False, checkpointing=False):
-        super(DiscriminatorP, self).__init__()
-        self.period = period
-        self.checkpointing = checkpointing
-        norm_f = spectral_norm if use_spectral_norm else weight_norm
-        self.convs = torch.nn.ModuleList([norm_f(torch.nn.Conv2d(in_ch, out_ch, (kernel_size, 1), (stride, 1), padding=(get_padding(kernel_size, 1), 0))) for in_ch, out_ch in zip([1, 32, 128, 512, 1024], [32, 128, 512, 1024, 1024])])
-        self.conv_post = norm_f(torch.nn.Conv2d(1024, 1, (3, 1), 1, padding=(1, 0)))
-        self.lrelu = torch.nn.LeakyReLU(LRELU_SLOPE)
-
-    def forward(self, x):
-        fmap = []
-        b, c, t = x.shape
-        if t % self.period != 0: x = F.pad(x, (0, (self.period - (t % self.period))), "reflect")
-        x = x.view(b, c, -1, self.period)
-
-        for conv in self.convs:
-            x = checkpoint(self.lrelu, checkpoint(conv, x, use_reentrant = False), use_reentrant = False) if self.training and self.checkpointing else self.lrelu(conv(x))
-            fmap.append(x)
-
-        x = self.conv_post(x)
-        fmap.append(x)
-        return torch.flatten(x, 1, -1), fmap
-
 class EpochRecorder:
     def __init__(self):
         self.last_time = ttime()
@@ -718,48 +203,6 @@ class EpochRecorder:
         self.last_time = now_time
         return translations["time_or_speed_training"].format(current_time=datetime.datetime.now().strftime("%H:%M:%S"), elapsed_time_str=str(datetime.timedelta(seconds=int(round(elapsed_time, 1)))))
     
-def dynamic_range_compression_torch(x, C=1, clip_val=1e-5):
-    return torch.log(torch.clamp(x, min=clip_val) * C)
-
-def dynamic_range_decompression_torch(x, C=1):
-    return torch.exp(x) / C
-
-def spectral_normalize_torch(magnitudes):
-    return dynamic_range_compression_torch(magnitudes)
-
-def spectral_de_normalize_torch(magnitudes):
-    return dynamic_range_decompression_torch(magnitudes)
-
-mel_basis, hann_window = {}, {}
-
-def spectrogram_torch(y, n_fft, hop_size, win_size, center=False):
-    global hann_window
-
-    wnsize_dtype_device = str(win_size) + "_" + str(y.dtype) + "_" + str(y.device)
-    if wnsize_dtype_device not in hann_window: hann_window[wnsize_dtype_device] = torch.hann_window(win_size).to(dtype=y.dtype, device=y.device)
-    spec = torch.stft(F.pad(y.unsqueeze(1), (int((n_fft - hop_size) / 2), int((n_fft - hop_size) / 2)), mode="reflect").squeeze(1), n_fft, hop_length=hop_size, win_length=win_size, window=hann_window[wnsize_dtype_device], center=center, pad_mode="reflect", normalized=False, onesided=True, return_complex=True)
-    
-    return torch.sqrt(spec.real.pow(2) + spec.imag.pow(2) + 1e-6)
-
-def spec_to_mel_torch(spec, n_fft, num_mels, sample_rate, fmin, fmax):
-    global mel_basis
-
-    fmax_dtype_device = str(fmax) + "_" + str(spec.dtype) + "_" + str(spec.device)
-    if fmax_dtype_device not in mel_basis: mel_basis[fmax_dtype_device] = torch.from_numpy(librosa_mel_fn(sr=sample_rate, n_fft=n_fft, n_mels=num_mels, fmin=fmin, fmax=fmax)).to(dtype=spec.dtype, device=spec.device)
-    
-    return spectral_normalize_torch(torch.matmul(mel_basis[fmax_dtype_device], spec))
-
-def mel_spectrogram_torch(y, n_fft, num_mels, sample_rate, hop_size, win_size, fmin, fmax, center=False):
-    return spec_to_mel_torch(spectrogram_torch(y, n_fft, hop_size, win_size, center), n_fft, num_mels, sample_rate, fmin, fmax)
-
-def replace_keys_in_dict(d, old_key_part, new_key_part):
-    updated_dict = OrderedDict() if isinstance(d, OrderedDict) else {}
-
-    for key, value in d.items():
-        updated_dict[(key.replace(old_key_part, new_key_part) if isinstance(key, str) else key)] = (replace_keys_in_dict(value, old_key_part, new_key_part) if isinstance(value, dict) else value)
-    
-    return updated_dict
-
 def extract_model(ckpt, sr, pitch_guidance, name, model_path, epoch, step, version, hps, model_author, vocoder):
     try:
         logger.info(translations["savemodel"].format(model_dir=model_path, epoch=epoch, step=step))
@@ -807,8 +250,8 @@ def run(rank, n_gpus, experiment_dir, pretrainG, pretrainD, pitch_guidance, cust
     try:
         logger.info(translations["start_training"])
 
-        _, _, _, epoch_str = load_checkpoint((os.path.join(experiment_dir, "D_latest.pth") if save_only_latest else latest_checkpoint_path(experiment_dir, "D_*.pth")), net_d, optim_d)
-        _, _, _, epoch_str = load_checkpoint((os.path.join(experiment_dir, "G_latest.pth") if save_only_latest else latest_checkpoint_path(experiment_dir, "G_*.pth")), net_g, optim_g)
+        _, _, _, epoch_str = load_checkpoint(logger, (os.path.join(experiment_dir, "D_latest.pth") if save_only_latest else latest_checkpoint_path(experiment_dir, "D_*.pth")), net_d, optim_d)
+        _, _, _, epoch_str = load_checkpoint(logger, (os.path.join(experiment_dir, "G_latest.pth") if save_only_latest else latest_checkpoint_path(experiment_dir, "G_*.pth")), net_g, optim_g)
         
         epoch_str += 1
         global_step = (epoch_str - 1) * len(train_loader)
@@ -960,8 +403,8 @@ def train_and_evaluate(rank, epoch, hps, nets, optims, scaler, train_loader, wri
         if epoch % save_every_epoch == False:
             checkpoint_suffix = f"{'latest' if save_only_latest else global_step}.pth"
 
-            save_checkpoint(net_g, optim_g, config.train.learning_rate, epoch, os.path.join(experiment_dir, "G_" + checkpoint_suffix))
-            save_checkpoint(net_d, optim_d, config.train.learning_rate, epoch, os.path.join(experiment_dir, "D_" + checkpoint_suffix))
+            save_checkpoint(logger, net_g, optim_g, config.train.learning_rate, epoch, os.path.join(experiment_dir, "G_" + checkpoint_suffix))
+            save_checkpoint(logger, net_d, optim_d, config.train.learning_rate, epoch, os.path.join(experiment_dir, "D_" + checkpoint_suffix))
 
             if custom_save_every_weights: model_add.append(os.path.join("assets", "weights", f"{model_name}_{epoch}e_{global_step}s.pth"))
 

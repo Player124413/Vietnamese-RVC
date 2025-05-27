@@ -16,11 +16,11 @@ if argv not in argv_is_allows:
 
 if argv_is_allows[0] in argv: from main.inference.audio_effects import main
 elif argv_is_allows[1] in argv: from main.inference.audioldm2 import main
-elif argv_is_allows[2] in argv: from main.inference.convert import main
+elif argv_is_allows[2] in argv: from main.inference.conversion.convert import main
 elif argv_is_allows[3] in argv: from main.inference.create_dataset import main
 elif argv_is_allows[4] in argv: from main.inference.create_index import main
 elif argv_is_allows[5] in argv: from main.inference.extract import main
-elif argv_is_allows[6] in argv: from main.inference.preprocess import main
+elif argv_is_allows[6] in argv: from main.inference.preprocess.preprocess import main
 elif argv_is_allows[7] in argv: from main.inference.separator_music import main
 elif argv_is_allows[8] in argv: from main.inference.train import main
 elif argv_is_allows[9] in argv:

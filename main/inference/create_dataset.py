@@ -15,7 +15,7 @@ from distutils.util import strtobool
 sys.path.append(os.getcwd())
 
 from main.configs.config import Config
-from main.library.algorithm.separator import Separator
+from main.library.uvr5_separator.separator import Separator
 
 config = Config()
 translations = config.translations

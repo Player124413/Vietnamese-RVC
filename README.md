@@ -140,7 +140,7 @@ Vietnamese-RVC-main
 │   │       ├── v1_extracted
 │   │       │   ├── mute.npy
 │   │       │   └── mute_spin.npy
-│   │       └── v2_extracted_spin
+│   │       └── v2_extracted
 │   │           ├── mute.npy
 │   │           └── mute_spin.npy
 │   ├── models
@@ -164,40 +164,94 @@ Vietnamese-RVC-main
 ├── dataset
 ├── main
 │   ├── app
+│   │   ├── core
+│   │   │   ├── downloads.py
+│   │   │   ├── editing.py
+│   │   │   ├── f0_extract.py
+│   │   │   ├── inference.py
+│   │   │   ├── model_utils.py
+│   │   │   ├── presets.py
+│   │   │   ├── process.py
+│   │   │   ├── restart.py
+│   │   │   ├── separate.py
+│   │   │   ├── training.py
+│   │   │   ├── tts.py
+│   │   │   ├── ui.py
+│   │   │   └── utils.py
+│   │   ├── tabs
+│   │   │   ├── downloads
+│   │   │   │   └── downloads.py
+│   │   │   ├── editing
+│   │   │   │   ├── editing.py
+│   │   │   │   └── child
+│   │   │   │       ├── audio_editing.py
+│   │   │   │       ├── audio_effects.py
+│   │   │   │       └── quirk.py
+│   │   │   ├── extra
+│   │   │   │   ├── extra.py
+│   │   │   │   └── child
+│   │   │   │       ├── convert_model.py
+│   │   │   │       ├── f0_extract.py
+│   │   │   │       ├── fushion.py
+│   │   │   │       ├── read_model.py
+│   │   │   │       ├── report_bugs.py
+│   │   │   │       └── settings.py
+│   │   │   ├── inference
+│   │   │   │   ├── inference.py
+│   │   │   │   └── child
+│   │   │   │       ├── convert.py
+│   │   │   │       ├── convert_tts.py
+│   │   │   │       ├── convert_with_whisper.py
+│   │   │   │       └── separate.py
+│   │   │   └── training
+│   │   │       ├── training.py
+│   │   │       └── child
+│   │   │           ├── create_dataset.py
+│   │   │           └── training.py
 │   │   ├── app.py
+│   │   ├── parser.py
 │   │   ├── tensorboard.py
-│   │   └── parser.py
+│   │   └── variables.py
 │   ├── configs
+│   │   ├── config.json
+│   │   ├── config.py
+│   │   ├── decrypt.bin
 │   │   ├── v1
 │   │   │   ├── 32000.json
 │   │   │   ├── 40000.json
 │   │   │   └── 48000.json
-│   │   ├── v2
-│   │   │   ├── 32000.json
-│   │   │   ├── 40000.json
-│   │   │   └── 48000.json
-│   │   ├── config.json
-│   │   └── config.py
+│   │   └── v2
+│   │       ├── 32000.json
+│   │       ├── 40000.json
+│   │       └── 48000.json
 │   ├── inference
-│   │   ├── audio_effects.py
 │   │   ├── audioldm2.py
-│   │   ├── convert.py
+│   │   ├── audio_effects.py
 │   │   ├── create_dataset.py
 │   │   ├── create_index.py
 │   │   ├── extract.py
-│   │   ├── preprocess.py
 │   │   ├── separator_music.py
-│   │   └── train.py
+│   │   ├── train.py
+│   │   ├── conversion
+│   │   │   ├── convert.py
+│   │   │   ├── pipeline.py
+│   │   │   └── utils.py
+│   │   └── preprocess
+│   │       ├── preprocess.py
+│   │       └── slicer2.py
 │   ├── library
+│   │   ├── utils.py
 │   │   ├── algorithm
+│   │   │   ├── attentions.py
 │   │   │   ├── commons.py
+│   │   │   ├── discriminators.py
+│   │   │   ├── encoders.py
 │   │   │   ├── modules.py
-│   │   │   ├── mrf_hifigan.py
+│   │   │   ├── normalization.py
 │   │   │   ├── onnx_export.py
-│   │   │   ├── refinegan.py
 │   │   │   ├── residuals.py
-│   │   │   ├── separator.py
-│   │   │   └── stftpitchshift.py
+│   │   │   ├── stftpitchshift.py
+│   │   │   └── synthesizers.py
 │   │   ├── architectures
 │   │   │   ├── demucs_separator.py
 │   │   │   ├── fairseq.py
@@ -205,13 +259,18 @@ Vietnamese-RVC-main
 │   │   ├── audioldm2
 │   │   │   ├── models.py
 │   │   │   └── utils.py
+│   │   ├── generators
+│   │   │   ├── hifigan.py
+│   │   │   ├── mrf_hifigan.py
+│   │   │   ├── nsf_hifigan.py
+│   │   │   └── refinegan.py
 │   │   ├── predictors
 │   │   │   ├── CREPE.py
 │   │   │   ├── FCPE.py
 │   │   │   ├── Generator.py
 │   │   │   ├── RMVPE.py
 │   │   │   ├── SWIPE.py
-│   │   │   └── WORLD_WRAPPER.py
+│   │   │   └── WORLD.py
 │   │   ├── speaker_diarization
 │   │   │   ├── audio.py
 │   │   │   ├── ECAPA_TDNN.py
@@ -222,17 +281,22 @@ Vietnamese-RVC-main
 │   │   │   ├── segment.py
 │   │   │   ├── speechbrain.py
 │   │   │   └── whisper.py
-│   │   ├── uvr5_separator
-│   │   │   ├── common_separator.py
-│   │   │   ├── spec_utils.py
-│   │   │   └── demucs
-│   │   │       ├── apply.py
-│   │   │       ├── demucs.py
-│   │   │       ├── hdemucs.py
-│   │   │       ├── htdemucs.py
-│   │   │       ├── states.py
-│   │   │       └── utils.py
-│   │   └── utils.py
+│   │   ├── training
+│   │   │   ├── data_utils.py
+│   │   │   ├── losses.py
+│   │   │   ├── mel_processing.py
+│   │   │   └── utils.py
+│   │   └── uvr5_separator
+│   │       ├── common_separator.py
+│   │       ├── separator.py
+│   │       ├── spec_utils.py
+│   │       └── demucs
+│   │           ├── apply.py
+│   │           ├── demucs.py
+│   │           ├── hdemucs.py
+│   │           ├── htdemucs.py
+│   │           ├── states.py
+│   │           └── utils.py
 │   └── tools
 │       ├── gdown.py
 │       ├── huggingface.py
@@ -260,6 +324,16 @@ Vietnamese-RVC-main
 - **Bộ mã hóa MRF HIFIGAN và REFINEGAN không hỗ trợ huấn luyện khi không không huấn luyện cao độ**
 - **Các mô hình trong kho lưu trữ Vietnamese-RVC được thu thập rải rác trên AI Hub, HuggingFace và các các kho lưu trữ khác. Có thể mang các giấy phép bản quyền khác nhau (Ví dụ: Audioldm2 có các trọng số mô hình với điều khoản "Phi Thương Mại")**
 - **Mã nguồn này có chứa thành phần phần mềm bên thứ ba được cấp phép với điều khoản "phi thương mại". Bất kỳ hành vi sử dụng thương mại nào, bao gồm kêu gọi tài trợ hoặc tài chính hóa phần mềm phái sinh, đều có thể vi phạm giấy phép và sẽ phải chịu trách nhiệm pháp lý tương ứng.**
+
+# ⚠️ Tuyên bố miễn trừ trách nhiệm
+
+- **Dự án Vietnamese-RVC được phát triển với mục đích nghiên cứu, học tập và giải trí cá nhân. Tôi không khuyến khích cũng như không chịu trách nhiệm đối với bất kỳ hành vi lạm dụng công nghệ chuyển đổi giọng nói vì mục đích lừa đảo, giả mạo danh tính, hoặc vi phạm quyền riêng tư, bản quyền của bất kỳ cá nhân hay tổ chức nào.**
+
+- **Người dùng cần tự chịu trách nhiệm với hành vi sử dụng phần mềm này và cam kết tuân thủ pháp luật hiện hành tại quốc gia nơi họ sinh sống hoặc hoạt động.**
+
+- **❗ Việc sử dụng giọng nói của người nổi tiếng, người thật hoặc nhân vật công chúng phải có sự cho phép hoặc đảm bảo không vi phạm pháp luật, đạo đức và quyền lợi của các bên liên quan.**
+
+- **Tác giả của dự án không chịu trách nhiệm pháp lý đối với bất kỳ hậu quả nào phát sinh từ việc sử dụng phần mềm này.**
 
 # Điều khoản sử dụng
 

@@ -523,16 +523,17 @@
         "zh"
     ],
     "fp16": false,
-    "separate_and_edit_tab": true,
-    "convert_and_effects_tab": true,
+    "editing_tab": true,
+    "inference_tab": true,
     "create_and_training_tab": true,
     "extra_tab": true,
     "separator_tab": true,
     "convert_tab": true,
     "convert_with_whisper": true,
     "tts_tab": true,
-    "audioldm2": true,
     "effects_tab": true,
+    "quirk": true,
+    "audioldm2": true,
     "create_dataset_tab": true,
     "training_tab": true,
     "fushion_tab": true,
@@ -547,5 +548,6 @@
     "tensorboard_port": 6870,
     "num_of_restart": 5,
     "server_name": "0.0.0.0",
-    "app_show_error": true
+    "app_show_error": true,
+    "delete_exists_file": false
 }
