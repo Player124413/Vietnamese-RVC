@@ -11,10 +11,8 @@ from collections import OrderedDict
 
 sys.path.append(os.getcwd())
 
-from main.configs.config import Config
+from main.app.variables import translations
 
-config = Config()
-translations = config.translations
 MATPLOTLIB_FLAG = False
 
 def replace_keys_in_dict(d, old_key_part, new_key_part):

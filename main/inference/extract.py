@@ -7,7 +7,6 @@ import shutil
 import logging
 import argparse
 import warnings
-import logging.handlers
 import concurrent.futures
 
 import numpy as np
@@ -18,14 +17,9 @@ from distutils.util import strtobool
 
 sys.path.append(os.getcwd())
 
-from main.configs.config import Config
 from main.library.predictors.Generator import Generator
+from main.app.variables import config, logger, translations
 from main.library.utils import check_predictors, check_embedders, load_audio, load_embedders_model, get_providers
-
-logger = logging.getLogger(__name__)
-config = Config()
-translations = config.translations
-logger.propagate = False
 
 warnings.filterwarnings("ignore")
 for l in ["torch", "faiss", "httpx", "httpcore", "faiss.loader", "numba.core", "urllib3", "matplotlib"]:
@@ -189,20 +183,6 @@ def main():
     f0_method, hop_length, num_processes, gpus, version, pitch_guidance, sample_rate, embedder_model, f0_onnx, embedders_mode = args.f0_method, args.hop_length, args.cpu_cores, args.gpu, args.rvc_version, args.pitch_guidance, args.sample_rate, args.embedder_model, args.f0_onnx, args.embedders_mode
     devices = ["cpu"] if gpus == "-" else [f"cuda:{idx}" for idx in gpus.split("-")]
     check_predictors(f0_method, f0_onnx); check_embedders(embedder_model, embedders_mode)
-
-    if logger.hasHandlers(): logger.handlers.clear()
-    else:
-        console_handler = logging.StreamHandler()
-        console_formatter = logging.Formatter(fmt="\n%(asctime)s.%(msecs)03d | %(levelname)s | %(module)s | %(message)s", datefmt="%Y-%m-%d %H:%M:%S")
-        console_handler.setFormatter(console_formatter)
-        console_handler.setLevel(logging.INFO)
-        file_handler = logging.handlers.RotatingFileHandler(os.path.join(exp_dir, "extract.log"), maxBytes=5*1024*1024, backupCount=3, encoding='utf-8')
-        file_formatter = logging.Formatter(fmt="\n%(asctime)s.%(msecs)03d | %(levelname)s | %(module)s | %(message)s", datefmt="%Y-%m-%d %H:%M:%S")
-        file_handler.setFormatter(file_formatter)
-        file_handler.setLevel(logging.DEBUG)
-        logger.addHandler(console_handler)
-        logger.addHandler(file_handler)
-        logger.setLevel(logging.DEBUG)
 
     log_data = {translations['modelname']: args.model_name, translations['export_process']: exp_dir, translations['f0_method']: f0_method, translations['pretrain_sr']: sample_rate, translations['cpu_core']: num_processes, "Gpu": gpus, "Hop length": hop_length, translations['training_version']: version, translations['extract_f0']: pitch_guidance, translations['hubert_model']: embedder_model, translations["f0_onnx_mode"]: f0_onnx, translations["embed_mode"]: embedders_mode}
     for key, value in log_data.items():

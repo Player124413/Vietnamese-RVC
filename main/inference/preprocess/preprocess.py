@@ -4,7 +4,6 @@ import time
 import logging
 import librosa
 import argparse
-import logging.handlers
 
 import numpy as np
 import torch.multiprocessing as mp
@@ -17,16 +16,13 @@ from concurrent.futures import ProcessPoolExecutor, as_completed
 
 sys.path.append(os.getcwd())
 
-from main.configs.config import Config
 from main.library.utils import load_audio
 from main.inference.preprocess.slicer2 import Slicer
+from main.app.variables import config, logger, translations
 
-logger = logging.getLogger(__name__)
 for l in ["numba.core.byteflow", "numba.core.ssa", "numba.core.interpreter"]:
     logging.getLogger(l).setLevel(logging.ERROR)
 
-config = Config()
-translations = config.translations
 OVERLAP, MAX_AMPLITUDE, ALPHA, HIGH_PASS_CUTOFF, SAMPLE_RATE_16K = 0.3, 0.9, 0.75, 48, 16000
 
 def parse_arguments():
@@ -141,20 +137,6 @@ def main():
     num_processes = 2 if num_processes is None else int(num_processes)
     dataset, sample_rate, cut_preprocess, preprocess_effects, clean_dataset, clean_strength = args.dataset_path, args.sample_rate, args.cut_preprocess, args.process_effects, args.clean_dataset, args.clean_strength
     os.makedirs(experiment_directory, exist_ok=True)
-    
-    if logger.hasHandlers(): logger.handlers.clear()
-    else:
-        console_handler = logging.StreamHandler()
-        console_formatter = logging.Formatter(fmt="\n%(asctime)s.%(msecs)03d | %(levelname)s | %(module)s | %(message)s", datefmt="%Y-%m-%d %H:%M:%S")
-        console_handler.setFormatter(console_formatter)
-        console_handler.setLevel(logging.INFO)
-        file_handler = logging.handlers.RotatingFileHandler(os.path.join(experiment_directory, "preprocess.log"), maxBytes=5*1024*1024, backupCount=3, encoding='utf-8')
-        file_formatter = logging.Formatter(fmt="\n%(asctime)s.%(msecs)03d | %(levelname)s | %(module)s | %(message)s", datefmt="%Y-%m-%d %H:%M:%S")
-        file_handler.setFormatter(file_formatter)
-        file_handler.setLevel(logging.DEBUG)
-        logger.addHandler(console_handler)
-        logger.addHandler(file_handler)
-        logger.setLevel(logging.DEBUG)
 
     log_data = {translations['modelname']: args.model_name, translations['export_process']: experiment_directory, translations['dataset_folder']: dataset, translations['pretrain_sr']: sample_rate, translations['cpu_core']: num_processes, translations['split_audio']: cut_preprocess, translations['preprocess_effect']: preprocess_effects, translations['clear_audio']: clean_dataset}
     if clean_dataset: log_data[translations['clean_strength']] = clean_strength

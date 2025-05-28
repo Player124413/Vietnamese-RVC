@@ -1,4 +1,5 @@
 import os
+import io
 import ssl
 import sys
 import time
@@ -55,6 +56,9 @@ with gr.Blocks(title="📱 Vietnamese-RVC GUI BY ANH", theme=theme, css="<style>
     server_name = configs.get("server_name", "0.0.0.0")
     share = "--share" in sys.argv
 
+    original_stdout = sys.stdout
+    sys.stdout = io.StringIO()
+
     for i in range(configs.get("num_of_restart", 5)):
         try:
             _, _, share_url = app.queue().launch(
@@ -76,8 +80,10 @@ with gr.Blocks(title="📱 Vietnamese-RVC GUI BY ANH", theme=theme, css="<style>
             logger.error(translations["error_occurred"].format(e=e))
             sys.exit(1)
     
-    logger.info(f"{translations['running_local_url']}: `{server_name}:{port}`")
-    if share: logger.info(f"{translations['running_share_url']}: `{share_url}`")
+    sys.stdout = original_stdout
+    logger.info(f"{translations['running_local_url']}: {server_name}:{port}")
+
+    if share: logger.info(f"{translations['running_share_url']}: {share_url}")
     logger.info(f"{translations['gradio_start']}: {(time.time() - start_time):.2f}s")
 
     while 1:

@@ -16,14 +16,11 @@ from transformers import HubertModel
 sys.path.append(os.getcwd())
 
 from main.tools import huggingface
-from main.configs.config import Config
+from main.app.variables import translations
 from main.library.architectures import fairseq
 
 for l in ["httpx", "httpcore"]:
     logging.getLogger(l).setLevel(logging.ERROR)
-
-config = Config()
-translations = config.translations
 
 class HubertModelWithFinalProj(HubertModel):
     def __init__(self, config):

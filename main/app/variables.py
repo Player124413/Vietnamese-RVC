@@ -11,7 +11,7 @@ sys.path.append(os.getcwd())
 
 from main.configs.config import Config
 
-logger = logging.getLogger("app")
+logger = logging.getLogger(__name__)
 logger.propagate = False
 
 if logger.hasHandlers(): logger.handlers.clear()

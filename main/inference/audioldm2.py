@@ -7,7 +7,6 @@ import logging
 import librosa
 import argparse
 import scipy.signal
-import logging.handlers
 
 import numpy as np
 import soundfile as sf
@@ -17,31 +16,15 @@ from distutils.util import strtobool
 
 sys.path.append(os.getcwd())
 
-from main.configs.config import Config
 from main.library.audioldm2.utils import load_audio
 from main.library.audioldm2.models import load_model
+from main.app.variables import config, logger, translations
 
-config = Config()
-translations = config.translations
 logger = logging.getLogger(__name__)
 logger.propagate = False
 
 for l in ["torch", "httpx", "httpcore", "diffusers", "transformers"]:
     logging.getLogger(l).setLevel(logging.ERROR)
-
-if logger.hasHandlers(): logger.handlers.clear()
-else:
-    console_handler = logging.StreamHandler()
-    console_formatter = logging.Formatter(fmt="\n%(asctime)s.%(msecs)03d | %(levelname)s | %(module)s | %(message)s", datefmt="%Y-%m-%d %H:%M:%S")
-    console_handler.setFormatter(console_formatter)
-    console_handler.setLevel(logging.INFO)
-    file_handler = logging.handlers.RotatingFileHandler(os.path.join("assets", "logs", "audioldm2.log"), maxBytes=5*1024*1024, backupCount=3, encoding='utf-8')
-    file_formatter = logging.Formatter(fmt="\n%(asctime)s.%(msecs)03d | %(levelname)s | %(module)s | %(message)s", datefmt="%Y-%m-%d %H:%M:%S")
-    file_handler.setFormatter(file_formatter)
-    file_handler.setLevel(logging.DEBUG)
-    logger.addHandler(console_handler)
-    logger.addHandler(file_handler)
-    logger.setLevel(logging.DEBUG)
 
 def parse_arguments():
     parser = argparse.ArgumentParser()

@@ -114,7 +114,7 @@ class Generator:
     
     def get_f0_fcpe(self, x, p_len, legacy=False):
         if not hasattr(self, "fcpe"):
-            from main.library.predictors.FCPE import FCPE
+            from main.library.predictors.FCPE.FCPE import FCPE
             self.fcpe = FCPE(os.path.join("assets", "models", "predictors", ("fcpe_legacy" if legacy else "fcpe") + (".onnx" if self.f0_onnx_mode else ".pt")), hop_length=self.hop_length, f0_min=self.f0_min, f0_max=self.f0_max, dtype=torch.float32, device=self.device, sample_rate=self.sample_rate, threshold=0.03 if legacy else 0.006, providers=self.providers, onnx=self.f0_onnx_mode, legacy=legacy)
         
         f0 = self.fcpe.compute_f0(x, p_len)

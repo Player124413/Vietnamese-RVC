@@ -8,7 +8,6 @@ import logging
 import argparse
 import datetime
 import warnings
-import logging.handlers
 
 import torch.distributed as dist
 import torch.utils.data as tdata
@@ -27,7 +26,7 @@ from torch.nn.parallel import DistributedDataParallel as DDP
 
 sys.path.append(os.getcwd())
 
-from main.configs.config import Config
+from main.app.variables import logger, translations
 from main.library.algorithm.synthesizers import Synthesizer
 from main.library.algorithm.discriminators import MultiPeriodDiscriminator
 from main.library.algorithm.commons import slice_segments, clip_grad_value
@@ -36,8 +35,8 @@ from main.library.training.losses import discriminator_loss, kl_loss, feature_lo
 from main.library.training.data_utils import TextAudioCollate, TextAudioCollateMultiNSFsid, TextAudioLoader, TextAudioLoaderMultiNSFsid, DistributedBucketSampler
 from main.library.training.utils import HParams, replace_keys_in_dict, load_checkpoint, latest_checkpoint_path, save_checkpoint, summarize, plot_spectrogram_to_numpy
 
-main_config = Config()
-translations = main_config.translations
+from main.app.variables import config as main_config
+
 warnings.filterwarnings("ignore")
 logging.getLogger("torch").setLevel(logging.ERROR)
 
@@ -87,19 +86,6 @@ with open(config_save_path, "r") as f:
 
 config = HParams(**config)
 config.data.training_files = os.path.join(experiment_dir, "filelist.txt")
-logger = logging.getLogger(__name__)
-
-if logger.hasHandlers(): logger.handlers.clear()
-else:  
-    console_handler = logging.StreamHandler()
-    console_handler.setFormatter(logging.Formatter(fmt="\n%(asctime)s.%(msecs)03d | %(levelname)s | %(module)s | %(message)s", datefmt="%Y-%m-%d %H:%M:%S"))
-    console_handler.setLevel(logging.INFO)
-    file_handler = logging.handlers.RotatingFileHandler(os.path.join(experiment_dir, "train.log"), maxBytes=5*1024*1024, backupCount=3, encoding='utf-8')
-    file_handler.setFormatter(logging.Formatter(fmt="\n%(asctime)s.%(msecs)03d | %(levelname)s | %(module)s | %(message)s", datefmt="%Y-%m-%d %H:%M:%S"))
-    file_handler.setLevel(logging.DEBUG)
-    logger.addHandler(console_handler)
-    logger.addHandler(file_handler)
-    logger.setLevel(logging.DEBUG)
 
 def main():
     global training_file_path, last_loss_gen_all, smoothed_loss_gen_history, loss_gen_history, loss_disc_history, smoothed_loss_disc_history, overtrain_save_epoch, model_author, vocoder, checkpointing, gpus

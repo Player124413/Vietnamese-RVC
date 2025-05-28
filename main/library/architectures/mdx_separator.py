@@ -51,7 +51,7 @@ class MDXSeparator(CommonSeparator):
 
         if self.segment_size == self.dim_t:
             ort_session_options = ort.SessionOptions()
-            ort_session_options.log_severity_level = 3 if self.log_level > 10 else 0
+            ort_session_options.log_severity_level = 3
             ort_inference_session = ort.InferenceSession(self.model_path, providers=self.onnx_execution_provider, sess_options=ort_session_options)
             self.model_run = lambda spek: ort_inference_session.run(None, {"input": spek.cpu().numpy()})[0]
             self.logger.debug(translations["load_model_onnx_success"])

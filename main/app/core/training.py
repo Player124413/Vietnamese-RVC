@@ -19,13 +19,15 @@ def if_done(done, p):
 
     done[0] = True
 
-def log_read(log_file, done):
+def log_read(done, name):
+    log_file = os.path.join("assets", "logs", "app.log")
+
     f = open(log_file, "w", encoding="utf-8")
     f.close()
 
     while 1:
         with open(log_file, "r", encoding="utf-8") as f:
-            yield "".join(line for line in f.readlines() if "DEBUG" not in line and line.strip() != "")
+            yield "".join(line for line in f.readlines() if "DEBUG" not in line and name in line and line.strip() != "")
 
         time.sleep(1)
         if done[0]: break
@@ -45,7 +47,7 @@ def create_dataset(input_audio, output_dataset, clean_dataset, clean_strength, s
 
     threading.Thread(target=if_done, args=(done, p)).start()
 
-    for log in log_read(os.path.join("assets", "logs", "create_dataset.log"), done):
+    for log in log_read(done, "create_dataset"):
         yield log
 
 def preprocess(model_name, sample_rate, cpu_core, cut_preprocess, process_effects, dataset, clean_dataset, clean_strength):
@@ -63,7 +65,7 @@ def preprocess(model_name, sample_rate, cpu_core, cut_preprocess, process_effect
     threading.Thread(target=if_done, args=(done, p)).start()
     os.makedirs(model_dir, exist_ok=True)
 
-    for log in log_read(os.path.join(model_dir, "preprocess.log"), done):
+    for log in log_read(done, "preprocess"):
         yield log
 
 def extract(model_name, version, method, pitch_guidance, hop_length, cpu_cores, gpu, sample_rate, embedders, custom_embedders, onnx_f0_mode, embedders_mode):
@@ -84,7 +86,7 @@ def extract(model_name, version, method, pitch_guidance, hop_length, cpu_cores, 
     threading.Thread(target=if_done, args=(done, p)).start()
     os.makedirs(model_dir, exist_ok=True)
 
-    for log in log_read(os.path.join(model_dir, "extract.log"), done):
+    for log in log_read(done, "extract"):
         yield log
 
 def create_index(model_name, rvc_version, index_algorithm):
@@ -102,7 +104,7 @@ def create_index(model_name, rvc_version, index_algorithm):
     threading.Thread(target=if_done, args=(done, p)).start()
     os.makedirs(model_dir, exist_ok=True)
 
-    for log in log_read(os.path.join(model_dir, "create_index.log"), done):
+    for log in log_read(done, "create_index"):
         yield log
 
 def training(model_name, rvc_version, save_every_epoch, save_only_latest, save_every_weights, total_epoch, sample_rate, batch_size, gpu, pitch_guidance, not_pretrain, custom_pretrained, pretrain_g, pretrain_d, detector, threshold, clean_up, cache, model_author, vocoder, checkpointing, deterministic, benchmark, optimizer):
@@ -160,7 +162,7 @@ def training(model_name, rvc_version, save_every_epoch, save_only_latest, save_e
 
     threading.Thread(target=if_done, args=(done, p)).start()
 
-    for log in log_read(os.path.join(model_dir, "train.log"), done):
+    for log in log_read(done, "train"):
         lines = log.splitlines()
         if len(lines) > 100: log = "\n".join(lines[-100:])
         yield log

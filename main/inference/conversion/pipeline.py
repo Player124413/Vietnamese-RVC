@@ -10,13 +10,10 @@ from scipy import signal
 
 sys.path.append(os.getcwd())
 
-from main.configs.config import Config
+from main.app.variables import translations
 from main.library.utils import get_providers
 from main.library.predictors.Generator import Generator
 from main.inference.conversion.utils import Autotune, change_rms, clear_gpu_cache
-
-config = Config()
-translations = config.translations
 
 bh, ah = signal.butter(N=5, Wn=48, btype="high", fs=16000)
 

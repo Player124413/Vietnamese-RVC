@@ -1,9 +1,7 @@
 import os
 import sys
 import faiss
-import logging
 import argparse
-import logging.handlers
 
 import numpy as np
 
@@ -12,8 +10,7 @@ from sklearn.cluster import MiniBatchKMeans
 
 sys.path.append(os.getcwd())
 
-from main.configs.config import Config
-translations = Config().translations
+from main.app.variables import logger, translations
 
 def parse_arguments():
     parser = argparse.ArgumentParser()
@@ -27,21 +24,6 @@ def main():
     args = parse_arguments()
     exp_dir = os.path.join("assets", "logs", args.model_name)
     version, index_algorithm = args.rvc_version, args.index_algorithm
-    logger = logging.getLogger(__name__)
-
-    if logger.hasHandlers(): logger.handlers.clear()
-    else:  
-        console_handler = logging.StreamHandler()
-        console_formatter = logging.Formatter(fmt="\n%(asctime)s.%(msecs)03d | %(levelname)s | %(module)s | %(message)s", datefmt="%Y-%m-%d %H:%M:%S")
-        console_handler.setFormatter(console_formatter)
-        console_handler.setLevel(logging.INFO)
-        file_handler = logging.handlers.RotatingFileHandler(os.path.join(exp_dir, "create_index.log"), maxBytes=5*1024*1024, backupCount=3, encoding='utf-8')
-        file_formatter = logging.Formatter(fmt="\n%(asctime)s.%(msecs)03d | %(levelname)s | %(module)s | %(message)s", datefmt="%Y-%m-%d %H:%M:%S")
-        file_handler.setFormatter(file_formatter)
-        file_handler.setLevel(logging.DEBUG)
-        logger.addHandler(console_handler)
-        logger.addHandler(file_handler)
-        logger.setLevel(logging.DEBUG)
 
     log_data = {translations['modelname']: args.model_name, translations['model_path']: exp_dir, translations['training_version']: version, translations['index_algorithm_info']: index_algorithm}
     for key, value in log_data.items():

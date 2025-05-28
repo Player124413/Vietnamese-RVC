@@ -9,7 +9,6 @@ import logging
 import argparse
 import warnings
 import onnxruntime
-import logging.handlers
 
 import numpy as np
 import soundfile as sf
@@ -20,33 +19,14 @@ from distutils.util import strtobool
 warnings.filterwarnings("ignore")
 sys.path.append(os.getcwd())
 
-from main.configs.config import Config
 from main.inference.conversion.pipeline import Pipeline
+from main.app.variables import config, logger, translations
 from main.library.algorithm.synthesizers import Synthesizer
 from main.inference.conversion.utils import clear_gpu_cache
 from main.library.utils import check_predictors, check_embedders, load_audio, load_embedders_model, cut, restore, get_providers
 
-config = Config()
-translations = config.translations
-logger = logging.getLogger(__name__)
-logger.propagate = False
-
 for l in ["torch", "faiss", "omegaconf", "httpx", "httpcore", "faiss.loader", "numba.core", "urllib3", "transformers", "matplotlib"]:
     logging.getLogger(l).setLevel(logging.ERROR)
-
-if logger.hasHandlers(): logger.handlers.clear()
-else:
-    console_handler = logging.StreamHandler()
-    console_formatter = logging.Formatter(fmt="\n%(asctime)s.%(msecs)03d | %(levelname)s | %(module)s | %(message)s", datefmt="%Y-%m-%d %H:%M:%S")
-    console_handler.setFormatter(console_formatter)
-    console_handler.setLevel(logging.INFO)
-    file_handler = logging.handlers.RotatingFileHandler(os.path.join("assets", "logs", "convert.log"), maxBytes=5*1024*1024, backupCount=3, encoding='utf-8')
-    file_formatter = logging.Formatter(fmt="\n%(asctime)s.%(msecs)03d | %(levelname)s | %(module)s | %(message)s", datefmt="%Y-%m-%d %H:%M:%S")
-    file_handler.setFormatter(file_formatter)
-    file_handler.setLevel(logging.DEBUG)
-    logger.addHandler(console_handler)
-    logger.addHandler(file_handler)
-    logger.setLevel(logging.DEBUG)
 
 def parse_arguments():
     parser = argparse.ArgumentParser()
