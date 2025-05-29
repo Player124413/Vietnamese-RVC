@@ -18,6 +18,7 @@ Công cụ chuyển đổi giọng nói chất lượng và hiệu suất cao đ
 </div>
 
 # Mô tả
+
 Dự án này là một công cụ chuyển đổi giọng nói đơn giản, dễ sử dụng, được thiết kế cho người Việt Nam. Với mục tiêu tạo ra các sản phẩm chuyển đổi giọng nói chất lượng cao và hiệu suất tối ưu, dự án cho phép người dùng thay đổi giọng nói một cách mượt mà, tự nhiên.
 
 # Các tính năng của dự án
@@ -266,7 +267,13 @@ Vietnamese-RVC-main
 │   │   │   └── refinegan.py
 │   │   ├── predictors
 │   │   │   ├── CREPE.py
-│   │   │   ├── FCPE.py
+│   │   │   ├── FCPE
+│   │   │   │   ├── attentions.py
+│   │   │   │   ├── encoder.py
+│   │   │   │   ├── FCPE.py
+│   │   │   │   ├── stft.py
+│   │   │   │   ├── utils.py
+│   │   │   │   └── wav2mel.py
 │   │   │   ├── Generator.py
 │   │   │   ├── RMVPE.py
 │   │   │   ├── SWIPE.py
