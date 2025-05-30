@@ -130,7 +130,7 @@ class Generator:
         f0 = self.rmvpe.infer_from_audio_with_pitch(x, thred=0.03, f0_min=self.f0_min, f0_max=self.f0_max) if legacy else self.rmvpe.infer_from_audio(x, thred=0.03)
         if self.f0_onnx_mode: del self.rmvpe, self.rmvpe.model
 
-        return self._interpolate_f0(self._resize_f0(f0, p_len))[0]
+        return self._resize_f0(f0, p_len)
     
     def get_f0_pyworld(self, x, p_len, filter_radius, model="harvest"):
         if not hasattr(self, "pw"):

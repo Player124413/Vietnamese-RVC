@@ -160,7 +160,7 @@ def get_refined_f0(x, fs, current_time, current_f0):
     fft_size = 2 ** math.ceil(math.log((half_window_length * 2 + 1), 2) + 1)
 
     base_time = np.array([float("{0:.4f}".format(elm)) for elm in base_time])
-    index_raw = round_matlab((current_time + base_time) * fs)
+    index_raw = round_matlab_2((current_time + base_time) * fs)
     
     window_time = ((index_raw - 1) / fs) - current_time
     main_window = 0.42 + 0.5 * np.cos(2 * math.pi * window_time / window_length_in_time) + 0.08 * np.cos(4 * math.pi * window_time / window_length_in_time)
@@ -177,7 +177,7 @@ def get_refined_f0(x, fs, current_time, current_f0):
     instantaneous_frequency = (np.arange(fft_size) / fft_size * fs) + (np.real(spectrum) * np.imag(diff_spectrum) - np.imag(spectrum) * np.real(diff_spectrum)) / power_spectrum * fs / 2 / math.pi
     
     trim_index = np.array([1, 2])
-    index_list_trim = np.array(round_matlab(f0_initial * fft_size / fs * trim_index) + 1, int)
+    index_list_trim = np.array(round_matlab_2(f0_initial * fft_size / fs * trim_index) + 1, int)
 
     amp_list = np.sqrt(power_spectrum[index_list_trim - 1])
     f0_initial = np.sum(amp_list * instantaneous_frequency[index_list_trim - 1]) / np.sum(amp_list * trim_index)
@@ -185,13 +185,13 @@ def get_refined_f0(x, fs, current_time, current_f0):
     if f0_initial < 0: return 0
     
     trim_index = np.array([1, 2, 3, 4, 5, 6])
-    index_list_trim = np.array(round_matlab(f0_initial * fft_size / fs * trim_index) + 1, int)
+    index_list_trim = np.array(round_matlab_2(f0_initial * fft_size / fs * trim_index) + 1, int)
     amp_list = np.sqrt(power_spectrum[index_list_trim - 1])
 
     return np.sum(amp_list * instantaneous_frequency[index_list_trim - 1]) / np.sum(amp_list * trim_index)
 
-@nb.jit((nb.float32[:],), nopython=True, cache=True)
-def round_matlab(x):
+@nb.jit((nb.float64[:],), nopython=True, cache=True)
+def round_matlab_2(x):
     y = x.copy()
     
     y[x > 0] += 0.5
