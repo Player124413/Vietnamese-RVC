@@ -14,25 +14,25 @@ from main.configs.config import Config
 logger = logging.getLogger(__name__)
 logger.propagate = False
 
+config = Config()
+python = sys.executable
+translations = config.translations 
+configs_json = os.path.join("main", "configs", "config.json")
+configs = json.load(open(configs_json, "r"))
+
 if logger.hasHandlers(): logger.handlers.clear()
 else:
     console_handler = logging.StreamHandler()
     console_formatter = logging.Formatter(fmt="\n%(asctime)s.%(msecs)03d | %(levelname)s | %(module)s | %(message)s", datefmt="%Y-%m-%d %H:%M:%S")
     console_handler.setFormatter(console_formatter)
     console_handler.setLevel(logging.INFO)
-    file_handler = logging.handlers.RotatingFileHandler(os.path.join("assets", "logs", "app.log"), maxBytes=5*1024*1024, backupCount=3, encoding='utf-8')
+    file_handler = logging.handlers.RotatingFileHandler(os.path.join(configs["logs_path"], "app.log"), maxBytes=5*1024*1024, backupCount=3, encoding='utf-8')
     file_formatter = logging.Formatter(fmt="\n%(asctime)s.%(msecs)03d | %(levelname)s | %(module)s | %(message)s", datefmt="%Y-%m-%d %H:%M:%S")
     file_handler.setFormatter(file_formatter)
     file_handler.setLevel(logging.DEBUG)
     logger.addHandler(console_handler)
     logger.addHandler(file_handler)
     logger.setLevel(logging.DEBUG)
-
-config = Config()
-python = sys.executable
-translations = config.translations 
-configs_json = os.path.join("main", "configs", "config.json")
-configs = json.load(open(configs_json, "r"))
 
 if config.device in ["cpu", "mps"] and configs.get("fp16", False):
     logger.warning(translations["fp16_not_support"])
@@ -50,16 +50,17 @@ method_f0_full = ["pm", "dio", "mangio-crepe-tiny", "mangio-crepe-small", "mangi
 embedders_mode = ["fairseq", "onnx", "transformers", "spin"]
 embedders_model = ["contentvec_base", "hubert_base", "japanese_hubert_base", "korean_hubert_base", "chinese_hubert_base", "portuguese_hubert_base", "custom"]
 
-paths_for_files = sorted([os.path.abspath(os.path.join(root, f)) for root, _, files in os.walk("audios") for f in files if os.path.splitext(f)[1].lower() in (".wav", ".mp3", ".flac", ".ogg", ".opus", ".m4a", ".mp4", ".aac", ".alac", ".wma", ".aiff", ".webm", ".ac3")])
+paths_for_files = sorted([os.path.abspath(os.path.join(root, f)) for root, _, files in os.walk(configs["audios_path"]) for f in files if os.path.splitext(f)[1].lower() in (".wav", ".mp3", ".flac", ".ogg", ".opus", ".m4a", ".mp4", ".aac", ".alac", ".wma", ".aiff", ".webm", ".ac3")])
 
-model_name = sorted(list(model for model in os.listdir(os.path.join("assets", "weights")) if model.endswith((".pth", ".onnx")) and not model.startswith("G_") and not model.startswith("D_"))) 
-index_path = sorted([os.path.join(root, name) for root, _, files in os.walk(os.path.join("assets", "logs"), topdown=False) for name in files if name.endswith(".index") and "trained" not in name])
+model_name = sorted(list(model for model in os.listdir(configs["weights_path"]) if model.endswith((".pth", ".onnx")) and not model.startswith("G_") and not model.startswith("D_"))) 
+index_path = sorted([os.path.join(root, name) for root, _, files in os.walk(configs["logs_path"], topdown=False) for name in files if name.endswith(".index") and "trained" not in name])
 
-pretrainedD = [model for model in os.listdir(os.path.join("assets", "models", "pretrained_custom")) if model.endswith(".pth") and "D" in model]
-pretrainedG = [model for model in os.listdir(os.path.join("assets", "models", "pretrained_custom")) if model.endswith(".pth") and "G" in model]
+pretrainedD = [model for model in os.listdir(configs["pretrained_custom_path"]) if model.endswith(".pth") and "D" in model]
+pretrainedG = [model for model in os.listdir(configs["pretrained_custom_path"]) if model.endswith(".pth") and "G" in model]
 
-presets_file = sorted(list(f for f in os.listdir(os.path.join("assets", "presets")) if f.endswith(".json")))
-f0_file = sorted([os.path.abspath(os.path.join(root, f)) for root, _, files in os.walk(os.path.join("assets", "f0")) for f in files if f.endswith(".txt")])
+presets_file = sorted(list(f for f in os.listdir(configs["presets_path"]) if f.endswith(".conversion.json")))
+audio_effect_presets_file = sorted(list(f for f in os.listdir(configs["presets_path"]) if f.endswith(".effect.json")))
+f0_file = sorted([os.path.abspath(os.path.join(root, f)) for root, _, files in os.walk(configs["f0_path"]) for f in files if f.endswith(".txt")])
 
 language = configs.get("language", "vi-VN")
 theme = configs.get("theme", "NoCrypt/miku")
@@ -72,7 +73,7 @@ uvr_model = configs.get("demucs_model", "HD_MMI") + mdx_model
 
 font = configs.get("font", "https://fonts.googleapis.com/css2?family=Courgette&display=swap")
 sample_rate_choice = [8000, 11025, 12000, 16000, 22050, 24000, 32000, 44100, 48000, 96000]
-csv_path = os.path.join("assets", "spreadsheet.csv")
+csv_path = configs["csv_path"]
 
 if "--allow_all_disk" in sys.argv and sys.platform == "win32":
     try:

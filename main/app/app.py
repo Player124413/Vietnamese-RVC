@@ -62,7 +62,7 @@ with gr.Blocks(title="📱 Vietnamese-RVC GUI BY ANH", theme=theme, css="<style>
     for i in range(configs.get("num_of_restart", 5)):
         try:
             _, _, share_url = app.queue().launch(
-                favicon_path=os.path.join("assets", "ico.png"), 
+                favicon_path=configs["ico_path"], 
                 server_name=server_name, 
                 server_port=port, 
                 show_error=configs.get("app_show_error", False), 

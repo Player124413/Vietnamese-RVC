@@ -8,7 +8,7 @@ import gradio as gr
 
 sys.path.append(os.getcwd())
 
-from main.app.variables import config, configs_json, logger, translations, edgetts, google_tts_voice, method_f0, method_f0_full
+from main.app.variables import config, configs, configs_json, logger, translations, edgetts, google_tts_voice, method_f0, method_f0_full
 
 def gr_info(message):
     gr.Info(message, duration=2)
@@ -28,28 +28,28 @@ def get_gpu_info():
     return "\n".join(gpu_infos) if len(gpu_infos) > 0 else translations["no_support_gpu"]
 
 def change_f0_choices(): 
-    f0_file = sorted([os.path.abspath(os.path.join(root, f)) for root, _, files in os.walk(os.path.join("assets", "f0")) for f in files if f.endswith(".txt")])
+    f0_file = sorted([os.path.abspath(os.path.join(root, f)) for root, _, files in os.walk(configs["f0_path"]) for f in files if f.endswith(".txt")])
     return {"value": f0_file[0] if len(f0_file) >= 1 else "", "choices": f0_file, "__type__": "update"}
 
 def change_audios_choices(input_audio): 
-    audios = sorted([os.path.abspath(os.path.join(root, f)) for root, _, files in os.walk("audios") for f in files if os.path.splitext(f)[1].lower() in (".wav", ".mp3", ".flac", ".ogg", ".opus", ".m4a", ".mp4", ".aac", ".alac", ".wma", ".aiff", ".webm", ".ac3")])
+    audios = sorted([os.path.abspath(os.path.join(root, f)) for root, _, files in os.walk(configs["audios_path"]) for f in files if os.path.splitext(f)[1].lower() in (".wav", ".mp3", ".flac", ".ogg", ".opus", ".m4a", ".mp4", ".aac", ".alac", ".wma", ".aiff", ".webm", ".ac3")])
     return {"value": input_audio if input_audio != "" else (audios[0] if len(audios) >= 1 else ""), "choices": audios, "__type__": "update"}
 
 def change_models_choices():
-    model, index = sorted(list(model for model in os.listdir(os.path.join("assets", "weights")) if model.endswith((".pth", ".onnx")) and not model.startswith("G_") and not model.startswith("D_"))), sorted([os.path.join(root, name) for root, _, files in os.walk(os.path.join("assets", "logs"), topdown=False) for name in files if name.endswith(".index") and "trained" not in name])
+    model, index = sorted(list(model for model in os.listdir(configs["weights_path"]) if model.endswith((".pth", ".onnx")) and not model.startswith("G_") and not model.startswith("D_"))), sorted([os.path.join(root, name) for root, _, files in os.walk(configs["logs_path"], topdown=False) for name in files if name.endswith(".index") and "trained" not in name])
     return [{"value": model[0] if len(model) >= 1 else "", "choices": model, "__type__": "update"}, {"value": index[0] if len(index) >= 1 else "", "choices": index, "__type__": "update"}]
 
-def change_allpretrained_choices():
-    return [{"choices": sorted([os.path.join("assets", "models", path, model) for path in ["pretrained_v1", "pretrained_v2", "pretrained_custom"] for model in os.listdir(os.path.join("assets", "models", path)) if model.endswith(".pth") and ("D" in model or "G" in model)]), "__type__": "update"}]
-
 def change_pretrained_choices():
-    return [{"choices": sorted([model for model in os.listdir(os.path.join("assets", "models", "pretrained_custom")) if model.endswith(".pth") and "D" in model]), "__type__": "update"}, {"choices": sorted([model for model in os.listdir(os.path.join("assets", "models", "pretrained_custom")) if model.endswith(".pth") and "G" in model]), "__type__": "update"}]
+    return [{"choices": sorted([model for model in os.listdir(configs["pretrained_custom_path"]) if model.endswith(".pth") and "D" in model]), "__type__": "update"}, {"choices": sorted([model for model in os.listdir(configs["pretrained_custom_path"]) if model.endswith(".pth") and "G" in model]), "__type__": "update"}]
 
 def change_choices_del():
-    return [{"choices": sorted(list(model for model in os.listdir(os.path.join("assets", "weights")) if model.endswith(".pth") and not model.startswith("G_") and not model.startswith("D_"))), "__type__": "update"}, {"choices": sorted([os.path.join("assets", "logs", f) for f in os.listdir(os.path.join("assets", "logs")) if "mute" not in f and os.path.isdir(os.path.join("assets", "logs", f))]), "__type__": "update"}]
+    return [{"choices": sorted(list(model for model in os.listdir(configs["weights_path"]) if model.endswith(".pth") and not model.startswith("G_") and not model.startswith("D_"))), "__type__": "update"}, {"choices": sorted([os.path.join(configs["logs_path"], f) for f in os.listdir(configs["logs_path"]) if "mute" not in f and os.path.isdir(os.path.join(configs["logs_path"], f))]), "__type__": "update"}]
 
 def change_preset_choices():
-    return {"value": "", "choices": sorted(list(f for f in os.listdir(os.path.join("assets", "presets")) if f.endswith(".json"))), "__type__": "update"}
+    return {"value": "", "choices": sorted(list(f for f in os.listdir(configs["presets_path"]) if f.endswith(".conversion.json"))), "__type__": "update"}
+
+def change_effect_preset_choices():
+    return {"value": "", "choices": sorted(list(f for f in os.listdir(configs["presets_path"]) if f.endswith(".effect.json"))), "__type__": "update"}
 
 def change_tts_voice_choices(google):
     return {"choices": google_tts_voice if google else edgetts, "value": google_tts_voice[0] if google else edgetts[0], "__type__": "update"}
@@ -82,7 +82,7 @@ def change_download_pretrained_choices(select):
 
 def get_index(model):
     model = os.path.basename(model).split("_")[0]
-    return {"value": next((f for f in [os.path.join(root, name) for root, _, files in os.walk(os.path.join("assets", "logs"), topdown=False) for name in files if name.endswith(".index") and "trained" not in name] if model.split(".")[0] in f), ""), "__type__": "update"} if model else None
+    return {"value": next((f for f in [os.path.join(root, name) for root, _, files in os.walk(configs["logs_path"], topdown=False) for name in files if name.endswith(".index") and "trained" not in name] if model.split(".")[0] in f), ""), "__type__": "update"} if model else None
 
 def index_strength_show(index):
     return {"visible": index != "" and os.path.exists(index), "value": 0.5, "__type__": "update"}

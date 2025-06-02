@@ -7,8 +7,8 @@ import gradio as gr
 sys.path.append(os.getcwd())
 
 from main.app.core.ui import visible
-from main.app.variables import translations
 from main.app.core.model_utils import onnx_export
+from main.app.variables import translations, configs
 
 def convert_model_tab():
     with gr.Row():
@@ -22,7 +22,7 @@ def convert_model_tab():
     with gr.Row():
         output_model2 = gr.File(label=translations["output_model_path"], file_types=[".pth", ".onnx"], interactive=False, visible=False)
     with gr.Row():
-        model_pth_upload.upload(fn=lambda model_pth_upload: shutil.move(model_pth_upload.name, os.path.join("assets", "weights")), inputs=[model_pth_upload], outputs=[model_pth_path])
+        model_pth_upload.upload(fn=lambda model_pth_upload: shutil.move(model_pth_upload.name, configs["weights_path"]), inputs=[model_pth_upload], outputs=[model_pth_path])
         convert_onnx.click(
             fn=onnx_export,
             inputs=[model_pth_path],

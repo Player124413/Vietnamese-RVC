@@ -30,12 +30,13 @@ from main.app.variables import logger, translations
 from main.library.algorithm.synthesizers import Synthesizer
 from main.library.algorithm.discriminators import MultiPeriodDiscriminator
 from main.library.algorithm.commons import slice_segments, clip_grad_value
-from main.library.training.mel_processing import spec_to_mel_torch, mel_spectrogram_torch
-from main.library.training.losses import discriminator_loss, kl_loss, feature_loss, generator_loss
-from main.library.training.data_utils import TextAudioCollate, TextAudioCollateMultiNSFsid, TextAudioLoader, TextAudioLoaderMultiNSFsid, DistributedBucketSampler
-from main.library.training.utils import HParams, replace_keys_in_dict, load_checkpoint, latest_checkpoint_path, save_checkpoint, summarize, plot_spectrogram_to_numpy
+from main.inference.training.mel_processing import spec_to_mel_torch, mel_spectrogram_torch
+from main.inference.training.losses import discriminator_loss, kl_loss, feature_loss, generator_loss
+from main.inference.training.data_utils import TextAudioCollate, TextAudioCollateMultiNSFsid, TextAudioLoader, TextAudioLoaderMultiNSFsid, DistributedBucketSampler
+from main.inference.training.utils import HParams, replace_keys_in_dict, load_checkpoint, latest_checkpoint_path, save_checkpoint, summarize, plot_spectrogram_to_numpy
 
 from main.app.variables import config as main_config
+from main.app.variables import configs as main_configs
 
 warnings.filterwarnings("ignore")
 logging.getLogger("torch").setLevel(logging.ERROR)
@@ -70,7 +71,7 @@ def parse_arguments():
 args = parse_arguments()
 model_name, save_every_epoch, total_epoch, pretrainG, pretrainD, version, gpus, batch_size, sample_rate, pitch_guidance, save_only_latest, save_every_weights, cache_data_in_gpu, overtraining_detector, overtraining_threshold, cleanup, model_author, vocoder, checkpointing, optimizer_choice = args.model_name, args.save_every_epoch, args.total_epoch, args.g_pretrained_path, args.d_pretrained_path, args.rvc_version, args.gpu, args.batch_size, args.sample_rate, args.pitch_guidance, args.save_only_latest, args.save_every_weights, args.cache_data_in_gpu, args.overtraining_detector, args.overtraining_threshold, args.cleanup, args.model_author, args.vocoder, args.checkpointing, args.optimizer
 
-experiment_dir = os.path.join("assets", "logs", model_name)
+experiment_dir = os.path.join(main_configs["logs_path"], model_name)
 training_file_path = os.path.join(experiment_dir, "training_data.json")
 config_save_path = os.path.join(experiment_dir, "config.json")
 
@@ -392,7 +393,7 @@ def train_and_evaluate(rank, epoch, hps, nets, optims, scaler, train_loader, wri
             save_checkpoint(logger, net_g, optim_g, config.train.learning_rate, epoch, os.path.join(experiment_dir, "G_" + checkpoint_suffix))
             save_checkpoint(logger, net_d, optim_d, config.train.learning_rate, epoch, os.path.join(experiment_dir, "D_" + checkpoint_suffix))
 
-            if custom_save_every_weights: model_add.append(os.path.join("assets", "weights", f"{model_name}_{epoch}e_{global_step}s.pth"))
+            if custom_save_every_weights: model_add.append(os.path.join(main_configs["weights_path"], f"{model_name}_{epoch}e_{global_step}s.pth"))
 
         if overtraining_detector and epoch > 1:
             current_loss_disc, current_loss_gen = float(loss_disc), float(lowest_value["value"])
@@ -416,10 +417,10 @@ def train_and_evaluate(rank, epoch, hps, nets, optims, scaler, train_loader, wri
                 done = True
             else:
                 logger.info(translations["best_epoch"].format(epoch=epoch, smoothed_value_gen=f"{smoothed_value_gen:.3f}", smoothed_value_disc=f"{smoothed_value_disc:.3f}"))
-                for file in glob.glob(os.path.join("assets", "weights", f"{model_name}_*e_*s_best_epoch.pth")):
+                for file in glob.glob(os.path.join(main_configs["weights_path"], f"{model_name}_*e_*s_best_epoch.pth")):
                     model_del.append(file)
 
-                model_add.append(os.path.join("assets", "weights", f"{model_name}_{epoch}e_{global_step}s_best_epoch.pth"))
+                model_add.append(os.path.join(main_configs["weights_path"], f"{model_name}_{epoch}e_{global_step}s_best_epoch.pth"))
         
         if epoch >= custom_total_epoch:
             logger.info(translations["success_training"].format(epoch=epoch, global_step=global_step, loss_gen_all=round(loss_gen_all.item(), 3)))
@@ -434,7 +435,7 @@ def train_and_evaluate(rank, epoch, hps, nets, optims, scaler, train_loader, wri
                 json.dump(pid_data, pid_file, indent=4)
 
             if os.path.exists(os.path.join(experiment_dir, "train_pid.txt")): os.remove(os.path.join(experiment_dir, "train_pid.txt"))
-            model_add.append(os.path.join("assets", "weights", f"{model_name}_{epoch}e_{global_step}s.pth"))
+            model_add.append(os.path.join(main_configs["weights_path"], f"{model_name}_{epoch}e_{global_step}s.pth"))
             done = True
             
         for m in model_del:

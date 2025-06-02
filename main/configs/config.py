@@ -18,7 +18,8 @@ def singleton(cls):
 class Config:
     def __init__(self):
         self.device = "cuda:0" if torch.cuda.is_available() else "cpu"
-        self.configs = json.load(open(os.path.join("main", "configs", "config.json"), "r"))
+        self.configs_path = os.path.join("main", "configs", "config.json")
+        self.configs = json.load(open(self.configs_path, "r"))
         self.translations = self.multi_language()
         self.json_config = self.load_config_json()
         self.gpu_mem = None
@@ -29,13 +30,13 @@ class Config:
     def multi_language(self):
         try:
             lang = self.configs.get("language", "vi-VN")
-            if len([l for l in os.listdir(os.path.join("assets", "languages")) if l.endswith(".json")]) < 1: raise FileNotFoundError("Không tìm thấy bất cứ gói ngôn ngữ nào(No package languages found)")
+            if len([l for l in os.listdir(self.configs["language_path"]) if l.endswith(".json")]) < 1: raise FileNotFoundError("Không tìm thấy bất cứ gói ngôn ngữ nào(No package languages found)")
 
             if not lang: lang = "vi-VN"
             if lang not in self.configs["support_language"]: raise ValueError("Ngôn ngữ không được hỗ trợ(Language not supported)")
 
-            lang_path = os.path.join("assets", "languages", f"{lang}.json")
-            if not os.path.exists(lang_path): lang_path = os.path.join("assets", "languages", "vi-VN.json")
+            lang_path = os.path.join(self.configs["language_path"], f"{lang}.json")
+            if not os.path.exists(lang_path): lang_path = os.path.join(self.configs["language_path"], "vi-VN.json")
 
             with open(lang_path, encoding="utf-8") as f:
                 translations = json.load(f)
@@ -52,7 +53,7 @@ class Config:
             self.configs["fp16"] = False
             fp16 = False
 
-            with open(os.path.join("main", "configs", "config.json"), "w") as f:
+            with open(self.configs_path, "w") as f:
                 json.dump(self.configs, f, indent=4)
         
         if not fp16: self.preprocess_per = 3.0

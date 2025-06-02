@@ -10,8 +10,8 @@ from collections import OrderedDict
 sys.path.append(os.getcwd())
 
 from main.app.core.ui import gr_info, gr_warning, gr_error
-from main.app.variables import config, logger, translations
 from main.library.algorithm.onnx_export import onnx_exporter
+from main.app.variables import config, logger, translations, configs
 
 def fushion_model_pth(name, pth_1, pth_2, ratio):
     if not name.endswith(".pth"): name = name + ".pth"
@@ -76,7 +76,7 @@ def fushion_model_pth(name, pth_1, pth_2, ratio):
         opt["infos"] = translations["model_fushion_info"].format(name=name, pth_1=pth_1, pth_2=pth_2, ratio=ratio)
         opt["vocoder"] = vocoder
 
-        output_model = os.path.join("assets", "weights")
+        output_model = configs["weights_path"]
         if not os.path.exists(output_model): os.makedirs(output_model, exist_ok=True)
 
         torch.save(opt, os.path.join(output_model, name))

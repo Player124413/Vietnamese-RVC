@@ -7,8 +7,8 @@ import gradio as gr
 sys.path.append(os.getcwd())
 
 from main.app.core.f0_extract import f0_extract
-from main.app.core.ui import change_audios_choices
-from main.app.variables import translations, paths_for_files, method_f0
+from main.app.core.ui import change_audios_choices, unlock_f0
+from main.app.variables import translations, paths_for_files, method_f0, configs
 
 def f0_extract_tab():
     with gr.Row():
@@ -22,7 +22,9 @@ def f0_extract_tab():
         with gr.Column():
             with gr.Accordion(translations["f0_method"], open=False):
                 with gr.Group():
-                    onnx_f0_mode3 = gr.Checkbox(label=translations["f0_onnx_mode"], info=translations["f0_onnx_mode_info"], value=False, interactive=True)
+                    with gr.Row():
+                        onnx_f0_mode3 = gr.Checkbox(label=translations["f0_onnx_mode"], info=translations["f0_onnx_mode_info"], value=False, interactive=True)
+                        unlock_full_method = gr.Checkbox(label=translations["f0_unlock"], info=translations["f0_unlock_info"], value=False, interactive=True)
                     f0_method_extract = gr.Radio(label=translations["f0_method"], info=translations["f0_method_info"], choices=method_f0, value="rmvpe", interactive=True)
             with gr.Accordion(translations["audio_path"], open=True):
                 input_audio_path = gr.Dropdown(label=translations["audio_path"], value="", choices=paths_for_files, allow_custom_value=True, interactive=True)
@@ -33,10 +35,11 @@ def f0_extract_tab():
         file_output = gr.File(label="", file_types=[".txt"], interactive=False)
         image_output = gr.Image(label="", interactive=False, show_download_button=True)
     with gr.Row():
-        upload_audio_file.upload(fn=lambda audio_in: shutil.move(audio_in.name, os.path.join("audios")), inputs=[upload_audio_file], outputs=[input_audio_path])
+        upload_audio_file.upload(fn=lambda audio_in: shutil.move(audio_in.name, configs["audios_path"]), inputs=[upload_audio_file], outputs=[input_audio_path])
         input_audio_path.change(fn=lambda audio: audio if os.path.isfile(audio) else None, inputs=[input_audio_path], outputs=[audioplay])
         refesh_audio_button.click(fn=change_audios_choices, inputs=[input_audio_path], outputs=[input_audio_path])
     with gr.Row():
+        unlock_full_method.change(fn=unlock_f0, inputs=[unlock_full_method], outputs=[f0_method_extract])
         extractor_button.click(
             fn=f0_extract,
             inputs=[

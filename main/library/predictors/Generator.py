@@ -1,9 +1,33 @@
-import re
 import os
+import re
+import sys
+import math
 import torch
 
+import numba as nb
 import numpy as np
 import scipy.signal as signal
+
+sys.path.append(os.getcwd())
+
+from main.app.variables import configs
+from main.library.utils import check_predictors
+from main.inference.conversion.utils import Autotune
+
+@nb.jit(nopython=True)
+def post_process(tf0, f0, f0_up_key, manual_x_pad, f0_mel_min, f0_mel_max, manual_f0 = None):
+    f0 = np.multiply(f0, pow(2, f0_up_key / 12))
+
+    if manual_f0 is not None:
+        replace_f0 = np.interp(list(range(np.round((manual_f0[:, 0].max() - manual_f0[:, 0].min()) * tf0 + 1).astype(np.int16))), manual_f0[:, 0] * 100, manual_f0[:, 1])
+        f0[manual_x_pad * tf0 : manual_x_pad * tf0 + len(replace_f0)] = replace_f0[:f0[manual_x_pad * tf0 : manual_x_pad * tf0 + len(replace_f0)].shape[0]]
+
+    f0_mel = 1127 * np.log(1 + f0 / 700)
+    f0_mel[f0_mel > 0] = (f0_mel[f0_mel > 0] - f0_mel_min) * 254 / (f0_mel_max - f0_mel_min) + 1
+    f0_mel[f0_mel <= 1] = 1
+    f0_mel[f0_mel > 255] = 255
+
+    return np.rint(f0_mel).astype(np.int32), f0
 
 class Generator:
     def __init__(self, sample_rate = 16000, hop_length = 160, f0_min = 50, f0_max = 1100, is_half = False, device = "cpu", providers = None, f0_onnx_mode = False):
@@ -16,45 +40,21 @@ class Generator:
         self.providers = providers
         self.f0_onnx_mode = f0_onnx_mode
         self.window = 160
+        self.ref_freqs = [49.00, 51.91, 55.00, 58.27, 61.74, 65.41, 69.30, 73.42, 77.78, 82.41, 87.31, 92.50, 98.00, 103.83, 110.00, 116.54, 123.47, 130.81, 138.59, 146.83, 155.56, 164.81, 174.61, 185.00, 196.00,  207.65, 220.00, 233.08, 246.94, 261.63, 277.18, 293.66, 311.13, 329.63, 349.23, 369.99, 392.00, 415.30, 440.00, 466.16, 493.88, 523.25, 554.37, 587.33, 622.25, 659.25, 698.46, 739.99, 783.99, 830.61, 880.00, 932.33, 987.77, 1046.50]
+        self.autotune = Autotune(self.ref_freqs)
+        self.note_dict = self.autotune.note_dict
 
-    def calculator(self, f0_method, x, p_len = None, filter_radius = 3):
+    def calculator(self, x_pad, f0_method, x, f0_up_key = 0, p_len = None, filter_radius = 3, f0_autotune = False, f0_autotune_strength = 1, manual_f0 = None):
+        check_predictors(f0_method, f0_onnx=self.f0_onnx_mode)
         if p_len is None: p_len = x.shape[0] // self.window
+
         model = self.get_f0_hybrid if "hybrid" in f0_method else self.compute_f0
-        return model(f0_method, x, p_len, filter_radius if filter_radius % 2 != 0 else filter_radius + 1)
+        f0 = model(f0_method, x, p_len, filter_radius if filter_radius % 2 != 0 else filter_radius + 1)
 
-    def _interpolate_f0(self, f0):
-        data = np.reshape(f0, (f0.size, 1))
-        vuv_vector = np.zeros((data.size, 1), dtype=np.float32)
-        vuv_vector[data > 0.0] = 1.0
-        vuv_vector[data <= 0.0] = 0.0
-        ip_data = data
-        frame_number = data.size
-        last_value = 0.0
+        if isinstance(f0, tuple): f0 = f0[0]
+        if f0_autotune: f0 = Autotune.autotune_f0(self, f0, f0_autotune_strength)
 
-        for i in range(frame_number):
-            if data[i] <= 0.0:
-                j = i + 1
-
-                for j in range(i + 1, frame_number):
-                    if data[j] > 0.0: break
-
-                if j < frame_number - 1:
-                    if last_value > 0.0:
-                        step = (data[j] - data[i - 1]) / float(j - i)
-
-                        for k in range(i, j):
-                            ip_data[k] = data[i - 1] + step * (k - i + 1)
-                    else:
-                        for k in range(i, j):
-                            ip_data[k] = data[j]
-                else:
-                    for k in range(i, frame_number):
-                        ip_data[k] = last_value
-            else:
-                ip_data[i] = data[i]
-                last_value = data[i]
-
-        return ip_data[:, 0], vuv_vector[:, 0]
+        return post_process(self.sample_rate // self.window, f0, f0_up_key, x_pad, 1127 * math.log(1 + self.f0_min / 700), 1127 * math.log(1 + self.f0_max / 700), manual_f0)
 
     def _resize_f0(self, x, target_len):
         source = np.array(x)
@@ -90,7 +90,7 @@ class Generator:
         pad_size = (p_len - len(f0) + 1) // 2
 
         if pad_size > 0 or p_len - len(f0) - pad_size > 0: f0 = np.pad(f0, [[pad_size, p_len - len(f0) - pad_size]], mode="constant")
-        return self._interpolate_f0(f0)[0]
+        return f0
     
     def get_f0_mangio_crepe(self, x, p_len, model="full"):
         from main.library.predictors.CREPE import predict
@@ -101,21 +101,21 @@ class Generator:
         audio = torch.unsqueeze(torch.from_numpy(x).to(self.device, copy=True), dim=0)
         if audio.ndim == 2 and audio.shape[0] > 1: audio = torch.mean(audio, dim=0, keepdim=True).detach()
 
-        return self._interpolate_f0(self._resize_f0(predict(audio.detach(), self.sample_rate, self.hop_length, self.f0_min, self.f0_max, model, batch_size=self.hop_length * 2, device=self.device, pad=True, providers=self.providers, onnx=self.f0_onnx_mode).squeeze(0).cpu().float().numpy(), p_len))[0]
+        return self._resize_f0(predict(configs, audio.detach(), self.sample_rate, self.hop_length, self.f0_min, self.f0_max, model, batch_size=self.hop_length * 2, device=self.device, pad=True, providers=self.providers, onnx=self.f0_onnx_mode).squeeze(0).cpu().float().numpy(), p_len)
     
     def get_f0_crepe(self, x, p_len, model="full"):
         from main.library.predictors.CREPE import predict, mean, median
 
-        f0, pd = predict(torch.tensor(np.copy(x))[None].float(), self.sample_rate, self.window, self.f0_min, self.f0_max, model, batch_size=512, device=self.device, return_periodicity=True, providers=self.providers, onnx=self.f0_onnx_mode)
+        f0, pd = predict(configs, torch.tensor(np.copy(x))[None].float(), self.sample_rate, self.window, self.f0_min, self.f0_max, model, batch_size=512, device=self.device, return_periodicity=True, providers=self.providers, onnx=self.f0_onnx_mode)
         f0, pd = mean(f0, 3), median(pd, 3)
         f0[pd < 0.1] = 0
 
-        return self._interpolate_f0(self._resize_f0(f0[0].cpu().numpy(), p_len))[0]
+        return self._resize_f0(f0[0].cpu().numpy(), p_len)
     
     def get_f0_fcpe(self, x, p_len, legacy=False):
         if not hasattr(self, "fcpe"):
             from main.library.predictors.FCPE.FCPE import FCPE
-            self.fcpe = FCPE(os.path.join("assets", "models", "predictors", ("fcpe_legacy" if legacy else "fcpe") + (".onnx" if self.f0_onnx_mode else ".pt")), hop_length=self.hop_length, f0_min=self.f0_min, f0_max=self.f0_max, dtype=torch.float32, device=self.device, sample_rate=self.sample_rate, threshold=0.03 if legacy else 0.006, providers=self.providers, onnx=self.f0_onnx_mode, legacy=legacy)
+            self.fcpe = FCPE(configs, os.path.join(configs["predictors_path"], ("fcpe_legacy" if legacy else "fcpe") + (".onnx" if self.f0_onnx_mode else ".pt")), hop_length=self.hop_length, f0_min=self.f0_min, f0_max=self.f0_max, dtype=torch.float32, device=self.device, sample_rate=self.sample_rate, threshold=0.03 if legacy else 0.006, providers=self.providers, onnx=self.f0_onnx_mode, legacy=legacy)
         
         f0 = self.fcpe.compute_f0(x, p_len)
         if self.f0_onnx_mode: del self.fcpe
@@ -125,7 +125,7 @@ class Generator:
     def get_f0_rmvpe(self, x, p_len, legacy=False):
         if not hasattr(self, "rmvpe"):
             from main.library.predictors.RMVPE import RMVPE
-            self.rmvpe = RMVPE(os.path.join("assets", "models", "predictors", "rmvpe" + (".onnx" if self.f0_onnx_mode else ".pt")), is_half=self.is_half, device=self.device, onnx=self.f0_onnx_mode, providers=self.providers)
+            self.rmvpe = RMVPE(os.path.join(configs["predictors_path"], "rmvpe" + (".onnx" if self.f0_onnx_mode else ".pt")), is_half=self.is_half, device=self.device, onnx=self.f0_onnx_mode, providers=self.providers)
 
         f0 = self.rmvpe.infer_from_audio_with_pitch(x, thred=0.03, f0_min=self.f0_min, f0_max=self.f0_max) if legacy else self.rmvpe.infer_from_audio(x, thred=0.03)
         if self.f0_onnx_mode: del self.rmvpe, self.rmvpe.model
@@ -135,10 +135,12 @@ class Generator:
     def get_f0_pyworld(self, x, p_len, filter_radius, model="harvest"):
         if not hasattr(self, "pw"):
             from main.library.predictors.WORLD import PYWORLD
-            self.pw = PYWORLD()
+            self.pw = PYWORLD(configs)
 
         x = x.astype(np.double)
-        f0, t = self.pw.harvest(x, fs=self.sample_rate, f0_ceil=self.f0_max, f0_floor=self.f0_min, frame_period=1000 * self.window / self.sample_rate) if model == "harvest" else self.pw.dio(x, fs=self.sample_rate, f0_ceil=self.f0_max, f0_floor=self.f0_min, frame_period=1000 * self.window / self.sample_rate)
+        pw = self.pw.harvest if model == "harvest" else self.pw.dio
+
+        f0, t = pw(x, fs=self.sample_rate, f0_ceil=self.f0_max, f0_floor=self.f0_min, frame_period=1000 * self.window / self.sample_rate)
         f0 = self.pw.stonemask(x, self.sample_rate, t, f0)
 
         if filter_radius > 2 and model == "harvest": f0 = signal.medfilt(f0, filter_radius)
@@ -146,15 +148,15 @@ class Generator:
             for index, pitch in enumerate(f0):
                 f0[index] = round(pitch, 1)
 
-        return self._interpolate_f0(self._resize_f0(f0, p_len))[0]
+        return self._resize_f0(f0, p_len)
     
     def get_f0_swipe(self, x, p_len):
         from main.library.predictors.SWIPE import swipe, stonemask
 
         f0, t = swipe(x.astype(np.float32), self.sample_rate, f0_floor=self.f0_min, f0_ceil=self.f0_max, frame_period=1000 * self.window / self.sample_rate)
-        return self._interpolate_f0(self._resize_f0(stonemask(x, self.sample_rate, t, f0), p_len))[0]
+        return self._resize_f0(stonemask(x, self.sample_rate, t, f0), p_len)
     
     def get_f0_yin(self, x, p_len, mode="yin"):
         from librosa import yin, pyin
 
-        return self._interpolate_f0(self._resize_f0(yin(x.astype(np.float32), sr=self.sample_rate, fmin=self.f0_min, fmax=self.f0_max, hop_length=self.hop_length) if mode == "yin" else pyin(x.astype(np.float32), fmin=self.f0_min, fmax=self.f0_max, sr=self.sample_rate, hop_length=self.hop_length)[0], p_len))[0]
+        return self._resize_f0(yin(x.astype(np.float32), sr=self.sample_rate, fmin=self.f0_min, fmax=self.f0_max, hop_length=self.hop_length) if mode == "yin" else pyin(x.astype(np.float32), fmin=self.f0_min, fmax=self.f0_max, sr=self.sample_rate, hop_length=self.hop_length)[0], p_len)

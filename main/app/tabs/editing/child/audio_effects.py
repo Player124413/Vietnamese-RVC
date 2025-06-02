@@ -7,8 +7,9 @@ import gradio as gr
 sys.path.append(os.getcwd())
 
 from main.app.core.editing import audio_effects
-from main.app.core.ui import visible, change_audios_choices
-from main.app.variables import translations, paths_for_files, sample_rate_choice
+from main.app.core.presets import audio_effect_load_presets, audio_effect_save_presets
+from main.app.core.ui import visible, change_audios_choices, change_effect_preset_choices
+from main.app.variables import translations, paths_for_files, sample_rate_choice, audio_effect_presets_file, configs
 
 def audio_effects_tab():
     with gr.Row():
@@ -40,6 +41,20 @@ def audio_effects_tab():
                 audio_effects_refesh = gr.Button(translations["refesh"])
             with gr.Row():
                 audio_output_format = gr.Radio(label=translations["export_format"], info=translations["export_info"], choices=["wav", "mp3", "flac", "ogg", "opus", "m4a", "mp4", "aac", "alac", "wma", "aiff", "webm", "ac3"], value="wav", interactive=True)
+    with gr.Row():
+        with gr.Accordion(translations["use_presets"], open=False):
+            with gr.Row():
+                presets_name = gr.Dropdown(label=translations["file_preset"], choices=audio_effect_presets_file, value=audio_effect_presets_file[0] if len(audio_effect_presets_file) > 0 else '', interactive=True, allow_custom_value=True)
+            with gr.Row():
+                load_click = gr.Button(translations["load_file"], variant="primary")
+                refesh_click = gr.Button(translations["refesh"])
+            with gr.Accordion(translations["export_file"], open=False):
+                with gr.Row():
+                    with gr.Column():
+                        name_to_save_file = gr.Textbox(label=translations["filename_to_save"])
+                        save_file_button = gr.Button(translations["export_file"])
+            with gr.Row():
+                upload_presets = gr.File(label=translations["upload_presets"], file_types=[".effect.json"]) 
     with gr.Row():
         apply_effects_button = gr.Button(translations["apply"], variant="primary", scale=2)
     with gr.Row():
@@ -136,13 +151,182 @@ def audio_effects_tab():
         clipping_checkbox.change(fn=visible, inputs=[clipping_checkbox], outputs=[clipping_threashold_db])
         bitcrush_checkbox.change(fn=visible, inputs=[bitcrush_checkbox], outputs=[bitcrush_bit_depth])
     with gr.Row():
-        upload_audio.upload(fn=lambda audio_in: shutil.move(audio_in.name, os.path.join("audios")), inputs=[upload_audio], outputs=[audio_in_path])
+        upload_audio.upload(fn=lambda audio_in: shutil.move(audio_in.name, configs["audios_path"]), inputs=[upload_audio], outputs=[audio_in_path])
         audio_in_path.change(fn=lambda audio: audio if audio else None, inputs=[audio_in_path], outputs=[audio_play_input])
         audio_effects_refesh.click(fn=lambda a, b: [change_audios_choices(a), change_audios_choices(b)], inputs=[audio_in_path, audio_combination_input], outputs=[audio_in_path, audio_combination_input])
     with gr.Row():
         more_options.change(fn=lambda: [False]*8, inputs=[], outputs=[fade, bass_or_treble, limiter, resample_checkbox, distortion_checkbox, gain_checkbox, clipping_checkbox, bitcrush_checkbox])
         audio_combination.change(fn=visible, inputs=[audio_combination], outputs=[audio_combination_input])
         audio_combination.change(fn=lambda a: [visible(a)]*2, inputs=[audio_combination], outputs=[main_vol, combine_vol])
+    with gr.Row():
+        upload_presets.upload(fn=lambda audio_in: shutil.move(audio_in.name, configs["presets_path"]), inputs=[upload_presets], outputs=[presets_name])
+        refesh_click.click(fn=change_effect_preset_choices, inputs=[], outputs=[presets_name])
+    with gr.Row():
+        load_click.click(
+            fn=audio_effect_load_presets,
+            inputs=[
+                presets_name, 
+                resample_checkbox, 
+                audio_effect_resample_sr, 
+                chorus_depth, 
+                chorus_rate_hz, 
+                chorus_mix, 
+                chorus_centre_delay_ms, 
+                chorus_feedback, 
+                distortion_drive_db, 
+                reverb_room_size, 
+                reverb_damping, 
+                reverb_wet_level, 
+                reverb_dry_level, 
+                reverb_width, 
+                reverb_freeze_mode, 
+                pitch_shift_semitones, 
+                delay_second, 
+                delay_feedback, 
+                delay_mix, 
+                compressor_threashold_db, 
+                compressor_ratio, 
+                compressor_attack_ms, 
+                compressor_release_ms, 
+                limiter_threashold_db, 
+                limiter_release_ms, 
+                gain_db, 
+                bitcrush_bit_depth, 
+                clipping_threashold_db, 
+                phaser_rate_hz, 
+                phaser_depth, 
+                phaser_centre_frequency_hz, 
+                phaser_feedback, 
+                phaser_mix, 
+                bass_boost, 
+                bass_frequency, 
+                treble_boost, 
+                treble_frequency, 
+                fade_in, 
+                fade_out, 
+                chorus_check_box, 
+                distortion_checkbox, 
+                reverb_check_box, 
+                delay_check_box, 
+                compressor_check_box, 
+                limiter, 
+                gain_checkbox, 
+                bitcrush_checkbox, 
+                clipping_checkbox, 
+                phaser_check_box, 
+                bass_or_treble, 
+                fade
+            ],
+            outputs=[
+                resample_checkbox, 
+                audio_effect_resample_sr, 
+                chorus_depth, 
+                chorus_rate_hz, 
+                chorus_mix, 
+                chorus_centre_delay_ms, 
+                chorus_feedback, 
+                distortion_drive_db, 
+                reverb_room_size, 
+                reverb_damping, 
+                reverb_wet_level, 
+                reverb_dry_level, 
+                reverb_width, 
+                reverb_freeze_mode, 
+                pitch_shift_semitones, 
+                delay_second, 
+                delay_feedback, 
+                delay_mix, 
+                compressor_threashold_db, 
+                compressor_ratio, 
+                compressor_attack_ms, 
+                compressor_release_ms, 
+                limiter_threashold_db, 
+                limiter_release_ms, 
+                gain_db, 
+                bitcrush_bit_depth, 
+                clipping_threashold_db, 
+                phaser_rate_hz, 
+                phaser_depth, 
+                phaser_centre_frequency_hz, 
+                phaser_feedback, 
+                phaser_mix, 
+                bass_boost, 
+                bass_frequency, 
+                treble_boost, 
+                treble_frequency, 
+                fade_in, 
+                fade_out, 
+                chorus_check_box, 
+                distortion_checkbox, 
+                reverb_check_box, 
+                delay_check_box, 
+                compressor_check_box, 
+                limiter, 
+                gain_checkbox, 
+                bitcrush_checkbox, 
+                clipping_checkbox, 
+                phaser_check_box, 
+                bass_or_treble, 
+                fade
+            ],
+        )
+        save_file_button.click(
+            fn=audio_effect_save_presets,
+            inputs=[
+                name_to_save_file, 
+                resample_checkbox, 
+                audio_effect_resample_sr, 
+                chorus_depth, 
+                chorus_rate_hz, 
+                chorus_mix, 
+                chorus_centre_delay_ms, 
+                chorus_feedback, 
+                distortion_drive_db, 
+                reverb_room_size, 
+                reverb_damping, 
+                reverb_wet_level, 
+                reverb_dry_level, 
+                reverb_width, 
+                reverb_freeze_mode, 
+                pitch_shift_semitones, 
+                delay_second, 
+                delay_feedback, 
+                delay_mix, 
+                compressor_threashold_db, 
+                compressor_ratio, 
+                compressor_attack_ms, 
+                compressor_release_ms, 
+                limiter_threashold_db, 
+                limiter_release_ms, 
+                gain_db, 
+                bitcrush_bit_depth, 
+                clipping_threashold_db, 
+                phaser_rate_hz, 
+                phaser_depth, 
+                phaser_centre_frequency_hz, 
+                phaser_feedback, 
+                phaser_mix, 
+                bass_boost, 
+                bass_frequency, 
+                treble_boost, 
+                treble_frequency, 
+                fade_in, 
+                fade_out, 
+                chorus_check_box, 
+                distortion_checkbox, 
+                reverb_check_box, 
+                delay_check_box, 
+                compressor_check_box, 
+                limiter, 
+                gain_checkbox, 
+                bitcrush_checkbox, 
+                clipping_checkbox, 
+                phaser_check_box, 
+                bass_or_treble, 
+                fade
+            ],
+            outputs=[presets_name]
+        )
     with gr.Row():
         apply_effects_button.click(
             fn=audio_effects,

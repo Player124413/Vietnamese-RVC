@@ -10,7 +10,7 @@ from sklearn.cluster import MiniBatchKMeans
 
 sys.path.append(os.getcwd())
 
-from main.app.variables import logger, translations
+from main.app.variables import logger, translations, configs
 
 def parse_arguments():
     parser = argparse.ArgumentParser()
@@ -22,7 +22,7 @@ def parse_arguments():
 
 def main():
     args = parse_arguments()
-    exp_dir = os.path.join("assets", "logs", args.model_name)
+    exp_dir = os.path.join(configs["logs_path"], args.model_name)
     version, index_algorithm = args.rvc_version, args.index_algorithm
 
     log_data = {translations['modelname']: args.model_name, translations['model_path']: exp_dir, translations['training_version']: version, translations['index_algorithm_info']: index_algorithm}

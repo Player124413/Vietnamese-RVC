@@ -6,11 +6,11 @@ from io import BytesIO
 from Crypto.Cipher import AES
 from Crypto.Util.Padding import unpad
 
-def decrypt_model(input_path):
+def decrypt_model(configs, input_path):
     with open(input_path, "rb") as f:
         data = f.read()
 
-    with open(os.path.join("main", "configs", "decrypt.bin"), "rb") as f:
+    with open(os.path.join(configs["binary_path"], "decrypt.bin"), "rb") as f:
         key = f.read()
 
     return BytesIO(unpad(AES.new(key, AES.MODE_CBC, data[:16]).decrypt(data[16:]), AES.block_size)).read()

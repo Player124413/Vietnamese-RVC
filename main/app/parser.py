@@ -22,7 +22,7 @@ elif argv_is_allows[4] in argv: from main.inference.create_index import main
 elif argv_is_allows[5] in argv: from main.inference.extract import main
 elif argv_is_allows[6] in argv: from main.inference.preprocess.preprocess import main
 elif argv_is_allows[7] in argv: from main.inference.separator_music import main
-elif argv_is_allows[8] in argv: from main.inference.train import main
+elif argv_is_allows[8] in argv: from main.inference.training.train import main
 elif argv_is_allows[9] in argv:
     print("""Các tham số của `--audio_effects`:
         1. Đường dẫn tệp:
@@ -214,6 +214,8 @@ elif argv_is_allows[14] in argv:
         2. Cấu hình F0:
             - `--f0_method` (mặc định: `rmvpe`): Phương pháp dự đoán F0 (`pm`, `dio`, `mangio-crepe-tiny`, `mangio-crepe-small`, `mangio-crepe-medium`, `mangio-crepe-large`, `mangio-crepe-full`, `crepe-tiny`, `crepe-small`, `crepe-medium`, `crepe-large`, `crepe-full`, `fcpe`, `fcpe-legacy`, `rmvpe`, `rmvpe-legacy`, `harvest`, `yin`, `pyin`, `swipe`).
             - `--pitch_guidance` (mặc định: `True`): Có sử dụng hướng dẫn cao độ hay không.
+            - `--f0_autotune` (mặc định: `False`): Có tự động điều chỉnh F0 hay không.
+            - `--f0_autotune_strength` (mặc định: `1`): Cường độ hiệu chỉnh tự động F0.
 
         3. Cấu hình xử lý:
             - `--hop_length` (mặc định: `128`): Độ dài bước nhảy trong quá trình xử lý.

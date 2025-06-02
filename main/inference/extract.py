@@ -18,8 +18,8 @@ from distutils.util import strtobool
 sys.path.append(os.getcwd())
 
 from main.library.predictors.Generator import Generator
-from main.app.variables import config, logger, translations
-from main.library.utils import check_predictors, check_embedders, load_audio, load_embedders_model, get_providers
+from main.app.variables import config, logger, translations, configs
+from main.library.utils import load_audio, load_embedders_model, get_providers
 
 warnings.filterwarnings("ignore")
 for l in ["torch", "faiss", "httpx", "httpcore", "faiss.loader", "numba.core", "urllib3", "matplotlib"]:
@@ -38,6 +38,8 @@ def parse_arguments():
     parser.add_argument("--embedder_model", type=str, default="contentvec_base")
     parser.add_argument("--f0_onnx", type=lambda x: bool(strtobool(x)), default=False)
     parser.add_argument("--embedders_mode", type=str, default="fairseq")
+    parser.add_argument("--f0_autotune", type=lambda x: bool(strtobool(x)), default=False)
+    parser.add_argument("--f0_autotune_strength", type=float, default=1)
 
     return parser.parse_args()
 
@@ -52,7 +54,7 @@ def generate_filelist(pitch_guidance, model_path, rvc_version, sample_rate, embe
     gt_wavs_files, feature_files = set(name.split(".")[0] for name in os.listdir(gt_wavs_dir)), set(name.split(".")[0] for name in os.listdir(feature_dir))
     names = gt_wavs_files & feature_files & set(name.split(".")[0] for name in os.listdir(f0_dir)) & set(name.split(".")[0] for name in os.listdir(f0nsf_dir)) if pitch_guidance else gt_wavs_files & feature_files
     options = []
-    mute_base_path = os.path.join("assets", "logs", "mute")
+    mute_base_path = os.path.join(configs["logs_path"], "mute")
 
     for name in names:
         options.append(f"{gt_wavs_dir}/{name}.wav|{feature_dir}/{name}.npy|{f0_dir}/{name}.wav.npy|{f0nsf_dir}/{name}.wav.npy|0" if pitch_guidance else f"{gt_wavs_dir}/{name}.wav|{feature_dir}/{name}.npy|0")
@@ -89,38 +91,32 @@ class FeatureInput:
         self.is_half = is_half
         self.f0_gen = Generator(self.fs, self.hop, self.f0_min, self.f0_max, self.is_half, self.device, get_providers(), False)
 
-    def compute_f0(self, np_arr, f0_method, hop_length, f0_onnx=False):
-        self.f0_gen.hop_length, self.f0_gen.f0_onnx_mode = hop_length, f0_onnx
-        return self.f0_gen.calculator(f0_method, np_arr, None, 0)
-
-    def coarse_f0(self, f0):
-        return np.rint(np.clip(((1127 * np.log(1 + f0 / 700)) - self.f0_mel_min) * (self.f0_bin - 2) / (self.f0_mel_max - self.f0_mel_min) + 1, 1, self.f0_bin - 1)).astype(int)
-
-    def process_file(self, file_info, f0_method, hop_length, f0_onnx):
+    def process_file(self, file_info, f0_method, hop_length, f0_onnx, f0_autotune, f0_autotune_strength):
         inp_path, opt_path1, opt_path2, file_inp = file_info
         if os.path.exists(opt_path1 + ".npy") and os.path.exists(opt_path2 + ".npy"): return
 
         try:
-            feature_pit = self.compute_f0(load_audio(logger, file_inp, self.fs), f0_method, hop_length, f0_onnx)
-            if isinstance(feature_pit, tuple): feature_pit = feature_pit[0]
-            np.save(opt_path2, feature_pit, allow_pickle=False)
-            np.save(opt_path1, self.coarse_f0(feature_pit), allow_pickle=False)
+            self.f0_gen.hop_length, self.f0_gen.f0_onnx_mode = hop_length, f0_onnx
+            pitch, pitchf = self.f0_gen.calculator(config.x_pad, f0_method, load_audio(logger, file_inp, self.fs), 0, None, 0, f0_autotune, f0_autotune_strength, None)
+
+            np.save(opt_path2, pitchf, allow_pickle=False)
+            np.save(opt_path1, pitch, allow_pickle=False)
         except Exception as e:
             raise RuntimeError(f"{translations['extract_file_error']} {inp_path}: {e}")
 
-    def process_files(self, files, f0_method, hop_length, f0_onnx, device, is_half, threads):
+    def process_files(self, files, f0_method, hop_length, f0_onnx, device, is_half, threads, f0_autotune, f0_autotune_strength):
         self.device = device
         self.is_half = is_half
 
         def worker(file_info):
-            self.process_file(file_info, f0_method, hop_length, f0_onnx)
+            self.process_file(file_info, f0_method, hop_length, f0_onnx, f0_autotune, f0_autotune_strength)
 
         with tqdm.tqdm(total=len(files), ncols=100, unit="p", leave=True) as pbar:
             with concurrent.futures.ThreadPoolExecutor(max_workers=threads) as executor:
                 for _ in concurrent.futures.as_completed([executor.submit(worker, f) for f in files]):
                     pbar.update(1)
 
-def run_pitch_extraction(exp_dir, f0_method, hop_length, num_processes, devices, f0_onnx, is_half):
+def run_pitch_extraction(exp_dir, f0_method, hop_length, num_processes, devices, f0_onnx, is_half, f0_autotune, f0_autotune_strength):
     input_root, *output_roots = setup_paths(exp_dir)
     output_root1, output_root2 = output_roots if len(output_roots) == 2 else (output_roots[0], None)
     paths = [(os.path.join(input_root, name), os.path.join(output_root1, name) if output_root1 else None, os.path.join(output_root2, name) if output_root2 else None, os.path.join(input_root, name)) for name in sorted(os.listdir(input_root)) if "spec" not in name]
@@ -129,7 +125,7 @@ def run_pitch_extraction(exp_dir, f0_method, hop_length, num_processes, devices,
 
     feature_input = FeatureInput()
     with concurrent.futures.ProcessPoolExecutor(max_workers=len(devices)) as executor:
-        concurrent.futures.wait([executor.submit(feature_input.process_files, paths[i::len(devices)], f0_method, hop_length, f0_onnx, devices[i], is_half, num_processes // len(devices)) for i in range(len(devices))])
+        concurrent.futures.wait([executor.submit(feature_input.process_files, paths[i::len(devices)], f0_method, hop_length, f0_onnx, devices[i], is_half, num_processes // len(devices), f0_autotune, f0_autotune_strength) for i in range(len(devices))])
 
     logger.info(translations["extract_f0_success"].format(elapsed_time=f"{(time.time() - start_time):.2f}"))
 
@@ -179,10 +175,9 @@ def run_embedding_extraction(exp_dir, version, num_processes, devices, embedder_
 
 def main():
     args = parse_arguments()
-    exp_dir = os.path.join("assets", "logs", args.model_name)
-    f0_method, hop_length, num_processes, gpus, version, pitch_guidance, sample_rate, embedder_model, f0_onnx, embedders_mode = args.f0_method, args.hop_length, args.cpu_cores, args.gpu, args.rvc_version, args.pitch_guidance, args.sample_rate, args.embedder_model, args.f0_onnx, args.embedders_mode
+    exp_dir = os.path.join(configs["logs_path"], args.model_name)
+    f0_method, hop_length, num_processes, gpus, version, pitch_guidance, sample_rate, embedder_model, f0_onnx, embedders_mode, f0_autotune, f0_autotune_strength = args.f0_method, args.hop_length, args.cpu_cores, args.gpu, args.rvc_version, args.pitch_guidance, args.sample_rate, args.embedder_model, args.f0_onnx, args.embedders_mode, args.f0_autotune, args.f0_autotune_strength
     devices = ["cpu"] if gpus == "-" else [f"cuda:{idx}" for idx in gpus.split("-")]
-    check_predictors(f0_method, f0_onnx); check_embedders(embedder_model, embedders_mode)
 
     log_data = {translations['modelname']: args.model_name, translations['export_process']: exp_dir, translations['f0_method']: f0_method, translations['pretrain_sr']: sample_rate, translations['cpu_core']: num_processes, "Gpu": gpus, "Hop length": hop_length, translations['training_version']: version, translations['extract_f0']: pitch_guidance, translations['hubert_model']: embedder_model, translations["f0_onnx_mode"]: f0_onnx, translations["embed_mode"]: embedders_mode}
     for key, value in log_data.items():
@@ -193,7 +188,7 @@ def main():
         pid_file.write(str(os.getpid()))
     
     try:
-        run_pitch_extraction(exp_dir, f0_method, hop_length, num_processes, devices, f0_onnx, config.is_half)
+        run_pitch_extraction(exp_dir, f0_method, hop_length, num_processes, devices, f0_onnx, config.is_half, f0_autotune, f0_autotune_strength)
         run_embedding_extraction(exp_dir, version, num_processes, devices, embedder_model, embedders_mode, config.is_half)
         generate_config(version, sample_rate, exp_dir)
         generate_filelist(pitch_guidance, exp_dir, version, sample_rate, embedders_mode)

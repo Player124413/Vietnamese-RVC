@@ -18,7 +18,7 @@ sys.path.append(os.getcwd())
 
 from main.library.utils import load_audio
 from main.inference.preprocess.slicer2 import Slicer
-from main.app.variables import config, logger, translations
+from main.app.variables import config, logger, translations, configs
 
 for l in ["numba.core.byteflow", "numba.core.ssa", "numba.core.interpreter"]:
     logging.getLogger(l).setLevel(logging.ERROR)
@@ -132,7 +132,7 @@ def preprocess_training_set(input_root, sr, num_processes, exp_dir, per, cut_pre
 
 def main():
     args = parse_arguments()
-    experiment_directory = os.path.join("assets", "logs", args.model_name)
+    experiment_directory = os.path.join(configs["logs_path"], args.model_name)
     num_processes = args.cpu_cores
     num_processes = 2 if num_processes is None else int(num_processes)
     dataset, sample_rate, cut_preprocess, preprocess_effects, clean_dataset, clean_strength = args.dataset_path, args.sample_rate, args.cut_preprocess, args.process_effects, args.clean_dataset, args.clean_strength

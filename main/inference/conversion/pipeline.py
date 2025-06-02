@@ -13,7 +13,7 @@ sys.path.append(os.getcwd())
 from main.app.variables import translations
 from main.library.utils import get_providers
 from main.library.predictors.Generator import Generator
-from main.inference.conversion.utils import Autotune, change_rms, clear_gpu_cache
+from main.inference.conversion.utils import change_rms, clear_gpu_cache
 
 bh, ah = signal.butter(N=5, Wn=48, btype="high", fs=16000)
 
@@ -38,31 +38,7 @@ class Pipeline:
         self.f0_mel_max = 1127 * np.log(1 + self.f0_max / 700)
         self.device = config.device
         self.is_half = config.is_half
-        self.ref_freqs = [49.00, 51.91, 55.00, 58.27, 61.74, 65.41, 69.30, 73.42, 77.78, 82.41, 87.31, 92.50, 98.00, 103.83, 110.00, 116.54, 123.47, 130.81, 138.59, 146.83, 155.56, 164.81, 174.61, 185.00, 196.00,  207.65, 220.00, 233.08, 246.94, 261.63, 277.18, 293.66, 311.13, 329.63, 349.23, 369.99, 392.00, 415.30, 440.00, 466.16, 493.88, 523.25, 554.37, 587.33, 622.25, 659.25, 698.46, 739.99, 783.99, 830.61, 880.00, 932.33, 987.77, 1046.50]
-        self.autotune = Autotune(self.ref_freqs)
-        self.note_dict = self.autotune.note_dict
         self.f0_generator = Generator(self.sample_rate, self.window, self.f0_min, self.f0_max, self.is_half, self.device, get_providers(), False)
-
-    def get_f0(self, x, p_len, pitch, f0_method, filter_radius, hop_length, f0_autotune, f0_autotune_strength, inp_f0=None, onnx_mode=False):
-        self.f0_generator.hop_length, self.f0_generator.f0_onnx_mode = hop_length, onnx_mode
-        f0 = self.f0_generator.calculator(f0_method, x, p_len, filter_radius)
-
-        if f0_autotune: f0 = Autotune.autotune_f0(self, f0, f0_autotune_strength)
-        if isinstance(f0, tuple): f0 = f0[0]
-
-        f0 *= pow(2, pitch / 12)
-        tf0 = self.sample_rate // self.window
-
-        if inp_f0 is not None:
-            replace_f0 = np.interp(list(range(np.round((inp_f0[:, 0].max() - inp_f0[:, 0].min()) * tf0 + 1).astype(np.int16))), inp_f0[:, 0] * 100, inp_f0[:, 1])
-            f0[self.x_pad * tf0 : self.x_pad * tf0 + len(replace_f0)] = replace_f0[:f0[self.x_pad * tf0 : self.x_pad * tf0 + len(replace_f0)].shape[0]]
-
-        f0_mel = 1127 * np.log(1 + f0 / 700)
-        f0_mel[f0_mel > 0] = (f0_mel[f0_mel > 0] - self.f0_mel_min) * 254 / (self.f0_mel_max - self.f0_mel_min) + 1
-        f0_mel[f0_mel <= 1] = 1
-        f0_mel[f0_mel > 255] = 255
-
-        return np.rint(f0_mel).astype(np.int32), f0.copy()
     
     def extract_features(self, model, feats, version):
         return torch.as_tensor(model.run([model.get_outputs()[0].name, model.get_outputs()[1].name], {"feats": feats.detach().cpu().numpy()})[0 if version == "v1" else 1], dtype=torch.float32, device=feats.device)
@@ -126,7 +102,7 @@ class Pipeline:
 
         return audio1
     
-    def pipeline(self, logger, model, net_g, sid, audio, pitch, f0_method, file_index, index_rate, pitch_guidance, filter_radius, volume_envelope, version, protect, hop_length, f0_autotune, f0_autotune_strength, suffix, embed_suffix, f0_file=None, f0_onnx=False, pbar=None):
+    def pipeline(self, logger, model, net_g, sid, audio, f0_up_key, f0_method, file_index, index_rate, pitch_guidance, filter_radius, volume_envelope, version, protect, hop_length, f0_autotune, f0_autotune_strength, suffix, embed_suffix, f0_file=None, f0_onnx=False, pbar=None):
         self.suffix = suffix
         self.embed_suffix = embed_suffix
 
@@ -177,7 +153,9 @@ class Pipeline:
 
         pbar.update(1)
         if pitch_guidance:
-            pitch, pitchf = self.get_f0(audio_pad, p_len, pitch, f0_method, filter_radius, hop_length, f0_autotune, f0_autotune_strength, inp_f0, onnx_mode=f0_onnx)
+            self.f0_generator.hop_length, self.f0_generator.f0_onnx_mode = hop_length, f0_onnx
+            pitch, pitchf = self.f0_generator.calculator(self.x_pad, f0_method, audio_pad, f0_up_key, p_len, filter_radius, f0_autotune, f0_autotune_strength, manual_f0=inp_f0)
+
             if self.device == "mps": pitchf = pitchf.astype(np.float32)
             pitch, pitchf = torch.tensor(pitch[:p_len], device=self.device).unsqueeze(0).long(), torch.tensor(pitchf[:p_len], device=self.device).unsqueeze(0).float()
 

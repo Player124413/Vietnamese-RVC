@@ -18,7 +18,7 @@ class ConvBlockRes(nn.Module):
         else: self.is_shortcut = False
 
     def forward(self, x):
-        return self.conv(x) + self.shortcut(x) if self.is_shortcut else self.conv(x) + x
+        return (self.conv(x) + self.shortcut(x)) if self.is_shortcut else (self.conv(x) + x)
 
 class ResEncoderBlock(nn.Module):
     def __init__(self, in_channels, out_channels, kernel_size, n_blocks=1, momentum=0.01):
@@ -46,11 +46,9 @@ class Encoder(nn.Module):
         self.n_encoders = n_encoders
         self.bn = nn.BatchNorm2d(in_channels, momentum=momentum)
         self.layers = nn.ModuleList()
-        self.latent_channels = []
 
         for _ in range(self.n_encoders):
             self.layers.append(ResEncoderBlock(in_channels, out_channels, kernel_size, n_blocks, momentum=momentum))
-            self.latent_channels.append([out_channels, in_size])
             in_channels = out_channels
             out_channels *= 2
             in_size //= 2
@@ -62,8 +60,8 @@ class Encoder(nn.Module):
         concat_tensors = []
         x = self.bn(x)
 
-        for i in range(self.n_encoders):
-            t, x = self.layers[i](x)
+        for layer in self.layers:
+            t, x = layer(x)
             concat_tensors.append(t)
 
         return x, concat_tensors
@@ -71,16 +69,15 @@ class Encoder(nn.Module):
 class Intermediate(nn.Module):
     def __init__(self, in_channels, out_channels, n_inters, n_blocks, momentum=0.01):
         super(Intermediate, self).__init__()
-        self.n_inters = n_inters
         self.layers = nn.ModuleList()
         self.layers.append(ResEncoderBlock(in_channels, out_channels, None, n_blocks, momentum))
 
-        for _ in range(self.n_inters - 1):
+        for _ in range(n_inters - 1):
             self.layers.append(ResEncoderBlock(out_channels, out_channels, None, n_blocks, momentum))
 
     def forward(self, x):
-        for i in range(self.n_inters):
-            x = self.layers[i](x)
+        for layer in self.layers:
+            x = layer(x)
 
         return x
 
@@ -88,7 +85,6 @@ class ResDecoderBlock(nn.Module):
     def __init__(self, in_channels, out_channels, stride, n_blocks=1, momentum=0.01):
         super(ResDecoderBlock, self).__init__()
         out_padding = (0, 1) if stride == (1, 2) else (1, 1)
-        self.n_blocks = n_blocks
         self.conv1 = nn.Sequential(nn.ConvTranspose2d(in_channels=in_channels, out_channels=out_channels, kernel_size=(3, 3), stride=stride, padding=(1, 1), output_padding=out_padding, bias=False), nn.BatchNorm2d(out_channels, momentum=momentum), nn.ReLU())
         self.conv2 = nn.ModuleList()
         self.conv2.append(ConvBlockRes(out_channels * 2, out_channels, momentum))
@@ -98,9 +94,8 @@ class ResDecoderBlock(nn.Module):
 
     def forward(self, x, concat_tensor):
         x = torch.cat((self.conv1(x), concat_tensor), dim=1)
-
-        for i in range(self.n_blocks):
-            x = self.conv2[i](x)
+        for conv2 in self.conv2:
+            x = conv2(x)
 
         return x
 
@@ -108,16 +103,15 @@ class Decoder(nn.Module):
     def __init__(self, in_channels, n_decoders, stride, n_blocks, momentum=0.01):
         super(Decoder, self).__init__()
         self.layers = nn.ModuleList()
-        self.n_decoders = n_decoders
 
-        for _ in range(self.n_decoders):
+        for _ in range(n_decoders):
             out_channels = in_channels // 2
             self.layers.append(ResDecoderBlock(in_channels, out_channels, stride, n_blocks, momentum))
             in_channels = out_channels
 
     def forward(self, x, concat_tensors):
-        for i in range(self.n_decoders):
-            x = self.layers[i](x, concat_tensors[-1 - i])
+        for i, layer in enumerate(self.layers):
+            x = layer(x, concat_tensors[-1 - i])
 
         return x
 
@@ -206,7 +200,9 @@ class RMVPE:
     def mel2hidden(self, mel):
         with torch.no_grad():
             n_frames = mel.shape[-1]
-            mel = F.pad(mel, (0, 32 * ((n_frames - 1) // 32 + 1) - n_frames), mode="reflect")
+            n_pad = 32 * ((n_frames - 1) // 32 + 1) - n_frames
+            if n_pad > 0: mel = F.pad(mel, (0, n_pad), mode="constant")
+
             hidden = self.model.run([self.model.get_outputs()[0].name], input_feed={self.model.get_inputs()[0].name: mel.cpu().numpy().astype(np.float32)})[0] if self.onnx else self.model(mel.half() if self.is_half else mel.float())
             return hidden[:, :n_frames]
 

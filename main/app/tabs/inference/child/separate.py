@@ -9,7 +9,7 @@ sys.path.append(os.getcwd())
 from main.app.core.downloads import download_url
 from main.app.core.separate import separator_music
 from main.app.core.ui import visible, valueFalse_interactive, change_audios_choices
-from main.app.variables import translations, uvr_model, paths_for_files, mdx_model, sample_rate_choice
+from main.app.variables import translations, uvr_model, paths_for_files, mdx_model, sample_rate_choice, configs
 
 def separate_tab():
     with gr.Row(): 
@@ -74,7 +74,7 @@ def separate_tab():
         input_audio.change(fn=lambda audio: audio if os.path.isfile(audio) else None, inputs=[input_audio], outputs=[audio_input])
         cleaner.change(fn=visible, inputs=[cleaner], outputs=[clean_strength])
     with gr.Row():
-        input.upload(fn=lambda audio_in: shutil.move(audio_in.name, os.path.join("audios")), inputs=[input], outputs=[input_audio])
+        input.upload(fn=lambda audio_in: shutil.move(audio_in.name, configs["audios_path"]), inputs=[input], outputs=[input_audio])
         refesh_separator.click(fn=change_audios_choices, inputs=[input_audio], outputs=[input_audio])
     with gr.Row():
         download_button.click(

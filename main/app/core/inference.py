@@ -14,10 +14,10 @@ from main.app.core.ui import gr_info, gr_warning, gr_error, process_output
 from main.app.variables import logger, config, configs, python, translations
 
 def convert(pitch, filter_radius, index_rate, volume_envelope, protect, hop_length, f0_method, input_path, output_path, pth_path, index_path, f0_autotune, clean_audio, clean_strength, export_format, embedder_model, resample_sr, split_audio, f0_autotune_strength, checkpointing, onnx_f0_mode, embedders_mode, formant_shifting, formant_qfrency, formant_timbre, f0_file):    
-    subprocess.run([python, "main/inference/conversion/convert.py", "--pitch", str(pitch), "--filter_radius", str(filter_radius), "--index_rate", str(index_rate), "--volume_envelope", str(volume_envelope), "--protect", str(protect), "--hop_length", str(hop_length), "--f0_method", f0_method, "--input_path", input_path, "--output_path", output_path, "--pth_path", pth_path, "--index_path", index_path if index_path else "", "--f0_autotune", str(f0_autotune), "--clean_audio", str(clean_audio), "--clean_strength", str(clean_strength), "--export_format", export_format, "--embedder_model", embedder_model, "--resample_sr", str(resample_sr), "--split_audio", str(split_audio), "--f0_autotune_strength", str(f0_autotune_strength), "--checkpointing", str(checkpointing), "--f0_onnx", str(onnx_f0_mode), "--embedders_mode", embedders_mode, "--formant_shifting", str(formant_shifting), "--formant_qfrency", str(formant_qfrency), "--formant_timbre", str(formant_timbre), "--f0_file", f0_file])
+    subprocess.run([python, configs["convert_path"], "--pitch", str(pitch), "--filter_radius", str(filter_radius), "--index_rate", str(index_rate), "--volume_envelope", str(volume_envelope), "--protect", str(protect), "--hop_length", str(hop_length), "--f0_method", f0_method, "--input_path", input_path, "--output_path", output_path, "--pth_path", pth_path, "--index_path", index_path if index_path else "", "--f0_autotune", str(f0_autotune), "--clean_audio", str(clean_audio), "--clean_strength", str(clean_strength), "--export_format", export_format, "--embedder_model", embedder_model, "--resample_sr", str(resample_sr), "--split_audio", str(split_audio), "--f0_autotune_strength", str(f0_autotune_strength), "--checkpointing", str(checkpointing), "--f0_onnx", str(onnx_f0_mode), "--embedders_mode", embedders_mode, "--formant_shifting", str(formant_shifting), "--formant_qfrency", str(formant_qfrency), "--formant_timbre", str(formant_timbre), "--f0_file", f0_file])
 
 def convert_audio(clean, autotune, use_audio, use_original, convert_backing, not_merge_backing, merge_instrument, pitch, clean_strength, model, index, index_rate, input, output, format, method, hybrid_method, hop_length, embedders, custom_embedders, resample_sr, filter_radius, volume_envelope, protect, split_audio, f0_autotune_strength, input_audio_name, checkpointing, onnx_f0_mode, formant_shifting, formant_qfrency, formant_timbre, f0_file, embedders_mode):
-    model_path = os.path.join("assets", "weights", model) if not os.path.exists(model) else model
+    model_path = os.path.join(configs["weights_path"], model) if not os.path.exists(model) else model
 
     return_none = [None]*6
     return_none[5] = {"visible": True, "__type__": "update"}
@@ -42,7 +42,7 @@ def convert_audio(clean, autotune, use_audio, use_original, convert_backing, not
     f0method, embedder_model = (method if method != "hybrid" else hybrid_method), (embedders if embedders != "custom" else custom_embedders)
 
     if use_audio:
-        output_audio = os.path.join("audios", input_audio_name)
+        output_audio = os.path.join(configs["audios_path"], input_audio_name)
 
         from main.library.utils import pydub_load
         
@@ -179,7 +179,7 @@ def convert_selection(clean, autotune, use_audio, use_original, convert_backing,
     if use_audio:
         gr_info(translations["search_separate"])
 
-        choice = [f for f in os.listdir("audios") if os.path.isdir(os.path.join("audios", f))]
+        choice = [f for f in os.listdir(configs["audios_path"]) if os.path.isdir(os.path.join(configs["audios_path"], f))]
 
         gr_info(translations["found_choice"].format(choice=len(choice)))
 
@@ -208,7 +208,7 @@ def convert_with_whisper(num_spk, model_size, cleaner, clean_strength, autotune,
     from main.library.speaker_diarization.embedding import SpeechBrainPretrainedSpeakerEmbedding
     
     check_spk_diarization(model_size)
-    model_pth_1, model_pth_2 = os.path.join("assets", "weights", model_1) if not os.path.exists(model_1) else model_1, os.path.join("assets", "weights", model_2) if not os.path.exists(model_2) else model_2
+    model_pth_1, model_pth_2 = os.path.join(configs["weights_path"], model_1) if not os.path.exists(model_1) else model_1, os.path.join(configs["weights_path"], model_2) if not os.path.exists(model_2) else model_2
 
     if (not model_1 or not os.path.exists(model_pth_1) or os.path.isdir(model_pth_1) or not model_pth_1.endswith((".pth", ".onnx"))) and (not model_2 or not os.path.exists(model_pth_2) or os.path.isdir(model_pth_2) or not model_pth_2.endswith((".pth", ".onnx"))):
         gr_warning(translations["provide_file"].format(filename=translations["model"]))
@@ -231,7 +231,7 @@ def convert_with_whisper(num_spk, model_size, cleaner, clean_strength, autotune,
     try:
         audio = Audio()
 
-        embedding_model = SpeechBrainPretrainedSpeakerEmbedding(device=config.device)
+        embedding_model = SpeechBrainPretrainedSpeakerEmbedding(embedding=os.path.join(configs["speaker_diarization_path"], "models", "speechbrain"), device=config.device)
         segments = load_model(model_size, device=config.device).transcribe(input_audio, fp16=configs.get("fp16", False), word_timestamps=True)["segments"]
 
         y, sr = librosa.load(input_audio, sr=None)  
@@ -342,7 +342,7 @@ def convert_with_whisper(num_spk, model_size, cleaner, clean_strength, autotune,
         if os.path.exists("audios_temp"): shutil.rmtree("audios_temp", ignore_errors=True)
 
 def convert_tts(clean, autotune, pitch, clean_strength, model, index, index_rate, input, output, format, method, hybrid_method, hop_length, embedders, custom_embedders, resample_sr, filter_radius, volume_envelope, protect, split_audio, f0_autotune_strength, checkpointing, onnx_f0_mode, formant_shifting, formant_qfrency, formant_timbre, f0_file, embedders_mode):
-    model_path = os.path.join("assets", "weights", model) if not os.path.exists(model) else model
+    model_path = os.path.join(configs["weights_path"], model) if not os.path.exists(model) else model
 
     if not model_path or not os.path.exists(model_path) or os.path.isdir(model_path) or not model.endswith((".pth", ".onnx")):
         gr_warning(translations["provide_file"].format(filename=translations["model"]))

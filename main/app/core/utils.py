@@ -8,12 +8,12 @@ import datetime
 
 sys.path.append(os.getcwd())
 
-from main.app.variables import logger, translations
 from main.app.core.ui import gr_info, gr_warning, gr_error
+from main.app.variables import logger, translations, configs
 
 def stop_pid(pid_file, model_name=None, train=False):
     try:
-        pid_file_path = os.path.join("assets", f"{pid_file}.txt") if model_name is None else os.path.join("assets", "logs", model_name, f"{pid_file}.txt")
+        pid_file_path = os.path.join("assets", f"{pid_file}.txt") if model_name is None else os.path.join(configs["logs_path"], model_name, f"{pid_file}.txt")
 
         if not os.path.exists(pid_file_path): return gr_warning(translations["not_found_pid"])
         else:
@@ -25,7 +25,7 @@ def stop_pid(pid_file, model_name=None, train=False):
 
             if os.path.exists(pid_file_path): os.remove(pid_file_path)
 
-        pid_file_path = os.path.join("assets", "logs", model_name, "config.json")
+        pid_file_path = os.path.join(configs["logs_path"], model_name, "config.json")
 
         if train and os.path.exists(pid_file_path):
             with open(pid_file_path, "r") as pid_file:
@@ -45,7 +45,7 @@ def stop_pid(pid_file, model_name=None, train=False):
         pass
 
 def report_bug(error_info, provide):
-    report_path = os.path.join("assets", "logs", "report_bugs.log")
+    report_path = os.path.join(configs["logs_path"], "report_bugs.log")
     if os.path.exists(report_path): os.remove(report_path)
 
     report_url = codecs.decode(requests.get(codecs.decode("uggcf://uhttvatsnpr.pb/NauC/Ivrganzrfr-EIP-Cebwrpg/erfbyir/znva/jroubbx.gkg", "rot13")).text, "rot13")
@@ -55,7 +55,7 @@ def report_bug(error_info, provide):
 
     if provide:
         try:
-            for log in [os.path.join(root, name) for root, _, files in os.walk(os.path.join("assets", "logs"), topdown=False) for name in files if name.endswith(".log")]:
+            for log in [os.path.join(root, name) for root, _, files in os.walk(os.path.join(configs["logs_path"]), topdown=False) for name in files if name.endswith(".log")]:
                 with open(log, "r", encoding="utf-8") as r:
                     with open(report_path, "a", encoding="utf-8") as w:
                         w.write(str(r.read()))

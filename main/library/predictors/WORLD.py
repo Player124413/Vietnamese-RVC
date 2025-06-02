@@ -1,11 +1,9 @@
 import os
-import torch
+import pickle
 import ctypes
 import platform
 
 import numpy as np
-
-
 
 class DioOption(ctypes.Structure):
     _fields_ = [("F0Floor", ctypes.c_double), ("F0Ceil", ctypes.c_double), ("ChannelsInOctave", ctypes.c_double), ("FramePeriod", ctypes.c_double), ("Speed", ctypes.c_int), ("AllowedRange", ctypes.c_double)]
@@ -14,15 +12,15 @@ class HarvestOption(ctypes.Structure):
     _fields_ = [("F0Floor", ctypes.c_double), ("F0Ceil", ctypes.c_double), ("FramePeriod", ctypes.c_double)]
 
 class PYWORLD:
-    def __init__(self):
-        self.world_path = os.path.join("assets", "models", "predictors", "world")
+    def __init__(self, configs):
+        self.world_path = os.path.join(configs["predictors_path"], "world")
         os.makedirs(self.world_path, exist_ok=True)
-
         model_type, suffix = (("world_64" if platform.architecture()[0] == "64bit" else "world_86"), ".dll") if platform.system() == "Windows" else ("world_linux", ".so")
         self.world_file_path = os.path.join(self.world_path, f"{model_type}{suffix}")
 
         if not os.path.exists(self.world_file_path):
-            model = torch.load(os.path.join("assets", "models", "predictors", "world.pth"), map_location="cpu")
+            with open(os.path.join(configs["binary_path"], "world.bin"), "rb") as f:
+                model = pickle.load(f)
 
             with open(self.world_file_path, "wb") as w:
                 w.write(model[model_type])
@@ -32,10 +30,8 @@ class PYWORLD:
     def harvest(self, x, fs, f0_floor=50, f0_ceil=1100, frame_period=10):
         self.world_dll.Harvest.argtypes = [ctypes.POINTER(ctypes.c_double), ctypes.c_int, ctypes.c_int, ctypes.POINTER(HarvestOption), ctypes.POINTER(ctypes.c_double), ctypes.POINTER(ctypes.c_double)]
         self.world_dll.Harvest.restype = None 
-
         self.world_dll.InitializeHarvestOption.argtypes = [ctypes.POINTER(HarvestOption)]
         self.world_dll.InitializeHarvestOption.restype = None
-
         self.world_dll.GetSamplesForHarvest.argtypes = [ctypes.c_int, ctypes.c_int, ctypes.c_double]
         self.world_dll.GetSamplesForHarvest.restype = ctypes.c_int
 
@@ -56,10 +52,8 @@ class PYWORLD:
     def dio(self, x, fs, f0_floor=50, f0_ceil=1100, channels_in_octave=2, frame_period=10, speed=1, allowed_range=0.1):
         self.world_dll.Dio.argtypes = [ctypes.POINTER(ctypes.c_double), ctypes.c_int, ctypes.c_int, ctypes.POINTER(DioOption), ctypes.POINTER(ctypes.c_double), ctypes.POINTER(ctypes.c_double)]
         self.world_dll.Dio.restype = None  
-
         self.world_dll.InitializeDioOption.argtypes = [ctypes.POINTER(DioOption)]
         self.world_dll.InitializeDioOption.restype = None
-
         self.world_dll.GetSamplesForDIO.argtypes = [ctypes.c_int, ctypes.c_int, ctypes.c_double]
         self.world_dll.GetSamplesForDIO.restype = ctypes.c_int
 

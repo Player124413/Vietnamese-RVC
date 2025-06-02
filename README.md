@@ -122,6 +122,9 @@ python main\\app\\parser.py --help
 <pre>
 Vietnamese-RVC-main
 ├── assets
+│   ├── binary
+│   │   ├── decrypt.bin
+│   │   └── world.bin
 │   ├── f0
 │   ├── languages
 │   │   ├── en-US.json
@@ -216,7 +219,6 @@ Vietnamese-RVC-main
 │   ├── configs
 │   │   ├── config.json
 │   │   ├── config.py
-│   │   ├── decrypt.bin
 │   │   ├── v1
 │   │   │   ├── 32000.json
 │   │   │   ├── 40000.json
@@ -232,7 +234,12 @@ Vietnamese-RVC-main
 │   │   ├── create_index.py
 │   │   ├── extract.py
 │   │   ├── separator_music.py
-│   │   ├── train.py
+│   │   ├── training
+│   │   │   ├── train.py
+│   │   │   ├── data_utils.py
+│   │   │   ├── losses.py
+│   │   │   ├── mel_processing.py
+│   │   │   └── utils.py
 │   │   ├── conversion
 │   │   │   ├── convert.py
 │   │   │   ├── pipeline.py
@@ -288,11 +295,6 @@ Vietnamese-RVC-main
 │   │   │   ├── segment.py
 │   │   │   ├── speechbrain.py
 │   │   │   └── whisper.py
-│   │   ├── training
-│   │   │   ├── data_utils.py
-│   │   │   ├── losses.py
-│   │   │   ├── mel_processing.py
-│   │   │   └── utils.py
 │   │   └── uvr5_separator
 │   │       ├── common_separator.py
 │   │       ├── separator.py

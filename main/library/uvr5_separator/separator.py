@@ -17,10 +17,11 @@ sys.path.append(now_dir)
 from main.configs.config import Config
 from main.tools.huggingface import HF_download_file
 
-translations = Config().translations
+config = Config()
+translations = config.translations
 
 class Separator:
-    def __init__(self, logger, model_file_dir="assets/models/uvr5", output_dir=None, output_format="wav", output_bitrate=None, normalization_threshold=0.9, output_single_stem=None, invert_using_spec=False, sample_rate=44100, mdx_params={"hop_length": 1024, "segment_size": 256, "overlap": 0.25, "batch_size": 1, "enable_denoise": False}, demucs_params={"segment_size": "Default", "shifts": 2, "overlap": 0.25, "segments_enabled": True}):
+    def __init__(self, logger, model_file_dir=config.configs["uvr5_path"], output_dir=None, output_format="wav", output_bitrate=None, normalization_threshold=0.9, output_single_stem=None, invert_using_spec=False, sample_rate=44100, mdx_params={"hop_length": 1024, "segment_size": 256, "overlap": 0.25, "batch_size": 1, "enable_denoise": False}, demucs_params={"segment_size": "Default", "shifts": 2, "overlap": 0.25, "segments_enabled": True}):
         self.logger = logger
         self.logger.info(translations["separator_info"].format(output_dir=output_dir, output_format=output_format))
         self.model_file_dir = model_file_dir

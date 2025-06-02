@@ -10,7 +10,7 @@ from main.app.core.tts import TTS
 from main.app.core.process import process_input
 from main.app.core.inference import convert_tts
 from main.app.core.utils import google_translate
-from main.app.variables import translations, sample_rate_choice, model_name, index_path, method_f0, f0_file, embedders_mode, embedders_model, edgetts, google_tts_voice
+from main.app.variables import translations, sample_rate_choice, model_name, index_path, method_f0, f0_file, embedders_mode, embedders_model, edgetts, google_tts_voice, configs
 from main.app.core.ui import visible, change_f0_choices, unlock_f0, hoplength_show, change_models_choices, get_index, index_strength_show, visible_embedders, change_tts_voice_choices
 
 def convert_tts_tab():
@@ -95,7 +95,7 @@ def convert_tts_tab():
         translate_button.click(fn=google_translate, inputs=[prompt, source_lang, target_lang], outputs=[prompt], api_name="google_translate")
     with gr.Row():
         unlock_full_method3.change(fn=unlock_f0, inputs=[unlock_full_method3], outputs=[method0])
-        upload_f0_file0.upload(fn=lambda inp: shutil.move(inp.name, os.path.join("assets", "f0")), inputs=[upload_f0_file0], outputs=[f0_file_dropdown0])
+        upload_f0_file0.upload(fn=lambda inp: shutil.move(inp.name, configs["f0_path"]), inputs=[upload_f0_file0], outputs=[f0_file_dropdown0])
         refesh_f0_file0.click(fn=change_f0_choices, inputs=[], outputs=[f0_file_dropdown0])
     with gr.Row():
         embed_mode1.change(fn=visible_embedders, inputs=[embed_mode1], outputs=[embedders0])

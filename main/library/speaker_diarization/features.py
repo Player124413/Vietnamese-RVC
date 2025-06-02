@@ -84,7 +84,7 @@ def mark_as_saver(method):
     sig = inspect.signature(method)
 
     try:
-        sig.bind(object(), os.path.join("testpath"))
+        sig.bind(object(), "testpath")
     except TypeError:
         raise TypeError
     
@@ -95,7 +95,7 @@ def mark_as_transfer(method):
     sig = inspect.signature(method)
     
     try:
-        sig.bind(object(), os.path.join("testpath"))
+        sig.bind(object(), "testpath")
     except TypeError:
         raise TypeError
     
@@ -106,7 +106,7 @@ def mark_as_loader(method):
     sig = inspect.signature(method)
 
     try:
-        sig.bind(object(), os.path.join("testpath"), True)
+        sig.bind(object(), "testpath", True)
     except TypeError:
         raise TypeError
     

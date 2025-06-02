@@ -24,6 +24,7 @@ from torch.nn.functional import scaled_dot_product_attention
 sys.path.append(os.getcwd())
 
 from main.library.utils import load_audio
+from main.app.variables import configs
 
 LANGUAGES = {"en": "english", "zh": "chinese", "de": "german", "es": "spanish", "ru": "russian", "ko": "korean", "fr": "french", "ja": "japanese", "pt": "portuguese", "tr": "turkish", "pl": "polish", "ca": "catalan", "nl": "dutch", "ar": "arabic", "sv": "swedish", "it": "italian", "id": "indonesian", "hi": "hindi", "fi": "finnish", "vi": "vietnamese", "he": "hebrew", "uk": "ukrainian", "el": "greek", "ms": "malay", "cs": "czech", "ro": "romanian", "da": "danish", "hu": "hungarian", "ta": "tamil", "no": "norwegian", "th": "thai", "ur": "urdu", "hr": "croatian", "bg": "bulgarian", "lt": "lithuanian", "la": "latin", "mi": "maori", "ml": "malayalam", "cy": "welsh", "sk": "slovak", "te": "telugu", "fa": "persian", "lv": "latvian", "bn": "bengali", "sr": "serbian", "az": "azerbaijani", "sl": "slovenian", "kn": "kannada", "et": "estonian", "mk": "macedonian", "br": "breton", "eu": "basque", "is": "icelandic", "hy": "armenian", "ne": "nepali", "mn": "mongolian", "bs": "bosnian", "kk": "kazakh", "sq": "albanian", "sw": "swahili", "gl": "galician", "mr": "marathi", "pa": "punjabi", "si": "sinhala", "km": "khmer", "sn": "shona", "yo": "yoruba", "so": "somali", "af": "afrikaans", "oc": "occitan", "ka": "georgian", "be": "belarusian", "tg": "tajik", "sd": "sindhi", "gu": "gujarati", "am": "amharic", "yi": "yiddish", "lo": "lao", "uz": "uzbek", "fo": "faroese", "ht": "haitian creole", "ps": "pashto", "tk": "turkmen", "nn": "nynorsk", "mt": "maltese", "sa": "sanskrit", "lb": "luxembourgish", "my": "myanmar", "bo": "tibetan", "tl": "tagalog", "mg": "malagasy", "as": "assamese", "tt": "tatar", "haw": "hawaiian", "ln": "lingala", "ha": "hausa", "ba": "bashkir", "jw": "javanese", "su": "sundanese", "yue": "cantonese"}
 TO_LANGUAGE_CODE = {**{language: code for code, language in LANGUAGES.items()}, "burmese": "my", "valencian": "ca", "flemish": "nl", "haitian": "ht", "letzeburgesch": "lb", "pushto": "ps", "panjabi": "pa", "moldavian": "ro", "moldovan": "ro", "sinhalese": "si", "castilian": "es", "mandarin": "zh"}
@@ -45,7 +46,7 @@ TOKENS_PER_SECOND = exact_div(SAMPLE_RATE, N_SAMPLES_PER_TOKEN)
 
 
 def load_model(name = "base", device = "cpu"):
-    checkpoint_file = os.path.join("assets", "models", "speaker_diarization", "models", name + ".pt")
+    checkpoint_file = os.path.join(configs["speaker_diarization_path"], "models", name + ".pt")
     alignment_heads = _ALIGNMENT_HEADS[name]
 
     with open(checkpoint_file, "rb") as fp:
@@ -261,7 +262,7 @@ def add_word_timestamps(*, segments, model, tokenizer, mel, num_frames, prepend_
 def mel_filters(device, n_mels):
     assert n_mels in {80, 128}
 
-    with np.load(os.path.join("assets", "models", "speaker_diarization", "assets", "mel_filters.npz"), allow_pickle=False) as f:
+    with np.load(os.path.join(configs["speaker_diarization_path"], "assets", "mel_filters.npz"), allow_pickle=False) as f:
         return torch.from_numpy(f[f"mel_{n_mels}"]).to(device)
 
 def log_mel_spectrogram(audio, n_mels = 80, padding = 0, device = None):
@@ -576,7 +577,7 @@ def get_tokenizer(multilingual, *, num_languages = 99, language = None, task = N
 
 @lru_cache(maxsize=None)
 def get_encoding(name = "gpt2", num_languages = 99):
-    vocab_path = os.path.join("assets", "models", "speaker_diarization", "assets", f"{name}.tiktoken")
+    vocab_path = os.path.join(configs["speaker_diarization_path"], "assets", f"{name}.tiktoken")
     ranks = {base64.b64decode(token): int(rank) for token, rank in (line.split() for line in open(vocab_path) if line)}
 
     n_vocab = len(ranks)

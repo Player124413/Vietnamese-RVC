@@ -107,13 +107,13 @@ def download_tab():
                 api_name="download_pretrain_choices"
             )
             pretrain_upload_g.upload(
-                fn=lambda pretrain_upload_g: shutil.move(pretrain_upload_g.name, os.path.join("assets", "models", "pretrained_custom")), 
+                fn=lambda pretrain_upload_g: shutil.move(pretrain_upload_g.name, configs["pretrained_custom_path"]), 
                 inputs=[pretrain_upload_g], 
                 outputs=[],
                 api_name="upload_pretrain_g"
             )
             pretrain_upload_d.upload(
-                fn=lambda pretrain_upload_d: shutil.move(pretrain_upload_d.name, os.path.join("assets", "models", "pretrained_custom")), 
+                fn=lambda pretrain_upload_d: shutil.move(pretrain_upload_d.name, configs["pretrained_custom_path"]), 
                 inputs=[pretrain_upload_d], 
                 outputs=[],
                 api_name="upload_pretrain_d"

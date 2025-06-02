@@ -321,7 +321,7 @@ class AudioLDM2(Pipeline):
 def load_model(model, device):
     check_audioldm2(model)
 
-    ldm_stable = AudioLDM2(model_id=os.path.join("assets", "models", "audioldm2", model), device=device, double_precision=False)
+    ldm_stable = AudioLDM2(model_id=os.path.join(config.configs["audioldm2_model_path"], model), device=device, double_precision=False)
     ldm_stable.load_scheduler()
 
     if torch.cuda.is_available(): torch.cuda.empty_cache()

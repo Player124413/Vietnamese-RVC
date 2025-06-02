@@ -9,7 +9,7 @@ import xml.etree.ElementTree
 
 sys.path.append(os.getcwd())
 
-from main.app.variables import logger, translations
+from main.app.variables import logger, translations, configs
 from main.app.core.ui import gr_info, gr_warning, gr_error, process_output
 
 def read_docx_text(path):
@@ -62,9 +62,9 @@ def move_files_from_directory(src_dir, dest_weights, dest_logs, model_name):
                 shutil.move(file_path, pth_path)
 
 def save_drop_model(dropbox):
-    weight_folder = os.path.join("assets", "weights")
-    logs_folder = os.path.join("assets", "logs")
-    save_model_temp = os.path.join("save_model_temp")
+    weight_folder = configs["weights_path"]
+    logs_folder = configs["logs_path"]
+    save_model_temp = "save_model_temp"
 
     if not os.path.exists(weight_folder): os.makedirs(weight_folder, exist_ok=True)
     if not os.path.exists(logs_folder): os.makedirs(logs_folder, exist_ok=True)
@@ -105,10 +105,10 @@ def save_drop_model(dropbox):
         shutil.rmtree(save_model_temp, ignore_errors=True)
 
 def zip_file(name, pth, index):
-    pth_path = os.path.join("assets", "weights", pth)
+    pth_path = os.path.join(configs["weights_path"], pth)
     if not pth or not os.path.exists(pth_path) or not pth.endswith((".pth", ".onnx")): return gr_warning(translations["provide_file"].format(filename=translations["model"]))
 
-    zip_file_path = os.path.join("assets", "logs", name, name + ".zip")
+    zip_file_path = os.path.join(configs["logs_path"], name, name + ".zip")
     gr_info(translations["start"].format(start=translations["zip"]))
 
     with zipfile.ZipFile(zip_file_path, 'w') as zipf:

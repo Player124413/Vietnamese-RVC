@@ -13,13 +13,13 @@ from bs4 import BeautifulSoup
 sys.path.append(os.getcwd())
 
 from main.tools import huggingface
-from main.app.variables import logger, translations, model_options
 from main.app.core.ui import gr_info, gr_warning, gr_error, process_output
+from main.app.variables import logger, translations, model_options, configs
 from main.app.core.process import move_files_from_directory, fetch_pretrained_data
 
 def download_url(url):
     if not url: return gr_warning(translations["provide_url"])
-    if not os.path.exists("audios"): os.makedirs("audios", exist_ok=True)
+    if not os.path.exists(configs["audios_path"]): os.makedirs(configs["audios_path"], exist_ok=True)
 
     with warnings.catch_warnings():
         warnings.filterwarnings("ignore")
@@ -28,7 +28,7 @@ def download_url(url):
         gr_info(translations["start"].format(start=translations["download_music"]))
 
         with yt_dlp.YoutubeDL(ydl_opts) as ydl:
-            audio_output = os.path.join("audios", re.sub(r'\s+', '-', re.sub(r'[^\w\s\u4e00-\u9fff\uac00-\ud7af\u0400-\u04FF\u1100-\u11FF]', '', ydl.extract_info(url, download=False).get('title', 'video')).strip()))
+            audio_output = os.path.join(configs["audios_path"], re.sub(r'\s+', '-', re.sub(r'[^\w\s\u4e00-\u9fff\uac00-\ud7af\u0400-\u04FF\u1100-\u11FF]', '', ydl.extract_info(url, download=False).get('title', 'video')).strip()))
             if os.path.exists(audio_output): shutil.rmtree(audio_output, ignore_errors=True)
 
             ydl_opts['outtmpl'] = audio_output
@@ -48,9 +48,9 @@ def download_model(url=None, model=None):
     model = model.replace(".onnx", "").replace(".pth", "").replace(".index", "").replace(".zip", "").replace(" ", "_").replace("(", "").replace(")", "").replace("[", "").replace("]", "").replace(",", "").replace('"', "").replace("'", "").replace("|", "").strip()
     url = url.replace("/blob/", "/resolve/").replace("?download=true", "").strip()
 
-    download_dir = os.path.join("download_model")
-    weights_dir = os.path.join("assets", "weights")
-    logs_dir = os.path.join("assets", "logs")
+    download_dir = "download_model"
+    weights_dir = configs["weights_path"]
+    logs_dir = configs["logs_path"]
 
     if not os.path.exists(download_dir): os.makedirs(download_dir, exist_ok=True)
     if not os.path.exists(weights_dir): os.makedirs(weights_dir, exist_ok=True)
@@ -122,7 +122,7 @@ def download_model(url=None, model=None):
         shutil.rmtree(download_dir, ignore_errors=True)
         
 def download_pretrained_model(choices, model, sample_rate):
-    pretraineds_custom_path = os.path.join("assets", "models", "pretrained_custom")
+    pretraineds_custom_path = configs["pretrained_custom_path"]
     if choices == translations["list_model"]:
         paths = fetch_pretrained_data()[model][sample_rate]
 

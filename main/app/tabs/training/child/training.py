@@ -41,10 +41,12 @@ def training_model_tab():
                     with gr.Accordion(label=translations["f0_method"], open=False):
                         with gr.Group():
                             with gr.Row():
-                                onnx_f0_mode2 = gr.Checkbox(label=translations["f0_onnx_mode"], info=translations["f0_onnx_mode_info"], value=False, interactive=True)
-                                unlock_full_method4 = gr.Checkbox(label=translations["f0_unlock"], info=translations["f0_unlock_info"], value=False, interactive=True)
+                                onnx_f0_mode2 = gr.Checkbox(label=translations["f0_onnx_mode"], value=False, interactive=True)
+                                unlock_full_method4 = gr.Checkbox(label=translations["f0_unlock"], value=False, interactive=True)
+                                autotune = gr.Checkbox(label=translations["autotune"], value=False, interactive=True)
                             extract_method = gr.Radio(label=translations["f0_method"], info=translations["f0_method_info"], choices=method_f0, value="rmvpe", interactive=True)
                         extract_hop_length = gr.Slider(label="Hop length", info=translations["hop_length_info"], minimum=1, maximum=512, value=128, step=1, interactive=True, visible=False)
+                        f0_autotune_strength = gr.Slider(minimum=0, maximum=1, label=translations["autotune_rate"], info=translations["autotune_rate_info"], value=1, step=0.1, interactive=True, visible=autotune.value)
                     with gr.Accordion(label=translations["hubert_model"], open=False):
                         with gr.Group():
                             embed_mode2 = gr.Radio(label=translations["embed_mode"], info=translations["embed_mode_info"], value="fairseq", choices=embedders_mode, interactive=True, visible=True)
@@ -130,6 +132,8 @@ def training_model_tab():
         custom_dataset.change(fn=lambda custom_dataset: [visible(custom_dataset), "dataset"],inputs=[custom_dataset], outputs=[dataset_path, dataset_path])
         training_ver.change(fn=unlock_vocoder, inputs=[training_ver, vocoders], outputs=[vocoders])
         vocoders.change(fn=unlock_ver, inputs=[training_ver, vocoders], outputs=[training_ver])
+    with gr.Row():
+        autotune.change(fn=visible, inputs=[autotune], outputs=[f0_autotune_strength])
         upload_dataset.upload(
             fn=lambda files, folder: [shutil.move(f.name, os.path.join(folder, os.path.split(f.name)[1])) for f in files] if folder != "" else gr_warning(translations["dataset_folder1"]),
             inputs=[upload_dataset, dataset_path], 
@@ -175,7 +179,9 @@ def training_model_tab():
                 extract_embedders, 
                 extract_embedders_custom,
                 onnx_f0_mode2,
-                embed_mode2
+                embed_mode2,
+                autotune,
+                f0_autotune_strength
             ],
             outputs=[extract_info],
             api_name="extract"

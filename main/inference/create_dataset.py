@@ -16,7 +16,7 @@ sys.path.append(os.getcwd())
 from main.app.variables import config, logger, translations
 from main.library.uvr5_separator.separator import Separator
 
-dataset_temp = os.path.join("dataset_temp")
+dataset_temp = "dataset_temp"
 
 def parse_arguments():
     parser = argparse.ArgumentParser()
