@@ -45,6 +45,7 @@ def training_model_tab():
                                 unlock_full_method4 = gr.Checkbox(label=translations["f0_unlock"], value=False, interactive=True)
                                 autotune = gr.Checkbox(label=translations["autotune"], value=False, interactive=True)
                             extract_method = gr.Radio(label=translations["f0_method"], info=translations["f0_method_info"], choices=method_f0, value="rmvpe", interactive=True)
+                            extract_hybrid_method = gr.Dropdown(label=translations["f0_method_hybrid"], info=translations["f0_method_hybrid_info"], choices=["hybrid[pm+dio]", "hybrid[pm+crepe-tiny]", "hybrid[pm+crepe]", "hybrid[pm+fcpe]", "hybrid[pm+rmvpe]", "hybrid[pm+harvest]", "hybrid[pm+yin]", "hybrid[dio+crepe-tiny]", "hybrid[dio+crepe]", "hybrid[dio+fcpe]", "hybrid[dio+rmvpe]", "hybrid[dio+harvest]", "hybrid[dio+yin]", "hybrid[crepe-tiny+crepe]", "hybrid[crepe-tiny+fcpe]", "hybrid[crepe-tiny+rmvpe]", "hybrid[crepe-tiny+harvest]", "hybrid[crepe+fcpe]", "hybrid[crepe+rmvpe]", "hybrid[crepe+harvest]", "hybrid[crepe+yin]", "hybrid[fcpe+rmvpe]", "hybrid[fcpe+harvest]", "hybrid[fcpe+yin]", "hybrid[rmvpe+harvest]", "hybrid[rmvpe+yin]", "hybrid[harvest+yin]"], value="hybrid[pm+dio]", interactive=True, allow_custom_value=True, visible=extract_method.value == "hybrid")
                         extract_hop_length = gr.Slider(label="Hop length", info=translations["hop_length_info"], minimum=1, maximum=512, value=128, step=1, interactive=True, visible=False)
                         f0_autotune_strength = gr.Slider(minimum=0, maximum=1, label=translations["autotune_rate"], info=translations["autotune_rate_info"], value=1, step=0.1, interactive=True, visible=autotune.value)
                     with gr.Accordion(label=translations["hubert_model"], open=False):
@@ -133,6 +134,9 @@ def training_model_tab():
         training_ver.change(fn=unlock_vocoder, inputs=[training_ver, vocoders], outputs=[vocoders])
         vocoders.change(fn=unlock_ver, inputs=[training_ver, vocoders], outputs=[training_ver])
     with gr.Row():
+        extract_method.change(fn=lambda method, hybrid: [visible(method == "hybrid"), hoplength_show(method, hybrid)], inputs=[extract_method, extract_hybrid_method], outputs=[extract_hybrid_method, extract_hop_length])
+        extract_hybrid_method.change(fn=hoplength_show, inputs=[extract_method, extract_hybrid_method], outputs=[extract_hop_length])
+    with gr.Row():
         autotune.change(fn=visible, inputs=[autotune], outputs=[f0_autotune_strength])
         upload_dataset.upload(
             fn=lambda files, folder: [shutil.move(f.name, os.path.join(folder, os.path.split(f.name)[1])) for f in files] if folder != "" else gr_warning(translations["dataset_folder1"]),
@@ -162,7 +166,6 @@ def training_model_tab():
         )
     with gr.Row():
         embed_mode2.change(fn=visible_embedders, inputs=[embed_mode2], outputs=[extract_embedders])
-        extract_method.change(fn=hoplength_show, inputs=[extract_method], outputs=[extract_hop_length])
         extract_embedders.change(fn=lambda extract_embedders: visible(extract_embedders == "custom"), inputs=[extract_embedders], outputs=[extract_embedders_custom])
     with gr.Row():
         extract_button.click(
@@ -181,7 +184,8 @@ def training_model_tab():
                 onnx_f0_mode2,
                 embed_mode2,
                 autotune,
-                f0_autotune_strength
+                f0_autotune_strength,
+                extract_hybrid_method
             ],
             outputs=[extract_info],
             api_name="extract"

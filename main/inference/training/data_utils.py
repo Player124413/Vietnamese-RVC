@@ -8,8 +8,8 @@ import torch.utils.data as tdata
 sys.path.append(os.getcwd())
 
 from main.app.variables import translations
-from main.library.training.mel_processing import spectrogram_torch
-from main.library.training.utils import load_filepaths_and_text, load_wav_to_torch
+from main.inference.training.mel_processing import spectrogram_torch
+from main.inference.training.utils import load_filepaths_and_text, load_wav_to_torch
 
 class TextAudioLoaderMultiNSFsid(tdata.Dataset):
     def __init__(self, hparams):

@@ -25,7 +25,7 @@ def f0_extract_tab():
                     with gr.Row():
                         onnx_f0_mode3 = gr.Checkbox(label=translations["f0_onnx_mode"], info=translations["f0_onnx_mode_info"], value=False, interactive=True)
                         unlock_full_method = gr.Checkbox(label=translations["f0_unlock"], info=translations["f0_unlock_info"], value=False, interactive=True)
-                    f0_method_extract = gr.Radio(label=translations["f0_method"], info=translations["f0_method_info"], choices=method_f0, value="rmvpe", interactive=True)
+                    f0_method_extract = gr.Radio(label=translations["f0_method"], info=translations["f0_method_info"], choices=[m for m in method_f0 if m != "hybrid"], value="rmvpe", interactive=True)
             with gr.Accordion(translations["audio_path"], open=True):
                 input_audio_path = gr.Dropdown(label=translations["audio_path"], value="", choices=paths_for_files, allow_custom_value=True, interactive=True)
                 refesh_audio_button = gr.Button(translations["refesh"])
@@ -39,7 +39,7 @@ def f0_extract_tab():
         input_audio_path.change(fn=lambda audio: audio if os.path.isfile(audio) else None, inputs=[input_audio_path], outputs=[audioplay])
         refesh_audio_button.click(fn=change_audios_choices, inputs=[input_audio_path], outputs=[input_audio_path])
     with gr.Row():
-        unlock_full_method.change(fn=unlock_f0, inputs=[unlock_full_method], outputs=[f0_method_extract])
+        unlock_full_method.change(fn=lambda method: [m for m in unlock_f0(method) if m != "hybrid"], inputs=[unlock_full_method], outputs=[f0_method_extract])
         extractor_button.click(
             fn=f0_extract,
             inputs=[

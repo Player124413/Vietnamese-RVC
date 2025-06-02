@@ -68,8 +68,8 @@ def preprocess(model_name, sample_rate, cpu_core, cut_preprocess, process_effect
     for log in log_read(done, "preprocess"):
         yield log
 
-def extract(model_name, version, method, pitch_guidance, hop_length, cpu_cores, gpu, sample_rate, embedders, custom_embedders, onnx_f0_mode, embedders_mode, f0_autotune, f0_autotune_strength):
-    embedder_model = embedders if embedders != "custom" else custom_embedders
+def extract(model_name, version, method, pitch_guidance, hop_length, cpu_cores, gpu, sample_rate, embedders, custom_embedders, onnx_f0_mode, embedders_mode, f0_autotune, f0_autotune_strength, hybrid_method):
+    f0method, embedder_model = (method if method != "hybrid" else hybrid_method), (embedders if embedders != "custom" else custom_embedders)
     sr = int(float(sample_rate.rstrip("k")) * 1000)
 
     if not model_name: return gr_warning(translations["provide_name"])
@@ -80,7 +80,7 @@ def extract(model_name, version, method, pitch_guidance, hop_length, cpu_cores, 
     except:
         return gr_warning(translations["not_found_data_preprocess"])
     
-    p = subprocess.Popen(f'{python} {configs["extract_path"]} --model_name "{model_name}" --rvc_version {version} --f0_method {method} --pitch_guidance {pitch_guidance} --hop_length {hop_length} --cpu_cores {cpu_cores} --gpu {gpu} --sample_rate {sr} --embedder_model {embedder_model} --f0_onnx {onnx_f0_mode} --embedders_mode {embedders_mode} --f0_autotune {f0_autotune} --f0_autotune_strength {f0_autotune_strength}', shell=True)
+    p = subprocess.Popen(f'{python} {configs["extract_path"]} --model_name "{model_name}" --rvc_version {version} --f0_method {f0method} --pitch_guidance {pitch_guidance} --hop_length {hop_length} --cpu_cores {cpu_cores} --gpu {gpu} --sample_rate {sr} --embedder_model {embedder_model} --f0_onnx {onnx_f0_mode} --embedders_mode {embedders_mode} --f0_autotune {f0_autotune} --f0_autotune_strength {f0_autotune_strength}', shell=True)
     done = [False]
 
     threading.Thread(target=if_done, args=(done, p)).start()
