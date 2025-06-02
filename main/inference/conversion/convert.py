@@ -23,7 +23,7 @@ from main.inference.conversion.pipeline import Pipeline
 from main.app.variables import config, logger, translations
 from main.library.algorithm.synthesizers import Synthesizer
 from main.inference.conversion.utils import clear_gpu_cache
-from main.library.utils import load_audio, load_embedders_model, cut, restore, get_providers
+from main.library.utils import check_predictors, check_embedders, load_audio, load_embedders_model, cut, restore, get_providers
 
 for l in ["torch", "faiss", "omegaconf", "httpx", "httpcore", "faiss.loader", "numba.core", "urllib3", "transformers", "matplotlib"]:
     logging.getLogger(l).setLevel(logging.ERROR)
@@ -62,7 +62,8 @@ def parse_arguments():
 def main():
     args = parse_arguments()
     pitch, filter_radius, index_rate, volume_envelope, protect, hop_length, f0_method, input_path, output_path, pth_path, index_path, f0_autotune, f0_autotune_strength, clean_audio, clean_strength, export_format, embedder_model, resample_sr, split_audio, checkpointing, f0_file, f0_onnx, embedders_mode, formant_shifting, formant_qfrency, formant_timbre = args.pitch, args.filter_radius, args.index_rate, args.volume_envelope,args.protect, args.hop_length, args.f0_method, args.input_path, args.output_path, args.pth_path, args.index_path, args.f0_autotune, args.f0_autotune_strength, args.clean_audio, args.clean_strength, args.export_format, args.embedder_model, args.resample_sr, args.split_audio, args.checkpointing, args.f0_file, args.f0_onnx, args.embedders_mode, args.formant_shifting, args.formant_qfrency, args.formant_timbre
-
+    
+    check_predictors(f0_method, f0_onnx=f0_onnx); check_embedders(embedder_model, embedders_mode)
     log_data = {translations['pitch']: pitch, translations['filter_radius']: filter_radius, translations['index_strength']: index_rate, translations['volume_envelope']: volume_envelope, translations['protect']: protect, "Hop length": hop_length, translations['f0_method']: f0_method, translations['audio_path']: input_path, translations['output_path']: output_path.replace('wav', export_format), translations['model_path']: pth_path, translations['indexpath']: index_path, translations['autotune']: f0_autotune, translations['clear_audio']: clean_audio, translations['export_format']: export_format, translations['hubert_model']: embedder_model, translations['split_audio']: split_audio, translations['memory_efficient_training']: checkpointing, translations["f0_onnx_mode"]: f0_onnx, translations["embed_mode"]: embedders_mode}
 
     if clean_audio: log_data[translations['clean_strength']] = clean_strength
@@ -144,7 +145,7 @@ class VoiceConverter:
 
     def convert_audio(self, audio_input_path, audio_output_path, index_path, embedder_model, pitch, f0_method, index_rate, volume_envelope, protect, hop_length, f0_autotune, f0_autotune_strength, filter_radius, clean_audio, clean_strength, export_format, resample_sr = 0, checkpointing = False, f0_file = None, f0_onnx = False, embedders_mode = "fairseq", formant_shifting = False, formant_qfrency = 0.8, formant_timbre = 0.8, split_audio = False):
         try:
-            with tqdm(total=10, desc=translations["convert_audio"], ncols=100, unit="a") as pbar:
+            with tqdm(total=10, desc=translations["convert_audio"], ncols=100, unit="a", leave=False) as pbar:
                 audio = load_audio(logger, audio_input_path, self.sample_rate, formant_shifting=formant_shifting, formant_qfrency=formant_qfrency, formant_timbre=formant_timbre)
                 self.checkpointing = checkpointing
                 audio_max = np.abs(audio).max() / 0.95

@@ -129,8 +129,6 @@ def pydub_load(input_path, volume = None):
     return audio if volume is None else audio + volume
 
 def load_embedders_model(embedder_model, embedders_mode="fairseq", providers=None):
-    check_embedders(embedder_model, embedders_mode)
-
     if embedders_mode == "fairseq": embedder_model += ".pt"
     elif embedders_mode == "onnx": embedder_model += ".onnx"
     elif embedders_mode == "spin": embedders_mode, embedder_model = "transformers", "spin"

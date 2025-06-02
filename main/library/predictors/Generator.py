@@ -11,7 +11,6 @@ import scipy.signal as signal
 sys.path.append(os.getcwd())
 
 from main.app.variables import configs
-from main.library.utils import check_predictors
 from main.inference.conversion.utils import Autotune
 
 @nb.jit(nopython=True)
@@ -45,7 +44,6 @@ class Generator:
         self.note_dict = self.autotune.note_dict
 
     def calculator(self, x_pad, f0_method, x, f0_up_key = 0, p_len = None, filter_radius = 3, f0_autotune = False, f0_autotune_strength = 1, manual_f0 = None):
-        check_predictors(f0_method, f0_onnx=self.f0_onnx_mode)
         if p_len is None: p_len = x.shape[0] // self.window
 
         model = self.get_f0_hybrid if "hybrid" in f0_method else self.compute_f0

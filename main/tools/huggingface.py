@@ -8,7 +8,7 @@ def HF_download_file(url, output_path=None):
     response = requests.get(url, stream=True, timeout=300)
 
     if response.status_code == 200:
-        progress_bar = tqdm.tqdm(total=int(response.headers.get("content-length", 0)), desc=os.path.basename(url), ncols=100, unit="byte")
+        progress_bar = tqdm.tqdm(total=int(response.headers.get("content-length", 0)), desc=os.path.basename(url), ncols=100, unit="byte", leave=False)
 
         with open(output_path, "wb") as f:
             for chunk in response.iter_content(chunk_size=10 * 1024 * 1024):

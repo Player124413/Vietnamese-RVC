@@ -19,7 +19,7 @@ sys.path.append(os.getcwd())
 
 from main.library.predictors.Generator import Generator
 from main.app.variables import config, logger, translations, configs
-from main.library.utils import load_audio, load_embedders_model, get_providers
+from main.library.utils import check_predictors, check_embedders, load_audio, load_embedders_model, get_providers
 
 warnings.filterwarnings("ignore")
 for l in ["torch", "faiss", "httpx", "httpcore", "faiss.loader", "numba.core", "urllib3", "matplotlib"]:
@@ -178,6 +178,8 @@ def main():
     exp_dir = os.path.join(configs["logs_path"], args.model_name)
     f0_method, hop_length, num_processes, gpus, version, pitch_guidance, sample_rate, embedder_model, f0_onnx, embedders_mode, f0_autotune, f0_autotune_strength = args.f0_method, args.hop_length, args.cpu_cores, args.gpu, args.rvc_version, args.pitch_guidance, args.sample_rate, args.embedder_model, args.f0_onnx, args.embedders_mode, args.f0_autotune, args.f0_autotune_strength
     devices = ["cpu"] if gpus == "-" else [f"cuda:{idx}" for idx in gpus.split("-")]
+
+    check_predictors(f0_method, f0_onnx=f0_onnx); check_embedders(embedder_model, embedders_mode)
 
     log_data = {translations['modelname']: args.model_name, translations['export_process']: exp_dir, translations['f0_method']: f0_method, translations['pretrain_sr']: sample_rate, translations['cpu_core']: num_processes, "Gpu": gpus, "Hop length": hop_length, translations['training_version']: version, translations['extract_f0']: pitch_guidance, translations['hubert_model']: embedder_model, translations["f0_onnx_mode"]: f0_onnx, translations["embed_mode"]: embedders_mode}
     for key, value in log_data.items():
