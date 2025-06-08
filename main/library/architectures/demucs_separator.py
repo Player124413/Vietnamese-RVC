@@ -2,8 +2,10 @@ import os
 import sys
 import yaml
 import torch
+import warnings
 
 import numpy as np
+
 from hashlib import sha256
 
 sys.path.append(os.getcwd())
@@ -12,11 +14,12 @@ from main.configs.config import Config
 from main.library.uvr5_separator import spec_utils, common_separator
 from main.library.uvr5_separator.demucs import hdemucs, states, apply
 
-translations = Config().translations
+warnings.filterwarnings("ignore")
+config = Config()
+translations = config.translations
 sys.path.insert(0, os.path.join(os.getcwd(), "main", "library", "uvr5_separator"))
 
 DEMUCS_4_SOURCE_MAPPER = {common_separator.CommonSeparator.BASS_STEM: 0, common_separator.CommonSeparator.DRUM_STEM: 1, common_separator.CommonSeparator.OTHER_STEM: 2, common_separator.CommonSeparator.VOCAL_STEM: 3}
-
 
 class DemucsSeparator(common_separator.CommonSeparator):
     def __init__(self, common_config, arch_config):
@@ -32,6 +35,7 @@ class DemucsSeparator(common_separator.CommonSeparator):
         self.audio_file_base = None
         self.demucs_model_instance = None
         self.logger.info(translations["start_demucs"])
+        if config.configs.get("demucs_cpu_mode", False): self.torch_device = torch.device("cpu")
 
     def separate(self, audio_file_path):
         self.logger.debug(translations["start_separator"])

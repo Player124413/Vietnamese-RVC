@@ -1,6 +1,5 @@
 import os
 import sys
-import shutil
 
 import gradio as gr
 
@@ -9,7 +8,7 @@ sys.path.append(os.getcwd())
 from main.app.core.presets import load_presets, save_presets
 from main.app.core.inference import convert_audio, convert_selection
 from main.app.variables import translations, paths_for_files, sample_rate_choice, model_name, index_path, method_f0, f0_file, embedders_mode, embedders_model, presets_file, configs
-from main.app.core.ui import visible, valueFalse_interactive, change_audios_choices, change_f0_choices, unlock_f0, change_preset_choices, change_backing_choices, hoplength_show, change_models_choices, get_index, index_strength_show, visible_embedders
+from main.app.core.ui import visible, valueFalse_interactive, change_audios_choices, change_f0_choices, unlock_f0, change_preset_choices, change_backing_choices, hoplength_show, change_models_choices, get_index, index_strength_show, visible_embedders, shutil_move
 
 def convert_tab():
     with gr.Row():
@@ -105,6 +104,7 @@ def convert_tab():
                     with gr.Row():
                         split_audio = gr.Checkbox(label=translations["split_audio"], value=False, interactive=True)
                         formant_shifting = gr.Checkbox(label=translations["formantshift"], value=False, interactive=True)
+                        proposal_pitch = gr.Checkbox(label=translations["proposal_pitch"], value=False, interactive=True)
                     f0_autotune_strength = gr.Slider(minimum=0, maximum=1, label=translations["autotune_rate"], info=translations["autotune_rate_info"], value=1, step=0.1, interactive=True, visible=autotune.value)
                     resample_sr = gr.Radio(choices=[0]+sample_rate_choice, label=translations["resample"], info=translations["resample_info"], value=0, interactive=True)
                     filter_radius = gr.Slider(minimum=0, maximum=7, label=translations["filter_radius"], info=translations["filter_radius_info"], value=3, step=1, interactive=True)
@@ -123,7 +123,7 @@ def convert_tab():
         original_convert = gr.Audio(show_download_button=True, interactive=False, label=translations["convert_original"], visible=use_original.value)
         vocal_instrument = gr.Audio(show_download_button=True, interactive=False, label=translations["voice_or_instruments"], visible=merge_instrument.value)  
     with gr.Row():
-        upload_f0_file.upload(fn=lambda inp: shutil.move(inp.name, configs["f0_path"]), inputs=[upload_f0_file], outputs=[f0_file_dropdown])
+        upload_f0_file.upload(fn=lambda inp: shutil_move(inp.name, configs["f0_path"]), inputs=[upload_f0_file], outputs=[f0_file_dropdown])
         refesh_f0_file.click(fn=change_f0_choices, inputs=[], outputs=[f0_file_dropdown])
         unlock_full_method.change(fn=unlock_f0, inputs=[unlock_full_method], outputs=[method])
     with gr.Row():
@@ -195,7 +195,7 @@ def convert_tab():
             outputs=[presets_name]
         )
     with gr.Row():
-        upload_presets.upload(fn=lambda audio_in: shutil.move(audio_in.name, configs["presets_path"]), inputs=[upload_presets], outputs=[presets_name])
+        upload_presets.upload(fn=lambda audio_in: shutil_move(audio_in.name, configs["presets_path"]), inputs=[upload_presets], outputs=[presets_name])
         autotune.change(fn=visible, inputs=[autotune], outputs=[f0_autotune_strength])
         use_audio.change(fn=lambda a: [visible(a), visible(a), visible(a), visible(a), visible(a), valueFalse_interactive(a), valueFalse_interactive(a), valueFalse_interactive(a), valueFalse_interactive(a), visible(not a), visible(not a), visible(not a), visible(not a)], inputs=[use_audio], outputs=[main_backing, use_original, convert_backing, not_merge_backing, merge_instrument, use_original, convert_backing, not_merge_backing, merge_instrument, input_audio0, output_audio, input0, play_audio])
     with gr.Row():
@@ -211,7 +211,7 @@ def convert_tab():
         refesh.click(fn=change_models_choices, inputs=[], outputs=[model_pth, model_index])
         model_pth.change(fn=get_index, inputs=[model_pth], outputs=[model_index])
     with gr.Row():
-        input0.upload(fn=lambda audio_in: shutil.move(audio_in.name, configs["audios_path"]), inputs=[input0], outputs=[input_audio0])
+        input0.upload(fn=lambda audio_in: shutil_move(audio_in.name, configs["audios_path"]), inputs=[input0], outputs=[input_audio0])
         input_audio0.change(fn=lambda audio: audio if os.path.isfile(audio) else None, inputs=[input_audio0], outputs=[play_audio])
         formant_shifting.change(fn=lambda a: [visible(a)]*2, inputs=[formant_shifting], outputs=[formant_qfrency, formant_timbre])
     with gr.Row():
@@ -258,7 +258,8 @@ def convert_tab():
                 formant_qfrency, 
                 formant_timbre,
                 f0_file_dropdown,
-                embed_mode
+                embed_mode,
+                proposal_pitch
             ],
             outputs=[audio_select, main_convert, backing_convert, main_backing, original_convert, vocal_instrument, convert_button],
             api_name="convert_selection"
@@ -300,7 +301,8 @@ def convert_tab():
                 formant_qfrency, 
                 formant_timbre,
                 f0_file_dropdown,
-                embed_mode
+                embed_mode,
+                proposal_pitch
             ],
             outputs=[main_convert, backing_convert, main_backing, original_convert, vocal_instrument, convert_button],
             api_name="convert_audio"

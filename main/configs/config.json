@@ -575,5 +575,10 @@
     "pretrained_v2_path": "assets/models/pretrained_v2",
     "speaker_diarization_path": "assets/models/speaker_diarization",
     "uvr5_path": "assets/models/uvr5",
-    "audios_path": "audios"
+    "audios_path": "audios",
+    "demucs_segments_enable": true,
+    "demucs_cpu_mode": false,
+    "target_f0": 155.0,
+    "limit_f0": 12,
+    "debug_mode": false
 }

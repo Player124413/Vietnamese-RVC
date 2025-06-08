@@ -1,6 +1,5 @@
 import os
 import sys
-import shutil
 
 import gradio as gr
 
@@ -11,7 +10,7 @@ from main.app.core.process import process_input
 from main.app.core.inference import convert_tts
 from main.app.core.utils import google_translate
 from main.app.variables import translations, sample_rate_choice, model_name, index_path, method_f0, f0_file, embedders_mode, embedders_model, edgetts, google_tts_voice, configs
-from main.app.core.ui import visible, change_f0_choices, unlock_f0, hoplength_show, change_models_choices, get_index, index_strength_show, visible_embedders, change_tts_voice_choices
+from main.app.core.ui import visible, change_f0_choices, unlock_f0, hoplength_show, change_models_choices, get_index, index_strength_show, visible_embedders, change_tts_voice_choices, shutil_move
 
 def convert_tts_tab():
     with gr.Row():
@@ -73,9 +72,11 @@ def convert_tts_tab():
                     with gr.Row():
                         formant_shifting1 = gr.Checkbox(label=translations["formantshift"], value=False, interactive=True)  
                         split_audio0 = gr.Checkbox(label=translations["split_audio"], value=False, interactive=True)   
-                        cleaner1 = gr.Checkbox(label=translations["clear_audio"], value=False, interactive=True)     
+                        cleaner1 = gr.Checkbox(label=translations["clear_audio"], value=False, interactive=True)  
+                    with gr.Row():
                         autotune3 = gr.Checkbox(label=translations["autotune"], value=False, interactive=True) 
-                        checkpointing0 = gr.Checkbox(label=translations["memory_efficient_training"], value=False, interactive=True)         
+                        checkpointing0 = gr.Checkbox(label=translations["memory_efficient_training"], value=False, interactive=True)     
+                        proposal_pitch = gr.Checkbox(label=translations["proposal_pitch"], value=False, interactive=True)
                 with gr.Column():
                     f0_autotune_strength0 = gr.Slider(minimum=0, maximum=1, label=translations["autotune_rate"], info=translations["autotune_rate_info"], value=1, step=0.1, interactive=True, visible=autotune3.value)
                     clean_strength1 = gr.Slider(label=translations["clean_strength"], info=translations["clean_strength_info"], minimum=0, maximum=1, value=0.5, step=0.1, interactive=True, visible=cleaner1.value)
@@ -95,7 +96,7 @@ def convert_tts_tab():
         translate_button.click(fn=google_translate, inputs=[prompt, source_lang, target_lang], outputs=[prompt], api_name="google_translate")
     with gr.Row():
         unlock_full_method3.change(fn=unlock_f0, inputs=[unlock_full_method3], outputs=[method0])
-        upload_f0_file0.upload(fn=lambda inp: shutil.move(inp.name, configs["f0_path"]), inputs=[upload_f0_file0], outputs=[f0_file_dropdown0])
+        upload_f0_file0.upload(fn=lambda inp: shutil_move(inp.name, configs["f0_path"]), inputs=[upload_f0_file0], outputs=[f0_file_dropdown0])
         refesh_f0_file0.click(fn=change_f0_choices, inputs=[], outputs=[f0_file_dropdown0])
     with gr.Row():
         embed_mode1.change(fn=visible_embedders, inputs=[embed_mode1], outputs=[embedders0])
@@ -159,7 +160,8 @@ def convert_tts_tab():
                 formant_qfrency1, 
                 formant_timbre1,
                 f0_file_dropdown0,
-                embed_mode1
+                embed_mode1,
+                proposal_pitch
             ],
             outputs=[tts_voice_convert],
             api_name="convert_tts"

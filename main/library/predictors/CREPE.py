@@ -97,6 +97,8 @@ def predict(configs, audio, sample_rate, hop_length=None, fmin=50, fmax=MAX_FMAX
         return torch.cat(results, 1)
 
 def bins_to_frequency(bins):
+    if str(bins.device).startswith("ocl"): bins = bins.to(torch.float32)
+
     cents = CENTS_PER_BIN * bins + 1997.3794084376191
     return 10 * 2 ** ((cents + cents.new_tensor(scipy.stats.triang.rvs(c=0.5, loc=-CENTS_PER_BIN, scale=2 * CENTS_PER_BIN, size=cents.size()))) / 1200)
 

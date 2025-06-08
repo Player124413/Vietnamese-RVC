@@ -1,6 +1,5 @@
 import os
 import sys
-import shutil
 
 import gradio as gr
 
@@ -8,7 +7,7 @@ sys.path.append(os.getcwd())
 
 from main.app.core.editing import run_audioldm2
 from main.app.core.utils import google_translate
-from main.app.core.ui import change_audios_choices
+from main.app.core.ui import change_audios_choices, shutil_move
 from main.app.variables import translations, paths_for_files, sample_rate_choice, google_tts_voice, configs
 
 def audio_editing_tab():
@@ -62,7 +61,7 @@ def audio_editing_tab():
         translate_button3.click(fn=google_translate, inputs=[src_prompt, source_lang2, target_lang2], outputs=[src_prompt], api_name="google_translate3")
     with gr.Row():
         refesh_audio.click(fn=change_audios_choices, inputs=[input_audiopath], outputs=[input_audiopath])
-        drop_audio_file.upload(fn=lambda audio_in: shutil.move(audio_in.name, configs["audios_path"]), inputs=[drop_audio_file], outputs=[input_audiopath])
+        drop_audio_file.upload(fn=lambda audio_in: shutil_move(audio_in.name, configs["audios_path"]), inputs=[drop_audio_file], outputs=[input_audiopath])
         input_audiopath.change(fn=lambda audio: audio if os.path.isfile(audio) else None, inputs=[input_audiopath], outputs=[display_audio])
     with gr.Row():
         edit_button.click(

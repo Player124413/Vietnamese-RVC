@@ -28,6 +28,7 @@ for l in ["torch", "httpx", "httpcore", "diffusers", "transformers"]:
 
 def parse_arguments():
     parser = argparse.ArgumentParser()
+    parser.add_argument("--audioldm2", action='store_true')
     parser.add_argument("--input_path", type=str, required=True)
     parser.add_argument("--output_path", type=str, default="./output.wav")
     parser.add_argument("--export_format", type=str, default="wav")
@@ -60,11 +61,9 @@ def main():
     
     try:
         edit(input_path, output_path, audioldm_model, source_prompt, target_prompt, steps, cfg_scale_src, cfg_scale_tar, t_start, save_compute, sample_rate, config.device, export_format=export_format)
-    except Exception as e:
-        logger.error(translations["error_edit"].format(e=e))
-        import traceback
-        logger.debug(traceback.format_exc())
-        
+    finally:
+        if os.path.exists(pid_path): os.remove(pid_path)
+    
     logger.info(translations["edit_success"].format(time=f"{(time.time() - start_time):.2f}", output_path=output_path.replace('wav', export_format)))
 
 def invert(ldm_stable, x0, prompt_src, num_diffusion_steps, cfg_scale_src, duration, save_compute):
@@ -103,13 +102,18 @@ def sample(output_audio, sr, ldm_stable, zs, wts, extra_info, prompt_tar, tstart
     return output_audio
 
 def edit(input_audio, output_audio, model_id, source_prompt = "", target_prompt = "", steps = 200, cfg_scale_src = 3.5, cfg_scale_tar = 12, t_start = 45, save_compute = True, sr = 44100, device = "cpu", export_format = "wav"):
-    ldm_stable = load_model(model_id, device=device)
-    ldm_stable.model.scheduler.set_timesteps(steps, device=device)
-    x0, duration = load_audio(input_audio, ldm_stable.get_melspectrogram(), device=device)
-    zs_tensor, wts_tensor, extra_info_list = invert(ldm_stable=ldm_stable, x0=x0, prompt_src=source_prompt, num_diffusion_steps=steps, cfg_scale_src=cfg_scale_src, duration=duration, save_compute=save_compute)
+    try:
+        ldm_stable = load_model(model_id, device=device)
+        ldm_stable.model.scheduler.set_timesteps(steps, device=device)
+        x0, duration = load_audio(input_audio, ldm_stable.get_melspectrogram(), device=device)
+        zs_tensor, wts_tensor, extra_info_list = invert(ldm_stable=ldm_stable, x0=x0, prompt_src=source_prompt, num_diffusion_steps=steps, cfg_scale_src=cfg_scale_src, duration=duration, save_compute=save_compute)
 
-    return sample(output_audio, sr, ldm_stable, zs_tensor, wts_tensor, extra_info_list, prompt_tar=target_prompt, tstart=int(t_start / 100 * steps), cfg_scale_tar=cfg_scale_tar, duration=duration, save_compute=save_compute, export_format=export_format)
-
+        return sample(output_audio, sr, ldm_stable, zs_tensor, wts_tensor, extra_info_list, prompt_tar=target_prompt, tstart=int(t_start / 100 * steps), cfg_scale_tar=cfg_scale_tar, duration=duration, save_compute=save_compute, export_format=export_format)
+    except Exception as e:
+        logger.error(translations["error_edit"].format(e=e))
+        import traceback
+        logger.debug(traceback.format_exc())
+        
 def inversion_forward_process(model, x0, etas = None, prompts = [""], cfg_scales = [3.5], num_inference_steps = 50, numerical_fix = False, duration = None, first_order = False, save_compute = True):
     if len(prompts) > 1 or prompts[0] != "":
         text_embeddings_hidden_states, text_embeddings_class_labels, text_embeddings_boolean_prompt_mask = model.encode_text(prompts)

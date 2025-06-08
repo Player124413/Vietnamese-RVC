@@ -10,8 +10,8 @@ import scipy.signal as signal
 
 sys.path.append(os.getcwd())
 
-from main.app.variables import configs
-from main.inference.conversion.utils import Autotune
+from main.app.variables import configs, logger, translations
+from main.inference.conversion.utils import Autotune, proposal_f0_up_key
 
 @nb.jit(nopython=True)
 def post_process(tf0, f0, f0_up_key, manual_x_pad, f0_mel_min, f0_mel_max, manual_f0 = None):
@@ -43,14 +43,23 @@ class Generator:
         self.autotune = Autotune(self.ref_freqs)
         self.note_dict = self.autotune.note_dict
 
-    def calculator(self, x_pad, f0_method, x, f0_up_key = 0, p_len = None, filter_radius = 3, f0_autotune = False, f0_autotune_strength = 1, manual_f0 = None):
+    def calculator(self, x_pad, f0_method, x, f0_up_key = 0, p_len = None, filter_radius = 3, f0_autotune = False, f0_autotune_strength = 1, manual_f0 = None, proposal_pitch = False):
         if p_len is None: p_len = x.shape[0] // self.window
+        if "hybrid" in f0_method: logger.debug(translations["hybrid_calc"].format(f0_method=f0_method))
 
         model = self.get_f0_hybrid if "hybrid" in f0_method else self.compute_f0
         f0 = model(f0_method, x, p_len, filter_radius if filter_radius % 2 != 0 else filter_radius + 1)
 
         if isinstance(f0, tuple): f0 = f0[0]
-        if f0_autotune: f0 = Autotune.autotune_f0(self, f0, f0_autotune_strength)
+        
+        if proposal_pitch: 
+            up_key = proposal_f0_up_key(f0, configs["target_f0"], configs["limit_f0"])
+            logger.debug(translations["proposal_f0"].format(up_key=up_key))
+            f0_up_key += up_key
+
+        if f0_autotune: 
+            logger.debug(translations["startautotune"])
+            f0 = Autotune.autotune_f0(self, f0, f0_autotune_strength)
 
         return post_process(self.sample_rate // self.window, f0, f0_up_key, x_pad, 1127 * math.log(1 + self.f0_min / 700), 1127 * math.log(1 + self.f0_max / 700), manual_f0)
 
@@ -123,7 +132,7 @@ class Generator:
     def get_f0_rmvpe(self, x, p_len, legacy=False):
         if not hasattr(self, "rmvpe"):
             from main.library.predictors.RMVPE import RMVPE
-            self.rmvpe = RMVPE(os.path.join(configs["predictors_path"], "rmvpe" + (".onnx" if self.f0_onnx_mode else ".pt")), is_half=self.is_half, device=self.device, onnx=self.f0_onnx_mode, providers=self.providers)
+            self.rmvpe = RMVPE(os.path.join(configs["predictors_path"], "rmvpe" + (".onnx" if self.f0_onnx_mode else ".pt")), is_half=self.is_half, device=self.device if not self.device.startswith("ocl") else "cpu", onnx=self.f0_onnx_mode, providers=self.providers)
 
         f0 = self.rmvpe.infer_from_audio_with_pitch(x, thred=0.03, f0_min=self.f0_min, f0_max=self.f0_max) if legacy else self.rmvpe.infer_from_audio(x, thred=0.03)
         if self.f0_onnx_mode: del self.rmvpe, self.rmvpe.model

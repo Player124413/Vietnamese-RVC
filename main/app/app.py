@@ -70,7 +70,8 @@ with gr.Blocks(title="📱 Vietnamese-RVC GUI BY ANH", theme=theme, css="<style>
                 share=share, 
                 allowed_paths=allow_disk,
                 prevent_thread_lock=True,
-                quiet=True
+                quiet=True,
+                debug=config.debug_mode
             )
             break
         except OSError:

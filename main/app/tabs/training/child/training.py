@@ -1,7 +1,5 @@
 import os
 import sys
-import torch
-import shutil
 
 import gradio as gr
 
@@ -10,7 +8,7 @@ sys.path.append(os.getcwd())
 from main.app.core.process import zip_file
 from main.app.core.training import preprocess, extract, create_index, training
 from main.app.variables import translations, model_name, index_path, method_f0, embedders_mode, embedders_model, pretrainedD, pretrainedG
-from main.app.core.ui import gr_warning, visible, unlock_f0, hoplength_show, change_models_choices, get_gpu_info, visible_embedders, pitch_guidance_lock, vocoders_lock, unlock_ver, unlock_vocoder, change_pretrained_choices
+from main.app.core.ui import gr_warning, visible, unlock_f0, hoplength_show, change_models_choices, get_gpu_info, visible_embedders, pitch_guidance_lock, vocoders_lock, unlock_ver, unlock_vocoder, change_pretrained_choices, gpu_number_str, shutil_move
 
 def training_model_tab():
     with gr.Row():
@@ -80,7 +78,7 @@ def training_model_tab():
                         threshold = gr.Slider(minimum=1, maximum=100, value=50, step=1, label=translations["threshold"], interactive=True, visible=overtraining_detector.value)
                         with gr.Accordion(translations["setting_cpu_gpu"], open=False):
                             with gr.Column():
-                                gpu_number = gr.Textbox(label=translations["gpu_number"], value=str("-".join(map(str, range(torch.cuda.device_count()))) if torch.cuda.is_available() else "-"), info=translations["gpu_number_info"], interactive=True)
+                                gpu_number = gr.Textbox(label=translations["gpu_number"], value=gpu_number_str(), info=translations["gpu_number_info"], interactive=True)
                                 gpu_info = gr.Textbox(label=translations["gpu_info"], value=get_gpu_info(), info=translations["gpu_info_2"], interactive=False)
                                 cpu_core = gr.Slider(label=translations["cpu_core"], info=translations["cpu_core_info"], minimum=0, maximum=os.cpu_count(), value=os.cpu_count(), step=1, interactive=True)          
                                 train_batch_size = gr.Slider(label=translations["batch_size"], info=translations["batch_size_info"], minimum=1, maximum=64, value=8, step=1, interactive=True)
@@ -139,7 +137,7 @@ def training_model_tab():
     with gr.Row():
         autotune.change(fn=visible, inputs=[autotune], outputs=[f0_autotune_strength])
         upload_dataset.upload(
-            fn=lambda files, folder: [shutil.move(f.name, os.path.join(folder, os.path.split(f.name)[1])) for f in files] if folder != "" else gr_warning(translations["dataset_folder1"]),
+            fn=lambda files, folder: [shutil_move(f.name, os.path.join(folder, os.path.split(f.name)[1])) for f in files] if folder != "" else gr_warning(translations["dataset_folder1"]),
             inputs=[upload_dataset, dataset_path], 
             outputs=[], 
             api_name="upload_dataset"

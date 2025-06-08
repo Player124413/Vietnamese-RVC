@@ -14,6 +14,7 @@ from main.app.variables import logger, translations, configs
 
 def parse_arguments():
     parser = argparse.ArgumentParser()
+    parser.add_argument("--create_index", action='store_true')
     parser.add_argument("--model_name", type=str, required=True)
     parser.add_argument("--rvc_version", type=str, default="v2")
     parser.add_argument("--index_algorithm", type=str, default="Auto")

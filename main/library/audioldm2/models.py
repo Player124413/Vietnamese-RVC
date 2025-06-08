@@ -2,21 +2,21 @@ import os
 import sys
 import torch
 import librosa
+import warnings
 
-import numpy as np
 import torch.nn.functional as F
 
-from scipy.signal import get_window
-from librosa.util import pad_center
 from diffusers import DDIMScheduler, AudioLDM2Pipeline
 from diffusers.models.unets.unet_2d_condition import UNet2DConditionOutput
 from transformers import RobertaTokenizer, RobertaTokenizerFast, VitsTokenizer
 
 sys.path.append(os.getcwd())
 
+from main.library import torch_amd
 from main.configs.config import Config
 from main.library.utils import check_audioldm2
 
+warnings.filterwarnings("ignore")
 config = Config()
 
 class Pipeline(torch.nn.Module):
@@ -115,55 +115,19 @@ class Pipeline(torch.nn.Module):
     def unet_forward(self, sample, timestep, encoder_hidden_states, class_labels = None, timestep_cond = None, attention_mask = None, cross_attention_kwargs = None, added_cond_kwargs = None, down_block_additional_residuals = None, mid_block_additional_residual = None, encoder_attention_mask = None, replace_h_space = None, replace_skip_conns = None, return_dict = True, zero_out_resconns = None):
         pass
 
-class STFT(torch.nn.Module):
-    def __init__(self, fft_size, hop_size, window_size, window_type="hann"):
-        super().__init__()
-        self.fft_size = fft_size
-        self.hop_size = hop_size
-        self.window_size = window_size
-        self.window_type = window_type
-        
-        scale = fft_size / hop_size
-        fourier_basis = np.fft.fft(np.eye(fft_size))
-
-        cutoff = fft_size // 2 + 1
-        fourier_basis = np.vstack([np.real(fourier_basis[:cutoff, :]), np.imag(fourier_basis[:cutoff, :])])
-        
-        self.forward_basis = torch.FloatTensor(fourier_basis[:, None, :])
-        self.inverse_basis = torch.FloatTensor(np.linalg.pinv(scale * fourier_basis).T[:, None, :])
-        
-        if window_type:
-            assert fft_size >= window_size
-
-            fft_window = torch.from_numpy(pad_center(get_window(window_type, window_size, fftbins=True), size=fft_size)).float()
-            self.forward_basis *= fft_window
-            self.inverse_basis *= fft_window
-        
-        if not hasattr(self, "forward_basis"): self.register_buffer("forward_basis", self.forward_basis)
-        if not hasattr(self, "inverse_basis"): self.register_buffer("inverse_basis", self.inverse_basis)
-    
-    def transform(self, signal):
-        batch_size, num_samples = signal.shape
-        transformed_signal = F.conv1d(F.pad(signal.view(batch_size, 1, num_samples).unsqueeze(1), (self.fft_size // 2, self.fft_size // 2, 0, 0), mode="reflect").squeeze(1), self.forward_basis, stride=self.hop_size, padding=0).cpu()
-        
-        cutoff = self.fft_size // 2 + 1
-        real_part, imag_part = transformed_signal[:, :cutoff, :], transformed_signal[:, cutoff:, :]
-
-        return torch.sqrt(real_part ** 2 + imag_part ** 2), torch.atan2(imag_part, real_part)
-
 class MelSpectrogramProcessor(torch.nn.Module):
     def __init__(self, fft_size, hop_size, window_size, num_mel_bins, sample_rate, fmin, fmax):
         super().__init__()
         self.num_mel_bins = num_mel_bins
         self.sample_rate = sample_rate
-        self.stft_processor = STFT(fft_size, hop_size, window_size)
+        self.stft_processor = torch_amd.STFT(fft_size, hop_size, window_size)
         self.register_buffer("mel_filter", torch.from_numpy(librosa.filters.mel(sr=sample_rate, n_fft=fft_size, n_mels=num_mel_bins, fmin=fmin, fmax=fmax)).float())
     
     def compute_mel_spectrogram(self, waveform, normalization_fn=torch.log):
         assert torch.min(waveform) >= -1
         assert torch.max(waveform) <= 1
         
-        magnitudes, _ = self.stft_processor.transform(waveform)
+        magnitudes = self.stft_processor.transform(waveform, 0)
         return normalization_fn(torch.clamp(torch.matmul(self.mel_filter, magnitudes), min=1e-5))
 
 class AudioLDM2(Pipeline):
@@ -326,5 +290,6 @@ def load_model(model, device):
 
     if torch.cuda.is_available(): torch.cuda.empty_cache()
     elif torch.backends.mps.is_available(): torch.mps.empty_cache()
+    elif torch_amd.is_available(): torch_amd.pytorch_ocl.empty_cache()
 
     return ldm_stable

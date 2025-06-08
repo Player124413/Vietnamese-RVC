@@ -14,6 +14,7 @@ from importlib import metadata, import_module
 now_dir = os.getcwd()
 sys.path.append(now_dir)
 
+from main.library import torch_amd
 from main.configs.config import Config
 from main.tools.huggingface import HF_download_file
 
@@ -92,6 +93,9 @@ class Separator:
         if torch.cuda.is_available():
             self.configure_cuda(ort_providers)
             hardware_acceleration_enabled = True
+        elif torch_amd.is_available():
+            self.configure_amd(ort_providers)
+            hardware_acceleration_enabled = True
         elif hasattr(torch.backends, "mps") and torch.backends.mps.is_available() and system_info.processor == "arm":
             self.configure_mps(ort_providers)
             hardware_acceleration_enabled = True
@@ -109,6 +113,15 @@ class Separator:
             self.logger.info(translations["onnx_have"].format(have='CUDAExecutionProvider'))
             self.onnx_execution_provider = ["CUDAExecutionProvider"]
         else: self.logger.warning(translations["onnx_not_have"].format(have='CUDAExecutionProvider'))
+
+    def configure_amd(self, ort_providers):
+        self.logger.info(translations["running_in_amd"])
+        self.torch_device = torch.device("ocl")
+
+        if "DmlExecutionProvider" in ort_providers:
+            self.logger.info(translations["onnx_have"].format(have='DmlExecutionProvider'))
+            self.onnx_execution_provider = ["DmlExecutionProvider"]
+        else: self.logger.warning(translations["onnx_not_have"].format(have='DmlExecutionProvider'))
 
     def configure_mps(self, ort_providers):
         self.logger.info(translations["set_torch_mps"])

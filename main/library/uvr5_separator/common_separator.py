@@ -11,8 +11,9 @@ from pydub import AudioSegment
 
 sys.path.append(os.getcwd())
 
-from .spec_utils import normalize
+from main.library import torch_amd
 from main.configs.config import Config
+from main.library.uvr5_separator.spec_utils import normalize
 
 translations = Config().translations
 
@@ -238,6 +239,10 @@ class CommonSeparator:
         if self.torch_device == torch.device("cuda"):
             self.logger.debug(translations["clean_cache"].format(name="CUDA"))
             torch.cuda.empty_cache()
+
+        if self.torch_device == torch.device("ocl"):
+            self.logger.debug(translations["clean_cache"].format(name="AMD"))
+            torch_amd.pytorch_ocl.empty_cache()
 
     def clear_file_specific_paths(self):
         self.logger.info(translations["del_path"])

@@ -10,6 +10,7 @@ from torchaudio.transforms import Resample
 
 sys.path.append(os.getcwd())
 
+from main.library import torch_amd
 from main.library.predictors.FCPE.stft import STFT
 
 def spawn_wav2mel(args, device = None):
@@ -57,10 +58,8 @@ class MelModule(torch.nn.Module):
         hop_length_new = int(np.round(hop_length * speed))
 
         y = y.squeeze(-1)
-        if torch.min(y) < -1: print('[error with torchfcpe.mel_extractor.MelModule] min ', torch.min(y))
-        if torch.max(y) > 1: print('[error with torchfcpe.mel_extractor.MelModule] max ', torch.max(y))
-
         key_shift_key = str(key_shift)
+
         if not no_cache_window:
             if key_shift_key in self.hann_window: hann_window = self.hann_window[key_shift_key]
             else:
@@ -72,9 +71,16 @@ class MelModule(torch.nn.Module):
 
         pad_left = (win_size_new - hop_length_new) // 2
         pad_right = max((win_size_new - hop_length_new + 1) // 2, win_size_new - y.size(-1) - pad_left)
+
         mode = 'reflect' if pad_right < y.size(-1) else 'constant'
-        spec = torch.stft(F.pad(y.unsqueeze(1), (pad_left, pad_right), mode=mode).squeeze(1), n_fft_new, hop_length=hop_length_new, win_length=win_size_new, window=hann_window_tensor, center=center, pad_mode='reflect', normalized=False, onesided=True, return_complex=True)
-        spec = torch.sqrt(spec.real.pow(2) + spec.imag.pow(2) + 1e-9)
+        pad = F.pad(y.unsqueeze(1), (pad_left, pad_right), mode=mode).squeeze(1)
+
+        if str(y.device).startswith("ocl"):
+            stft = torch_amd.STFT(filter_length=n_fft_new, hop_length=hop_length_new, win_length=win_size_new).to(y.device)
+            spec = stft.transform(pad, 1e-9)
+        else:
+            spec = torch.stft(pad, n_fft_new, hop_length=hop_length_new, win_length=win_size_new, window=hann_window_tensor, center=center, pad_mode='reflect', normalized=False, onesided=True, return_complex=True)
+            spec = torch.sqrt(spec.real.pow(2) + spec.imag.pow(2) + 1e-9)
 
         if key_shift != 0:
             size = n_fft // 2 + 1

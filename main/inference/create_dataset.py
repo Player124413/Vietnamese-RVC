@@ -4,7 +4,6 @@ import time
 import yt_dlp
 import shutil
 import librosa
-import logging
 import argparse
 import warnings
 
@@ -20,6 +19,7 @@ dataset_temp = "dataset_temp"
 
 def parse_arguments():
     parser = argparse.ArgumentParser()
+    parser.add_argument("--create_dataset", action='store_true')
     parser.add_argument("--input_audio", type=str, required=True)
     parser.add_argument("--output_dataset", type=str, default="./dataset")
     parser.add_argument("--sample_rate", type=int, default=44100)

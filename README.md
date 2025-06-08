@@ -2,7 +2,7 @@
 <img alt="LOGO" src="assets/ico.png" width="300" height="300" />
 
 # Vietnamese RVC BY ANH
-Công cụ chuyển đổi giọng nói chất lượng và hiệu suất cao đơn giản dành cho người Việt.
+Công cụ chuyển đổi giọng nói chất lượng và hiệu suất cao đơn giản.
 
 [![Vietnamese RVC](https://img.shields.io/badge/GitHub-100000?style=for-the-badge&logo=github&logoColor=white)](https://github.com/PhamHuynhAnh16/Vietnamese-RVC)
 [![Open In Colab](https://img.shields.io/badge/Colab-F9AB00?style=for-the-badge&logo=googlecolab&color=525252)](https://colab.research.google.com/github/PhamHuynhAnh16/Vietnamese-RVC-ipynb/blob/main/Vietnamese-RVC.ipynb)
@@ -19,13 +19,13 @@ Công cụ chuyển đổi giọng nói chất lượng và hiệu suất cao đ
 
 # Mô tả
 
-Dự án này là một công cụ chuyển đổi giọng nói đơn giản, dễ sử dụng, được thiết kế cho người Việt Nam. Với mục tiêu tạo ra các sản phẩm chuyển đổi giọng nói chất lượng cao và hiệu suất tối ưu, dự án cho phép người dùng thay đổi giọng nói một cách mượt mà, tự nhiên.
+Dự án này là một công cụ chuyển đổi giọng nói đơn giản, dễ sử dụng. Với mục tiêu tạo ra các sản phẩm chuyển đổi giọng nói chất lượng cao và hiệu suất tối ưu, dự án cho phép người dùng thay đổi giọng nói một cách mượt mà, tự nhiên.
 
 # Các tính năng của dự án
 
 - Tách nhạc (MDX-Net/Demucs)
 
-- Chuyển đổi giọng nói (Chuyển đổi tệp/Chuyển đổi hàng loạt/Chuyển đổi với Whisper/Chuyển đổi văn bản)
+- Chuyển đổi giọng nói (Chuyển đổi tệp / Chuyển đổi hàng loạt / Chuyển đổi với Whisper / Chuyển đổi văn bản)
 
 - Chỉnh sửa nhạc nền
 
@@ -51,71 +51,104 @@ Dự án này là một công cụ chuyển đổi giọng nói đơn giản, d�
 
 - Mô hình ONNX RVC cũng sẽ hỗ trợ chỉ mục để suy luận
 
-- Nhiều tùy chọn mô hình:
+**Phương thức trích xuất cao độ: `pm, dio, mangio-crepe-tiny, mangio-crepe-small, mangio-crepe-medium, mangio-crepe-large, mangio-crepe-full, crepe-tiny, crepe-small, crepe-medium, crepe-large, crepe-full, fcpe, fcpe-legacy, rmvpe, rmvpe-legacy, harvest, yin, pyin, swipe`**
 
-F0: `pm, dio, mangio-crepe-tiny, mangio-crepe-small, mangio-crepe-medium, mangio-crepe-large, mangio-crepe-full, crepe-tiny, crepe-small, crepe-medium, crepe-large, crepe-full, fcpe, fcpe-legacy, rmvpe, rmvpe-legacy, harvest, yin, pyin, swipe`
+**Các mô hình trích xuất nhúng: `contentvec_base, hubert_base, japanese_hubert_base, korean_hubert_base, chinese_hubert_base, portuguese_hubert_base, spin`**
 
-F0_ONNX: Một số mô hình được chuyển đổi sang ONNX để hỗ trợ tăng tốc trích xuất
-
-F0_HYBRID: Có thể kết hợp nhiều tùy chọn lại với nhau như `hybrid[rmvpe+harvest]` hoặc bạn có thể thử kết hợp toàn bộ tất cả tùy chọn lại với nhau
-
-EMBEDDERS: `contentvec_base, hubert_base, japanese_hubert_base, korean_hubert_base, chinese_hubert_base, portuguese_hubert_base`
-
-EMBEDDERS_ONNX: Tất cả mô hình nhúng ở trên điều có phiên bản được chuyển đổi sẳn sang ONNX để sử dụng tăng tốc trích xuất nhúng
-
-EMBEDDERS_TRANSFORMERS: Tất cả mô hình nhúng ở trên điều có phiên bản được chuyển đổi sẳn sang huggingface để sử dụng thay thế cho fairseq
-
-SPIN_EMBEDDERS: Một mô hình trích xuất nhúng mới, có thể mang đến chất lượng cao hơn các trích xuất cũ.
+- **Các mô hình trích xuất cao độ đều có phiên bản tăng tốc ONNX trừ các phương thức hoạt động bằng trình bao bọc.** 
+- **Các mô hình trích xuất đều có thể kết hợp với nhau để tạo ra cảm giác mới mẻ, ví dụ: `hybrid[rmvpe+harvest]`.**
+- **Các mô hình trích xuất nhúng có sẳn các chế độ nhúng như: fairseq, onnx, transformers, spin.**
 
 # Hướng dẫn sử dụng
 
 **Sẽ có nếu tôi thực sự rảnh...**
 
-# Cách cài đặt và sử dụng
+# Cài đặt
 
-- B1: **Cài đặt python từ trang chủ hoặc [python](https://www.python.org/ftp/python/3.10.7/python-3.10.7-amd64.exe) (YÊU CẦU PYTHON 3.10.x HOẶC PYTHON 3.11.x)**
-- B2: **Cài đặt ffmpeg từ [FFMPEG](https://github.com/BtbN/FFmpeg-Builds/releases) giải nén và thêm vào PATH**
-- B3: **Tải mã nguồn về và giải nén ra**
-- B4: **Vào thư mục mã nguồn và mở Command Prompt hoặc Terminal**
-- B5: **Nhập lệnh để cài đặt thư viện cần thiết để hoạt động**
+Bước 1: Cài đặt các phần phụ trợ cần thiết
 
+- Cài đặt Python từ trang chủ: **[PYTHON](https://www.python.org/ftp/python/3.11.8/python-3.11.8-amd64.exe)** (Dự án đã được kiểm tra trên Python 3.10.x và 3.11.x)
+- Cài đặt FFmpeg từ nguồn và thêm vào PATH hệ thống: **[FFMPEG](https://github.com/BtbN/FFmpeg-Builds/releases)**
+
+Bước 2: Cài đặt dự án (Dùng Git hoặc đơn giản là tải trên github)
+
+Sử dụng đối với Git:
+- git clone https://github.com/PhamHuynhAnh16/Vietnamese-RVC.git
+- cd Vietnamese-RVC
+
+Cài đặt bằng github:
+- Vào https://github.com/PhamHuynhAnh16/Vietnamese-RVC
+- Nhấn vào `<> Code` màu xanh lá chọn `Download ZIP`
+- Giải nén `Vietnamese-RVC-main.zip`
+- Vào thư mục Vietnamese-RVC-main chọn vào thanh Path nhập `cmd` và nhấn Enter
+
+Bước 3: Cài đặt thư viện cần thiết:
+
+Nhập lệnh:
 ```
 python -m venv env
 env\\Scripts\\activate
 ```
 
-Nếu có GPU NVIDIA thì chạy bước này tùy theo cuda của bạn có thể thay đổi cu117 thành cu128...
-
-```
-# Nếu sử dụng Torch 2.3.1
-python -m pip install torch==2.3.1 torchaudio==2.3.1 torchvision==0.18.1 --index-url https://download.pytorch.org/whl/cu117
-
-# Nếu sử dụng Torch 2.6.0
-python -m pip install torch==2.6.0 torchaudio==2.6.0 torchvision==0.21.0 --index-url https://download.pytorch.org/whl/cu117
-```
-
-Tiếp theo chạy
-
+Đối với CPU:
 ```
 python -m pip install -r requirements.txt
 ```
 
-- B5: **Chạy tệp run_app để mở giao diện sử dụng(Lưu ý: không tắt Command Prompt hoặc Terminal của giao diện)**
-- Hoặc sử dụng cửa sổ Command Prompt hoặc cửa sổ Terminal trong thư mục mã nguồn
-- Nếu muốn cho phép giao diện truy cập được các tệp ngoài dự án hãy thêm --allow_all_disk vào lệnh
+Đối với CUDA (Có thể thay cu118 thành bản cu128 mới hơn nếu GPU hỗ trợ):
+```
+python -m pip install torch torchaudio torchvision --index-url https://download.pytorch.org/whl/cu118
+python -m pip install -r requirements.txt
+```
+
+Đối với AMD:
+```
+python -m pip install torch==2.6.0 torchaudio==2.6.0 torchvision
+python -m pip install https://github.com/artyom-beilis/pytorch_dlprim/releases/download/0.2.0/pytorch_ocl-0.2.0+torch2.6-cp311-none-win_amd64.whl
+python -m pip install onnxruntime-directml
+python -m pip install -r requirements.txt
+```
+
+Lưu ý đối với AMD: 
+- Chỉ cài đặt AMD trên python 3.11 vì DLPRIM không có bản cho python 3.10.
+- RMVPE và Whisper phải chạy trên cpu vì có một số thuật toán không được hỗ trợ.
+- Demucs có thể gây quá tải và tràn bộ nhớ đối với GPU (nếu cần sử dụng demucs hãy mở tệp config.json trong main\configs sửa đối số demucs_cpu_mode thành true).
+- DDP không hỗ trợ huấn luyện đa GPU đối với OPENCL (AMD).
+- Một số thuật toán khác phải chạy trên cpu nên có thể hiệu suất của GPU có thể không sử dụng hết.
+
+# Sử dụng
+
+**Sử dụng với Google Colab**
+- Mở Google Colab: [Vietnamese-RVC](https://colab.research.google.com/github/PhamHuynhAnh16/Vietnamese-RVC-ipynb/blob/main/Vietnamese-RVC.ipynb)
+- Bước 1: Chạy ô Cài đặt và đợi nó hoàn tất.
+- Bước 2: Chạy ô Mở giao diện sử dụng (Khi này giao diện sẽ in ra 2 đường dẫn 1 là 0.0.0.0.7680 và 1 đường dẫn gradio có thể nhấp được, bạn chọn vào đường dẫn nhấp được và nó sẽ đưa bạn đến giao diện).
+
+**Chạy tệp run_app để mở giao diện sử dụng, chạy tệp tensorboard để mở biểu đồ kiểm tra huấn luyện. (Lưu ý: không tắt Command Prompt hoặc Terminal)**
+```
+run_app.bat / tensorboard.bat
+```
+
+**Khởi động giao diện sử dụng. (Thêm `--allow_all_disk` vào lệnh để cho phép gradio truy cập tệp ngoài)**
 ```
 env\\Scripts\\python.exe main\\app\\app.py --open
 ```
 
 **Với trường hợp bạn sử dụng Tensorboard để kiểm tra huấn luyện**
 ```
-Chạy tệp: tensorboard hoặc lệnh env\\Scripts\\python.exe main/app/tensorboard.py
+env\\Scripts\\python.exe main/app/run_tensorboard.py
 ```
 
-# Sử dụng với cú pháp lệnh
+**Sử dụng bằng cú pháp**
 ```
 python main\\app\\parser.py --help
 ```
+
+# Cài đặt, sử dụng đơn giản
+
+**Cài đặt phiên bản releases từ [Vietnamese_RVC](https://github.com/PhamHuynhAnh16/Vietnamese-RVC/releases)**
+- Chọn bản đúng với bạn và tải về máy.
+- Giải nén dự án.
+- Chạy tệp run_app.bat để mở giao diện hoạt động.
 
 # Cấu trúc chính của mã nguồn:
 
@@ -214,7 +247,7 @@ Vietnamese-RVC-main
 │   │   │           └── training.py
 │   │   ├── app.py
 │   │   ├── parser.py
-│   │   ├── tensorboard.py
+│   │   ├── run_tensorboard.py
 │   │   └── variables.py
 │   ├── configs
 │   │   ├── config.json
@@ -249,6 +282,7 @@ Vietnamese-RVC-main
 │   │       └── slicer2.py
 │   ├── library
 │   │   ├── utils.py
+│   │   ├── torch_amd.py
 │   │   ├── algorithm
 │   │   │   ├── attentions.py
 │   │   │   ├── commons.py
@@ -328,19 +362,18 @@ Vietnamese-RVC-main
 
 # LƯU Ý
 
-- **Dự án này chỉ hỗ trợ trên gpu của NVIDIA (Có thể sẽ hỗ trợ AMD sau nếu tôi có gpu AMD để thử)**
 - **Hiện tại các bộ mã hóa mới như MRF HIFIGAN vẫn chưa đầy đủ các bộ huấn luyện trước**
 - **Bộ mã hóa MRF HIFIGAN và REFINEGAN không hỗ trợ huấn luyện khi không không huấn luyện cao độ**
 - **Các mô hình trong kho lưu trữ Vietnamese-RVC được thu thập rải rác trên AI Hub, HuggingFace và các các kho lưu trữ khác. Có thể mang các giấy phép bản quyền khác nhau (Ví dụ: Audioldm2 có các trọng số mô hình với điều khoản "Phi Thương Mại")**
 - **Mã nguồn này có chứa thành phần phần mềm bên thứ ba được cấp phép với điều khoản "phi thương mại". Bất kỳ hành vi sử dụng thương mại nào, bao gồm kêu gọi tài trợ hoặc tài chính hóa phần mềm phái sinh, đều có thể vi phạm giấy phép và sẽ phải chịu trách nhiệm pháp lý tương ứng.**
 
-# ⚠️ Tuyên bố miễn trừ trách nhiệm
+# Tuyên bố miễn trừ trách nhiệm
 
 - **Dự án Vietnamese-RVC được phát triển với mục đích nghiên cứu, học tập và giải trí cá nhân. Tôi không khuyến khích cũng như không chịu trách nhiệm đối với bất kỳ hành vi lạm dụng công nghệ chuyển đổi giọng nói vì mục đích lừa đảo, giả mạo danh tính, hoặc vi phạm quyền riêng tư, bản quyền của bất kỳ cá nhân hay tổ chức nào.**
 
 - **Người dùng cần tự chịu trách nhiệm với hành vi sử dụng phần mềm này và cam kết tuân thủ pháp luật hiện hành tại quốc gia nơi họ sinh sống hoặc hoạt động.**
 
-- **❗ Việc sử dụng giọng nói của người nổi tiếng, người thật hoặc nhân vật công chúng phải có sự cho phép hoặc đảm bảo không vi phạm pháp luật, đạo đức và quyền lợi của các bên liên quan.**
+- **Việc sử dụng giọng nói của người nổi tiếng, người thật hoặc nhân vật công chúng phải có sự cho phép hoặc đảm bảo không vi phạm pháp luật, đạo đức và quyền lợi của các bên liên quan.**
 
 - **Tác giả của dự án không chịu trách nhiệm pháp lý đối với bất kỳ hậu quả nào phát sinh từ việc sử dụng phần mềm này.**
 

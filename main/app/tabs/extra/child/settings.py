@@ -7,8 +7,8 @@ sys.path.append(os.getcwd())
 
 from main.app.core.ui import change_fp
 from main.app.core.utils import stop_pid
-from main.app.variables import translations, theme, font, configs, language
 from main.app.core.restart import change_font, change_language, change_theme
+from main.app.variables import translations, theme, font, configs, language, config
 
 def settings_tab(app):
     with gr.Row():
@@ -24,7 +24,7 @@ def settings_tab(app):
             changetheme = gr.Button(translations["theme_button"], variant="primary", scale=2)
     with gr.Row():
         with gr.Column():
-            fp_choice = gr.Radio(choices=["fp16","fp32"], value="fp16" if configs.get("fp16", False) else "fp32", label=translations["precision"], info=translations["precision_info"], interactive=True)
+            fp_choice = gr.Radio(choices=["fp16","fp32"], value="fp16" if configs.get("fp16", False) else "fp32", label=translations["precision"], info=translations["precision_info"], interactive=config.device not in ["cpu", "mps", "ocl:0"])
             fp_button = gr.Button(translations["update_precision"], variant="secondary", scale=2)
         with gr.Column():
             font_choice = gr.Textbox(label=translations["font"], info=translations["font_info"], value=font, interactive=True)

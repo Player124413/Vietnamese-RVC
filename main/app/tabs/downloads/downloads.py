@@ -1,14 +1,13 @@
 import os
 import sys
-import shutil
 
 import gradio as gr
 
 sys.path.append(os.getcwd())
 
 from main.app.variables import translations, configs, models, model_options
-from main.app.core.ui import change_download_choices, change_download_pretrained_choices
 from main.app.core.downloads import download_model, search_models, download_pretrained_model
+from main.app.core.ui import change_download_choices, change_download_pretrained_choices, shutil_move
 from main.app.core.process import fetch_pretrained_data, save_drop_model, update_sample_rate_dropdown
 
 def download_tab():
@@ -107,13 +106,13 @@ def download_tab():
                 api_name="download_pretrain_choices"
             )
             pretrain_upload_g.upload(
-                fn=lambda pretrain_upload_g: shutil.move(pretrain_upload_g.name, configs["pretrained_custom_path"]), 
+                fn=lambda pretrain_upload_g: shutil_move(pretrain_upload_g.name, configs["pretrained_custom_path"]), 
                 inputs=[pretrain_upload_g], 
                 outputs=[],
                 api_name="upload_pretrain_g"
             )
             pretrain_upload_d.upload(
-                fn=lambda pretrain_upload_d: shutil.move(pretrain_upload_d.name, configs["pretrained_custom_path"]), 
+                fn=lambda pretrain_upload_d: shutil_move(pretrain_upload_d.name, configs["pretrained_custom_path"]), 
                 inputs=[pretrain_upload_d], 
                 outputs=[],
                 api_name="upload_pretrain_d"

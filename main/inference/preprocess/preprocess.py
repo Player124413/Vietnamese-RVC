@@ -27,6 +27,7 @@ OVERLAP, MAX_AMPLITUDE, ALPHA, HIGH_PASS_CUTOFF, SAMPLE_RATE_16K = 0.3, 0.9, 0.7
 
 def parse_arguments():
     parser = argparse.ArgumentParser()
+    parser.add_argument("--preprocess", action='store_true')
     parser.add_argument("--model_name", type=str, required=True)
     parser.add_argument("--dataset_path", type=str, default="./dataset")
     parser.add_argument("--sample_rate", type=int, required=True)

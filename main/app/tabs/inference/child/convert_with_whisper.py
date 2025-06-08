@@ -1,6 +1,5 @@
 import os
 import sys
-import shutil
 
 import gradio as gr
 
@@ -8,7 +7,7 @@ sys.path.append(os.getcwd())
 
 from main.app.core.inference import convert_with_whisper
 from main.app.variables import translations, paths_for_files, sample_rate_choice, model_name, index_path, method_f0, embedders_mode, embedders_model, configs
-from main.app.core.ui import visible, change_audios_choices, unlock_f0, hoplength_show, change_models_choices, get_index, index_strength_show, visible_embedders
+from main.app.core.ui import visible, change_audios_choices, unlock_f0, hoplength_show, change_models_choices, get_index, index_strength_show, visible_embedders, shutil_move
 
 def convert_with_whisper_tab():
     with gr.Row():
@@ -21,6 +20,7 @@ def convert_with_whisper_tab():
                     autotune2 = gr.Checkbox(label=translations["autotune"], value=False, interactive=True)
                     checkpointing2 = gr.Checkbox(label=translations["memory_efficient_training"], value=False, interactive=True)
                     formant_shifting2 = gr.Checkbox(label=translations["formantshift"], value=False, interactive=True)
+                    proposal_pitch = gr.Checkbox(label=translations["proposal_pitch"], value=False, interactive=True)
                 with gr.Row():
                     num_spk = gr.Slider(minimum=2, maximum=8, step=1, info=translations["num_spk_info"], label=translations["num_spk"], value=2, interactive=True)
     with gr.Row():
@@ -100,7 +100,7 @@ def convert_with_whisper_tab():
     with gr.Row():
         refesh3.click(fn=change_models_choices, inputs=[], outputs=[model_pth3, model_index3])
         model_pth3.change(fn=get_index, inputs=[model_pth3], outputs=[model_index3])
-        input2.upload(fn=lambda audio_in: shutil.move(audio_in.name, configs["audios_path"]), inputs=[input2], outputs=[input_audio1])
+        input2.upload(fn=lambda audio_in: shutil_move(audio_in.name, configs["audios_path"]), inputs=[input2], outputs=[input_audio1])
     with gr.Row():
         input_audio1.change(fn=lambda audio: audio if os.path.isfile(audio) else None, inputs=[input_audio1], outputs=[play_audio2])
         formant_shifting2.change(fn=lambda a: [visible(a)]*4, inputs=[formant_shifting2], outputs=[formant_qfrency3, formant_timbre3, formant_qfrency4, formant_timbre4])
@@ -149,6 +149,7 @@ def convert_with_whisper_tab():
                 formant_timbre3,
                 formant_qfrency4,
                 formant_timbre4,
+                proposal_pitch
             ],
             outputs=[play_audio3],
             api_name="convert_with_whisper"

@@ -3,6 +3,9 @@ import sys
 
 sys.path.append(os.getcwd())
 
+os.environ["TORCH_FORCE_NO_WEIGHTS_ONLY_LOAD"] = "1"
+os.environ["TORCH_FORCE_WEIGHTS_ONLY_LOAD"] = "0"
+
 try:
     argv = sys.argv[1]
 except IndexError:
@@ -138,6 +141,7 @@ elif argv_is_allows[11] in argv:
             - `--f0_autotune_strength` (mặc định: `1`): Cường độ hiệu chỉnh tự động F0.
             - `--f0_file` (mặc định: ``): Đường dẫn tệp F0 có sẵn.
             - `--f0_onnx` (mặc định: `False`): Có sử dụng phiên bản ONNX của F0 hay không.
+            - `--proposal_pitch` (mặc định: `False`): Đề xuất cao độ thay vì điều chỉnh thủ công.
 
         4. Mô hình nhúng:
             - `--embedder_model` (mặc định: `contentvec_base`): Mô hình nhúng sử dụng.

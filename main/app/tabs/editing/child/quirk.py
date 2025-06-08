@@ -1,13 +1,12 @@
 import os
 import sys
-import shutil
 
 import gradio as gr
 
 sys.path.append(os.getcwd())
 
-from main.app.core.ui import change_audios_choices
 from main.app.core.editing import apply_voice_quirk
+from main.app.core.ui import change_audios_choices, shutil_move
 from main.app.variables import translations, paths_for_files, configs
 
 def quirk_tab():
@@ -32,7 +31,7 @@ def quirk_tab():
     with gr.Row():
         output_audio_play = gr.Audio(show_download_button=True, interactive=False, label=translations["output_audio"])
     with gr.Row():
-        quirk_upload_audio.upload(fn=lambda audio_in: shutil.move(audio_in.name, configs["audios_path"]), inputs=[quirk_upload_audio], outputs=[quirk_input_path])
+        quirk_upload_audio.upload(fn=lambda audio_in: shutil_move(audio_in.name, configs["audios_path"]), inputs=[quirk_upload_audio], outputs=[quirk_input_path])
         quirk_input_path.change(fn=lambda audio: audio if audio else None, inputs=[quirk_input_path], outputs=[input_audio_play])
         quirk_refesh.click(fn=change_audios_choices, inputs=[quirk_input_path], outputs=[quirk_input_path])
     with gr.Row():

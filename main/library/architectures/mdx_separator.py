@@ -3,6 +3,7 @@ import sys
 import onnx
 import torch
 import platform
+import warnings
 import onnx2torch
 
 import numpy as np
@@ -16,6 +17,7 @@ from main.configs.config import Config
 from main.library.uvr5_separator import spec_utils
 from main.library.uvr5_separator.common_separator import CommonSeparator
 
+warnings.filterwarnings("ignore")
 translations = Config().translations
 
 class MDXSeparator(CommonSeparator):

@@ -19,6 +19,7 @@ translations = Config().translations
 
 def parse_arguments():
     parser = argparse.ArgumentParser()
+    parser.add_argument("--audio_effects", action='store_true')
     parser.add_argument("--input_path", type=str, required=True)
     parser.add_argument("--output_path", type=str, default="./audios/apply_effects.wav")
     parser.add_argument("--export_format", type=str, default="wav")

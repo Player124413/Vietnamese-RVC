@@ -1,15 +1,16 @@
+import os
+import sys
 import math
 import torch
 import inspect
 
-from torch import nn
+import torch.nn as nn
+import torch.nn.functional as F
 
-from torch.nn import functional as F
+sys.path.append(os.getcwd())
 
-from .utils import center_trim
-from .states import capture_init
-
-
+from main.library.uvr5_separator.demucs.utils import center_trim
+from main.library.uvr5_separator.demucs.states import capture_init
 
 def unfold(a, kernel_size, stride):
     *shape, length = a.shape

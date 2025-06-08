@@ -1,5 +1,6 @@
 import os
 import sys
+import time
 import logging
 import webbrowser
 
@@ -25,4 +26,8 @@ def launch_tensorboard():
 
     return f"{translations['tensorboard_url']}: {url}"
 
-if __name__ == "__main__": launch_tensorboard()
+if __name__ == "__main__": 
+    launch_tensorboard()
+
+    while 1:
+        time.sleep(5)

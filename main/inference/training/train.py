@@ -26,6 +26,7 @@ from torch.nn.parallel import DistributedDataParallel as DDP
 
 sys.path.append(os.getcwd())
 
+from main.library import torch_amd
 from main.app.variables import logger, translations
 from main.library.algorithm.synthesizers import Synthesizer
 from main.library.algorithm.discriminators import MultiPeriodDiscriminator
@@ -43,6 +44,7 @@ logging.getLogger("torch").setLevel(logging.ERROR)
 
 def parse_arguments():
     parser = argparse.ArgumentParser()
+    parser.add_argument("--train", action='store_true')
     parser.add_argument("--model_name", type=str, required=True)
     parser.add_argument("--rvc_version", type=str, default="v2")
     parser.add_argument("--save_every_epoch", type=int, required=True)
@@ -75,8 +77,8 @@ experiment_dir = os.path.join(main_configs["logs_path"], model_name)
 training_file_path = os.path.join(experiment_dir, "training_data.json")
 config_save_path = os.path.join(experiment_dir, "config.json")
 
-torch.backends.cudnn.deterministic = args.deterministic
-torch.backends.cudnn.benchmark = args.benchmark
+torch.backends.cudnn.deterministic = args.deterministic if not main_config.device.startswith("ocl") else False
+torch.backends.cudnn.benchmark = args.benchmark if not main_config.device.startswith("ocl") else False
 
 lowest_value = {"step": 0, "value": float("inf"), "epoch": 0}
 global_step, last_loss_gen_all, overtrain_save_epoch = 0, 0, 0
@@ -104,6 +106,9 @@ def main():
         
         if torch.cuda.is_available():
             device, gpus = torch.device("cuda"), [int(item) for item in gpus.split("-")]
+            n_gpus = len(gpus)
+        elif torch_amd.is_available():
+            device, gpus = torch.device("ocl"), [int(item) for item in gpus.split("-")]
             n_gpus = len(gpus)
         elif torch.backends.mps.is_available():
             device, gpus = torch.device("mps"), [0]
@@ -220,19 +225,24 @@ def run(rank, n_gpus, experiment_dir, pretrainG, pretrainD, pitch_guidance, cust
     except:
         dist.init_process_group(backend=("gloo" if sys.platform == "win32" or device.type != "cuda" else "nccl"), init_method="env://?use_libuv=False", world_size=n_gpus, rank=rank)
 
-    torch.manual_seed(config.train.seed)
+    if device.type == "cuda": manual_seed = torch.cuda.manual_seed
+    elif device.type == "ocl": manual_seed = torch_amd.pytorch_ocl.manual_seed_all
+    else: manual_seed = torch.manual_seed
+
+    manual_seed(config.train.seed)
     if torch.cuda.is_available(): torch.cuda.set_device(device_id)
 
     writer_eval = SummaryWriter(log_dir=os.path.join(experiment_dir, "eval")) if rank == 0 else None
     train_dataset = TextAudioLoaderMultiNSFsid(config.data) if pitch_guidance else TextAudioLoader(config.data)
     train_loader = tdata.DataLoader(train_dataset, num_workers=4, shuffle=False, pin_memory=True, collate_fn=TextAudioCollateMultiNSFsid() if pitch_guidance else TextAudioCollate(), batch_sampler=DistributedBucketSampler(train_dataset, batch_size * n_gpus, [100, 200, 300, 400, 500, 600, 700, 800, 900], num_replicas=n_gpus, rank=rank, shuffle=True), persistent_workers=True, prefetch_factor=8)
-    
+
     net_g, net_d = Synthesizer(config.data.filter_length // 2 + 1, config.train.segment_size // config.data.hop_length, **config.model, use_f0=pitch_guidance, sr=sample_rate, vocoder=vocoder, checkpointing=checkpointing), MultiPeriodDiscriminator(version, config.model.use_spectral_norm, checkpointing=checkpointing)
     net_g, net_d = (net_g.cuda(device_id), net_d.cuda(device_id)) if torch.cuda.is_available() else (net_g.to(device), net_d.to(device))
     
     optimizer_optim = torch.optim.AdamW if optimizer_choice == "AdamW" else torch.optim.RAdam
     optim_g, optim_d = optimizer_optim(net_g.parameters(), config.train.learning_rate, betas=config.train.betas, eps=config.train.eps), optimizer_optim(net_d.parameters(), config.train.learning_rate, betas=config.train.betas, eps=config.train.eps)
-    net_g, net_d = (DDP(net_g, device_ids=[device_id]), DDP(net_d, device_ids=[device_id])) if torch.cuda.is_available() else (DDP(net_g), DDP(net_d))
+
+    if device.type != "ocl": net_g, net_d = (DDP(net_g, device_ids=[device_id]), DDP(net_d, device_ids=[device_id])) if torch.cuda.is_available() else (DDP(net_g), DDP(net_d))
 
     try:
         logger.info(translations["start_training"])
@@ -262,7 +272,7 @@ def run(rank, n_gpus, experiment_dir, pretrainG, pretrainD, pitch_guidance, cust
         else: logger.warning(translations["not_using_pretrain"].format(dg="D"))
 
     scheduler_g, scheduler_d = torch.optim.lr_scheduler.ExponentialLR(optim_g, gamma=config.train.lr_decay, last_epoch=epoch_str - 2), torch.optim.lr_scheduler.ExponentialLR(optim_d, gamma=config.train.lr_decay, last_epoch=epoch_str - 2)
-    scaler = GradScaler(enabled=main_config.is_half and device.type == "cuda")
+    scaler = GradScaler(device=device, enabled=main_config.is_half and device.type == "cuda")
     optim_g.step(); optim_d.step()
     cache = []
 
@@ -293,31 +303,40 @@ def train_and_evaluate(rank, epoch, hps, nets, optims, scaler, train_loader, wri
             for batch_idx, info in enumerate(train_loader):
                 cache.append((batch_idx, [tensor.cuda(device_id, non_blocking=True) for tensor in info]))
         else: shuffle(cache)
+    elif device.type == "ocl" and cache_data_in_gpu:
+        data_iterator = cache
+        if cache == []:
+            for batch_idx, info in enumerate(train_loader):
+                cache.append((batch_idx, [tensor.to(device_id, non_blocking=True) for tensor in info]))
+        else: shuffle(cache)
     else: data_iterator = enumerate(train_loader)
 
     epoch_recorder = EpochRecorder()
     autocast_enabled = main_config.is_half and device.type == "cuda"
+    autocast_device = "cpu" if str(device.type).startswith("ocl") else device.type
 
     with tqdm(total=len(train_loader), leave=False) as pbar:
         for batch_idx, info in data_iterator:
-            info = [tensor.cuda(device_id, non_blocking=True) for tensor in info] if device.type == "cuda" and not cache_data_in_gpu else [tensor.to(device) for tensor in info]
+            if device.type == "cuda" and not cache_data_in_gpu: info = [tensor.cuda(device_id, non_blocking=True) for tensor in info]  
+            elif device.type == "ocl" and not cache_data_in_gpu: info = [tensor.to(device_id, non_blocking=True) for tensor in info]  
+            else: info = [tensor.to(device) for tensor in info]
 
             phone, phone_lengths, pitch, pitchf, spec, spec_lengths, wave, _, sid = info
             pitch = pitch if pitch_guidance else None
             pitchf = pitchf if pitch_guidance else None
 
-            with autocast(device.type, enabled=autocast_enabled):
+            with autocast(autocast_device , enabled=autocast_enabled):
                 y_hat, ids_slice, _, z_mask, (_, z_p, m_p, logs_p, _, logs_q) = net_g(phone, phone_lengths, pitch, pitchf, spec, spec_lengths, sid)
                 mel = spec_to_mel_torch(spec, config.data.filter_length, config.data.n_mel_channels, config.data.sample_rate, config.data.mel_fmin, config.data.mel_fmax)
                 y_mel = slice_segments(mel, ids_slice, config.train.segment_size // config.data.hop_length, dim=3)
 
-                with autocast(device.type, enabled=autocast_enabled):
+                with autocast(autocast_device, enabled=autocast_enabled):
                     y_hat_mel = mel_spectrogram_torch(y_hat.float().squeeze(1), config.data.filter_length, config.data.n_mel_channels, config.data.sample_rate, config.data.hop_length, config.data.win_length, config.data.mel_fmin, config.data.mel_fmax)
                 
                 wave = slice_segments(wave, ids_slice * config.data.hop_length, config.train.segment_size, dim=3)
                 y_d_hat_r, y_d_hat_g, _, _ = net_d(wave, y_hat.detach())
 
-                with autocast(device.type, enabled=autocast_enabled):
+                with autocast(autocast_device, enabled=autocast_enabled):
                     loss_disc, losses_disc_r, losses_disc_g = discriminator_loss(y_d_hat_r, y_d_hat_g)
 
             optim_d.zero_grad()
@@ -326,10 +345,11 @@ def train_and_evaluate(rank, epoch, hps, nets, optims, scaler, train_loader, wri
             grad_norm_d = clip_grad_value(net_d.parameters(), None)
             scaler.step(optim_d)
 
-            with autocast(device.type, enabled=autocast_enabled):
+            with autocast(autocast_device, enabled=autocast_enabled):
                 y_d_hat_r, y_d_hat_g, fmap_r, fmap_g = net_d(wave, y_hat)
+                logger.debug(f"z_p mean: {z_p.mean().item()} std: {z_p.std().item()} logs_q mean: {logs_q.mean().item()} m_p mean: {m_p.mean().item()} logs_p mean: {logs_p.mean().item()} z_mask mean: {z_mask.mean().item()}")
 
-                with autocast(device.type, enabled=autocast_enabled):     
+                with autocast(autocast_device, enabled=autocast_enabled):     
                     loss_mel = F.l1_loss(y_mel, y_hat_mel) * config.train.c_mel
                     loss_kl = (kl_loss(z_p, logs_q, m_p, logs_p, z_mask) * config.train.c_kl)
 
@@ -337,6 +357,8 @@ def train_and_evaluate(rank, epoch, hps, nets, optims, scaler, train_loader, wri
                     loss_gen, losses_gen = generator_loss(y_d_hat_g)
 
                     loss_gen_all = loss_gen + loss_fm + loss_mel + loss_kl
+                    logger.debug(f"loss_gen_all: {loss_gen_all} loss_gen: {loss_gen} loss_fm: {loss_fm} loss_mel: {loss_mel} loss_kl: {loss_kl}")
+
                     if loss_gen_all < lowest_value["value"]: lowest_value = {"step": global_step, "value": loss_gen_all, "epoch": epoch}
 
             optim_g.zero_grad()

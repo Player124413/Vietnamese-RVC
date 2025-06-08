@@ -3,13 +3,14 @@ import sys
 import math
 import torch
 
+import torch.nn as nn
 import torch.nn.functional as F
 
 sys.path.append(os.getcwd())
 
 from main.library.algorithm.commons import convert_pad_shape
 
-class MultiHeadAttention(torch.nn.Module):
+class MultiHeadAttention(nn.Module):
     def __init__(self, channels, out_channels, n_heads, p_dropout=0.0, window_size=None, heads_share=True, block_length=None, proximal_bias=False, proximal_init=False, onnx=False):
         super().__init__()
         assert channels % n_heads == 0
@@ -25,22 +26,22 @@ class MultiHeadAttention(torch.nn.Module):
         self.onnx = onnx
         self.attn = None
         self.k_channels = channels // n_heads
-        self.conv_q = torch.nn.Conv1d(channels, channels, 1)
-        self.conv_k = torch.nn.Conv1d(channels, channels, 1)
-        self.conv_v = torch.nn.Conv1d(channels, channels, 1)
-        self.conv_o = torch.nn.Conv1d(channels, out_channels, 1)
-        self.drop = torch.nn.Dropout(p_dropout)
+        self.conv_q = nn.Conv1d(channels, channels, 1)
+        self.conv_k = nn.Conv1d(channels, channels, 1)
+        self.conv_v = nn.Conv1d(channels, channels, 1)
+        self.conv_o = nn.Conv1d(channels, out_channels, 1)
+        self.drop = nn.Dropout(p_dropout)
 
         if window_size is not None:
             n_heads_rel = 1 if heads_share else n_heads
             rel_stddev = self.k_channels**-0.5
 
-            self.emb_rel_k = torch.nn.Parameter(torch.randn(n_heads_rel, window_size * 2 + 1, self.k_channels) * rel_stddev)
-            self.emb_rel_v = torch.nn.Parameter(torch.randn(n_heads_rel, window_size * 2 + 1, self.k_channels) * rel_stddev)
+            self.emb_rel_k = nn.Parameter(torch.randn(n_heads_rel, window_size * 2 + 1, self.k_channels) * rel_stddev)
+            self.emb_rel_v = nn.Parameter(torch.randn(n_heads_rel, window_size * 2 + 1, self.k_channels) * rel_stddev)
 
-        torch.nn.init.xavier_uniform_(self.conv_q.weight)
-        torch.nn.init.xavier_uniform_(self.conv_k.weight)
-        torch.nn.init.xavier_uniform_(self.conv_v.weight)
+        nn.init.xavier_uniform_(self.conv_q.weight)
+        nn.init.xavier_uniform_(self.conv_k.weight)
+        nn.init.xavier_uniform_(self.conv_v.weight)
 
         if proximal_init:
             with torch.no_grad():
@@ -112,7 +113,7 @@ class MultiHeadAttention(torch.nn.Module):
 
         return torch.unsqueeze(torch.unsqueeze(-torch.log1p(torch.abs((torch.unsqueeze(r, 0) - torch.unsqueeze(r, 1)))), 0), 0)
 
-class FFN(torch.nn.Module):
+class FFN(nn.Module):
     def __init__(self, in_channels, out_channels, filter_channels, kernel_size, p_dropout=0.0, activation=None, causal=False, onnx=False):
         super().__init__()
         self.in_channels = in_channels
@@ -124,9 +125,9 @@ class FFN(torch.nn.Module):
         self.causal = causal
         self.onnx = onnx
         self.padding = self._causal_padding if causal else self._same_padding
-        self.conv_1 = torch.nn.Conv1d(in_channels, filter_channels, kernel_size)
-        self.conv_2 = torch.nn.Conv1d(filter_channels, out_channels, kernel_size)
-        self.drop = torch.nn.Dropout(p_dropout)
+        self.conv_1 = nn.Conv1d(in_channels, filter_channels, kernel_size)
+        self.conv_2 = nn.Conv1d(filter_channels, out_channels, kernel_size)
+        self.drop = nn.Dropout(p_dropout)
 
     def forward(self, x, x_mask):
         x = self.conv_1(self.padding(x * x_mask))

@@ -25,7 +25,7 @@ else:
     console_handler = logging.StreamHandler()
     console_formatter = logging.Formatter(fmt="\n%(asctime)s.%(msecs)03d | %(levelname)s | %(module)s | %(message)s", datefmt="%Y-%m-%d %H:%M:%S")
     console_handler.setFormatter(console_formatter)
-    console_handler.setLevel(logging.INFO)
+    console_handler.setLevel(logging.DEBUG if config.debug_mode else logging.INFO)
     file_handler = logging.handlers.RotatingFileHandler(os.path.join(configs["logs_path"], "app.log"), maxBytes=5*1024*1024, backupCount=3, encoding='utf-8')
     file_formatter = logging.Formatter(fmt="\n%(asctime)s.%(msecs)03d | %(levelname)s | %(module)s | %(message)s", datefmt="%Y-%m-%d %H:%M:%S")
     file_handler.setFormatter(file_formatter)
@@ -34,7 +34,7 @@ else:
     logger.addHandler(file_handler)
     logger.setLevel(logging.DEBUG)
 
-if config.device in ["cpu", "mps"] and configs.get("fp16", False):
+if config.device in ["cpu", "mps", "ocl:0"] and configs.get("fp16", False):
     logger.warning(translations["fp16_not_support"])
     configs["fp16"] = config.is_half = False
 

@@ -7,6 +7,7 @@ import shutil
 import logging
 import argparse
 import warnings
+import traceback
 import concurrent.futures
 
 import numpy as np
@@ -17,6 +18,7 @@ from distutils.util import strtobool
 
 sys.path.append(os.getcwd())
 
+from main.library import torch_amd
 from main.library.predictors.Generator import Generator
 from main.app.variables import config, logger, translations, configs
 from main.library.utils import check_predictors, check_embedders, load_audio, load_embedders_model, get_providers
@@ -27,6 +29,7 @@ for l in ["torch", "faiss", "httpx", "httpcore", "faiss.loader", "numba.core", "
 
 def parse_arguments():
     parser = argparse.ArgumentParser()
+    parser.add_argument("--extract", action='store_true')
     parser.add_argument("--model_name", type=str, required=True)
     parser.add_argument("--rvc_version", type=str, default="v2")
     parser.add_argument("--f0_method", type=str, default="rmvpe")
@@ -89,20 +92,20 @@ class FeatureInput:
         self.f0_mel_max = 1127 * np.log(1 + self.f0_max / 700)
         self.device = device
         self.is_half = is_half
-        self.f0_gen = Generator(self.fs, self.hop, self.f0_min, self.f0_max, self.is_half, self.device, get_providers(), False)
 
     def process_file(self, file_info, f0_method, hop_length, f0_onnx, f0_autotune, f0_autotune_strength):
+        if not hasattr(self, "f0_gen"): self.f0_gen = Generator(self.fs, hop_length, self.f0_min, self.f0_max, self.is_half, self.device, get_providers(), f0_onnx)
+
         inp_path, opt_path1, opt_path2, file_inp = file_info
         if os.path.exists(opt_path1 + ".npy") and os.path.exists(opt_path2 + ".npy"): return
 
         try:
-            self.f0_gen.hop_length, self.f0_gen.f0_onnx_mode = hop_length, f0_onnx
-            pitch, pitchf = self.f0_gen.calculator(config.x_pad, f0_method, load_audio(logger, file_inp, self.fs), 0, None, 0, f0_autotune, f0_autotune_strength, None)
-
+            pitch, pitchf = self.f0_gen.calculator(config.x_pad, f0_method, load_audio(logger, file_inp, self.fs), 0, None, 0, f0_autotune, f0_autotune_strength, None, False)
             np.save(opt_path2, pitchf, allow_pickle=False)
             np.save(opt_path1, pitch, allow_pickle=False)
         except Exception as e:
-            raise RuntimeError(f"{translations['extract_file_error']} {inp_path}: {e}")
+            logger.info(f"{translations['extract_file_error']} {inp_path}: {e}")
+            logger.debug(traceback.format_exc())
 
     def process_files(self, files, f0_method, hop_length, f0_onnx, device, is_half, threads, f0_autotune, f0_autotune_strength):
         self.device = device
@@ -138,24 +141,27 @@ def process_file_embedding(files, embedder_model, embedders_mode, device, versio
     threads = max(1, threads)
 
     def worker(file_info):
-        file, out_path = file_info
-        out_file_path = os.path.join(out_path, os.path.basename(file.replace("wav", "npy")))
-        if os.path.exists(out_file_path): return
-        feats = torch.from_numpy(load_audio(logger, file, 16000)).to(device).to(torch.float16 if is_half else torch.float32).view(1, -1)
+        try:
+            file, out_path = file_info
+            out_file_path = os.path.join(out_path, os.path.basename(file.replace("wav", "npy")))
+            if os.path.exists(out_file_path): return
+            feats = torch.from_numpy(load_audio(logger, file, 16000)).to(device).to(torch.float16 if is_half else torch.float32).view(1, -1)
 
-        with torch.no_grad():
-            if embed_suffix == ".pt":
-                logits = model.extract_features(**{"source": feats, "padding_mask": torch.BoolTensor(feats.shape).fill_(False).to(device), "output_layer": 9 if version == "v1" else 12})
-                feats = model.final_proj(logits[0]) if version == "v1" else logits[0]
-            elif embed_suffix == ".onnx": feats = extract_features(model, feats, version).to(device)
-            elif embed_suffix == ".safetensors":
-                logits = model(feats)["last_hidden_state"]
-                feats = (model.final_proj(logits[0]).unsqueeze(0) if version == "v1" else logits)
-            else: raise ValueError(translations["option_not_valid"])
+            with torch.no_grad():
+                if embed_suffix == ".pt":
+                    logits = model.extract_features(**{"source": feats, "padding_mask": torch.BoolTensor(feats.shape).fill_(False).to(device), "output_layer": 9 if version == "v1" else 12})
+                    feats = model.final_proj(logits[0]) if version == "v1" else logits[0]
+                elif embed_suffix == ".onnx": feats = extract_features(model, feats, version).to(device)
+                elif embed_suffix == ".safetensors":
+                    logits = model(feats)["last_hidden_state"]
+                    feats = (model.final_proj(logits[0]).unsqueeze(0) if version == "v1" else logits)
+                else: raise ValueError(translations["option_not_valid"])
 
-        feats = feats.squeeze(0).float().cpu().numpy()
-        if not np.isnan(feats).any(): np.save(out_file_path, feats, allow_pickle=False)
-        else: logger.warning(f"{file} {translations['NaN']}")
+            feats = feats.squeeze(0).float().cpu().numpy()
+            if not np.isnan(feats).any(): np.save(out_file_path, feats, allow_pickle=False)
+            else: logger.warning(f"{file} {translations['NaN']}")
+        except:
+            logger.debug(traceback.format_exc())
 
     with tqdm.tqdm(total=len(files), ncols=100, unit="p", leave=True) as pbar:
         with concurrent.futures.ThreadPoolExecutor(max_workers=threads) as executor:
@@ -177,7 +183,7 @@ def main():
     args = parse_arguments()
     exp_dir = os.path.join(configs["logs_path"], args.model_name)
     f0_method, hop_length, num_processes, gpus, version, pitch_guidance, sample_rate, embedder_model, f0_onnx, embedders_mode, f0_autotune, f0_autotune_strength = args.f0_method, args.hop_length, args.cpu_cores, args.gpu, args.rvc_version, args.pitch_guidance, args.sample_rate, args.embedder_model, args.f0_onnx, args.embedders_mode, args.f0_autotune, args.f0_autotune_strength
-    devices = ["cpu"] if gpus == "-" else [f"cuda:{idx}" for idx in gpus.split("-")]
+    devices = ["cpu"] if gpus == "-" else [(f"ocl:{idx}" if torch_amd.is_available() else f"cuda:{idx}") for idx in gpus.split("-")]
 
     check_predictors(f0_method, f0_onnx=f0_onnx); check_embedders(embedder_model, embedders_mode)
 
@@ -196,8 +202,6 @@ def main():
         generate_filelist(pitch_guidance, exp_dir, version, sample_rate, embedders_mode)
     except Exception as e:
         logger.error(f"{translations['extract_error']}: {e}")
-        import traceback
-        logger.debug(traceback.format_exc())
 
     if os.path.exists(pid_path): os.remove(pid_path)
     logger.info(f"{translations['extract_success']} {args.model_name}.")

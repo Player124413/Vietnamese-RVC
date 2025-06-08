@@ -13,10 +13,10 @@ from torch.nn import functional as F
 
 sys.path.append(os.getcwd())
 
-from .states import capture_init
-from .demucs import rescale_module
 from main.configs.config import Config
-from .hdemucs import pad1d, spectro, ispectro, wiener, ScaledEmbedding, HEncLayer, MultiWrap, HDecLayer
+from main.library.uvr5_separator.demucs.states import capture_init
+from main.library.uvr5_separator.demucs.demucs import rescale_module
+from main.library.uvr5_separator.demucs.hdemucs import pad1d, spectro, ispectro, wiener, ScaledEmbedding, HEncLayer, MultiWrap, HDecLayer
 
 translations = Config().translations
 
@@ -25,7 +25,7 @@ def create_sin_embedding(length, dim, shift = 0, device="cpu", max_period=10000)
     pos = shift + torch.arange(length, device=device).view(-1, 1, 1)
     half_dim = dim // 2
     adim = torch.arange(dim // 2, device=device).view(1, 1, -1)
-    phase = pos / (max_period ** (adim / (half_dim - 1)))
+    phase = pos / (max_period ** ((adim.to(torch.float32) / torch.tensor(half_dim - 1, dtype=torch.float32, device=device)) if str(device).startswith("ocl") else (adim / (half_dim - 1))))
     return torch.cat([torch.cos(phase), torch.sin(phase)], dim=-1)
 
 def create_2d_sin_embedding(d_model, height, width, device="cpu", max_period=10000):
@@ -57,7 +57,7 @@ def create_sin_embedding_cape(length, dim, batch_size, mean_normalize, augment, 
     pos = pos.to(device)
     half_dim = dim // 2
     adim = torch.arange(dim // 2, device=device).view(1, 1, -1)
-    phase = pos / (max_period ** (adim / (half_dim - 1)))
+    phase = pos / (max_period ** ((adim.to(torch.float32) / torch.tensor(half_dim - 1, dtype=torch.float32, device=device)) if str(device).startswith("ocl") else (adim / (half_dim - 1))))
     return torch.cat([torch.cos(phase), torch.sin(phase)], dim=-1).float()
 
 class MyGroupNorm(nn.GroupNorm):

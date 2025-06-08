@@ -9,6 +9,8 @@ import torch.nn.functional as F
 
 sys.path.append(os.getcwd())
 
+from main.library import torch_amd
+
 class Autotune:
     def __init__(self, ref_freqs):
         self.ref_freqs = ref_freqs
@@ -31,3 +33,11 @@ def clear_gpu_cache():
 
     if torch.cuda.is_available(): torch.cuda.empty_cache()
     elif torch.backends.mps.is_available(): torch.mps.empty_cache()
+    elif torch_amd.is_available(): torch_amd.pytorch_ocl.empty_cache()
+
+def extract_median_f0(f0):
+    f0 = np.where(f0 == 0, np.nan, f0)
+    return float(np.median(np.interp(np.arange(len(f0)), np.where(~np.isnan(f0))[0], f0[~np.isnan(f0)])))
+
+def proposal_f0_up_key(f0, target_f0 = 155.0, limit = 12):
+    return max(-limit, min(limit, int(np.round(12 * np.log2(target_f0 / extract_median_f0(f0))))))

@@ -1,12 +1,11 @@
 import os
 import sys
-import shutil
 
 import gradio as gr
 
 sys.path.append(os.getcwd())
 
-from main.app.core.ui import visible
+from main.app.core.ui import visible, shutil_move
 from main.app.core.model_utils import fushion_model
 from main.app.variables import translations, configs
 
@@ -29,8 +28,8 @@ def fushion_tab():
     with gr.Row():
         output_model = gr.File(label=translations["output_model_path"], file_types=[".pth", ".onnx"], interactive=False, visible=False)
     with gr.Row():
-        model_a.upload(fn=lambda model: shutil.move(model.name, configs["weights_path"]), inputs=[model_a], outputs=[model_path_a])
-        model_b.upload(fn=lambda model: shutil.move(model.name, configs["weights_path"]), inputs=[model_b], outputs=[model_path_b])
+        model_a.upload(fn=lambda model: shutil_move(model.name, configs["weights_path"]), inputs=[model_a], outputs=[model_path_a])
+        model_b.upload(fn=lambda model: shutil_move(model.name, configs["weights_path"]), inputs=[model_b], outputs=[model_path_b])
     with gr.Row():
         fushion_button.click(
             fn=fushion_model,

@@ -1,3 +1,5 @@
+import os
+import sys
 import tqdm
 import torch
 import random
@@ -6,7 +8,9 @@ from torch import nn
 from torch.nn import functional as F
 from concurrent.futures import ThreadPoolExecutor
 
-from .utils import center_trim
+sys.path.append(os.getcwd())
+
+from main.library.uvr5_separator.demucs.utils import center_trim
 
 class DummyPoolExecutor:
     class DummyResult:
@@ -201,7 +205,7 @@ def apply_model(model, mix, shifts=1, split=True, overlap=0.25, transition_power
             chunk_out = future.result()
             chunk_length = chunk_out.shape[-1]
 
-            out[..., offset : offset + segment] += (weight[:chunk_length] * chunk_out).to(mix.device)
+            out[..., offset : offset + segment] += (weight[:chunk_length].to(device) * chunk_out).to(mix.device)
             sum_weight[offset : offset + segment] += weight[:chunk_length].to(mix.device)
 
         assert sum_weight.min() > 0

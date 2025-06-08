@@ -3,11 +3,13 @@ import re
 import sys
 import json
 import torch
+import shutil
 
 import gradio as gr
 
 sys.path.append(os.getcwd())
 
+from main.library import torch_amd
 from main.app.variables import config, configs, configs_json, logger, translations, edgetts, google_tts_voice, method_f0, method_f0_full
 
 def gr_info(message):
@@ -25,7 +27,18 @@ def gr_error(message):
 def get_gpu_info():
     ngpu = torch.cuda.device_count()
     gpu_infos = [f"{i}: {torch.cuda.get_device_name(i)} ({int(torch.cuda.get_device_properties(i).total_memory / 1024 / 1024 / 1024 + 0.4)} GB)" for i in range(ngpu) if torch.cuda.is_available() or ngpu != 0]
+
+    if len(gpu_infos) == 0:
+        ngpu = torch_amd.device_count()
+        gpu_infos = [f"{i}: {torch_amd.device_name(i)}" for i in range(ngpu) if torch_amd.is_available() or ngpu != 0]
+
     return "\n".join(gpu_infos) if len(gpu_infos) > 0 else translations["no_support_gpu"]
+
+def gpu_number_str():
+    ngpu = torch.cuda.device_count()
+    if ngpu == 0: ngpu = torch_amd.device_count()
+
+    return str("-".join(map(str, range(ngpu))) if torch.cuda.is_available() or torch_amd.is_available() else "-")
 
 def change_f0_choices(): 
     f0_file = sorted([os.path.abspath(os.path.join(root, f)) for root, _, files in os.walk(configs["f0_path"]) for f in files if f.endswith(".txt")])
@@ -132,7 +145,7 @@ def visible_embedders(value):
 def change_fp(fp):
     fp16 = fp == "fp16"
 
-    if fp16 and config.device == "cpu": 
+    if fp16 and config.device in ["cpu", "mps", "ocl:0"]: 
         gr_warning(translations["fp16_not_support"])
         return "fp32"
     else:
@@ -160,3 +173,7 @@ def process_output(file_path):
             file_path = os.path.join(os.path.dirname(file_path), f"{file[0]}_{index}." + file[1])
             if not os.path.exists(file_path): return file_path
             index += 1
+
+def shutil_move(input_path, output_path):
+    if os.path.exists(output_path): return shutil.move(input_path, process_output(output_path))
+    else: return shutil.move(input_path, output_path)

@@ -10,8 +10,6 @@ sys.path.append(os.getcwd())
 from main.configs.config import Config
 translations = Config().translations
 
-
-
 def load_model(path_or_package, strict=False):
     if isinstance(path_or_package, dict): package = path_or_package
     elif isinstance(path_or_package, (str, os.PathLike)):
