@@ -240,7 +240,7 @@ class CommonSeparator:
             self.logger.debug(translations["clean_cache"].format(name="CUDA"))
             torch.cuda.empty_cache()
 
-        if self.torch_device == torch.device("ocl"):
+        if torch_amd.torch_available and self.torch_device == torch.device("ocl"):
             self.logger.debug(translations["clean_cache"].format(name="AMD"))
             torch_amd.pytorch_ocl.empty_cache()
 
