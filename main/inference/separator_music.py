@@ -213,7 +213,7 @@ def separator_music_mdx(input, output, format, segments_size, overlap, denoise, 
         if '_(Instrumental)_' in f: os.rename(path, instruments_output)
         elif '_(Vocals)_' in f: os.rename(path, original_output)
 
-    logger.info(translations["separator_process_backing_success"])
+    logger.info(translations["separator_success_2"])
     return original_output, instruments_output
 
 def separator_reverb(output, format, segments_size, overlap, denoise, original, backing_reverb, hop_length, batch_size, sample_rate):
