@@ -175,5 +175,6 @@ def process_output(file_path):
             index += 1
 
 def shutil_move(input_path, output_path):
-    if os.path.exists(output_path): return shutil.move(input_path, process_output(output_path))
-    else: return shutil.move(input_path, output_path)
+    output_path = os.path.join(output_path, os.path.basename(input_path)) if os.path.isdir(output_path) else output_path
+
+    return shutil.move(input_path, process_output(output_path)) if os.path.exists(output_path) else shutil.move(input_path, output_path)
