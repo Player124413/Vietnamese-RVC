@@ -4,21 +4,25 @@ import sys
 import shutil
 import librosa
 import datetime
+import subprocess
 
 import numpy as np
 
 sys.path.append(os.getcwd())
 
-from main.inference.conversion.convert import run_convert_script
-from main.app.variables import logger, config, configs, translations
 from main.app.core.ui import gr_info, gr_warning, gr_error, process_output
+from main.app.variables import logger, config, configs, translations, python
 
 def convert(pitch, filter_radius, index_rate, volume_envelope, protect, hop_length, f0_method, input_path, output_path, pth_path, index_path, f0_autotune, clean_audio, clean_strength, export_format, embedder_model, resample_sr, split_audio, f0_autotune_strength, checkpointing, f0_onnx, embedders_mode, formant_shifting, formant_qfrency, formant_timbre, f0_file, proposal_pitch, target_f0_config=True):    
     if target_f0_config and proposal_pitch:
         original_target = configs["target_f0"]
-        if original_target == 155.0:  configs["target_f0"] = 255.0
+        if original_target == 155.0:  configs["target_f0"] = 225.0
 
-    run_convert_script(pitch, filter_radius, index_rate, volume_envelope, protect, hop_length, f0_method, input_path, output_path, pth_path, index_path, f0_autotune, f0_autotune_strength, clean_audio, clean_strength, export_format, embedder_model, resample_sr, split_audio, checkpointing, f0_file, f0_onnx, embedders_mode, formant_shifting, formant_qfrency, formant_timbre, proposal_pitch)
+    if config.debug_mode: subprocess.run([python, configs["convert_path"], "--pitch", str(pitch), "--filter_radius", str(filter_radius), "--index_rate", str(index_rate), "--volume_envelope", str(volume_envelope), "--protect", str(protect), "--hop_length", str(hop_length), "--f0_method", f0_method, "--input_path", input_path, "--output_path", output_path, "--pth_path", pth_path, "--index_path", index_path, "--f0_autotune", str(f0_autotune), "--clean_audio", str(clean_audio), "--clean_strength", str(clean_strength), "--export_format", export_format, "--embedder_model", embedder_model, "--resample_sr", str(resample_sr), "--split_audio", str(split_audio), "--f0_autotune_strength", str(f0_autotune_strength), "--checkpointing", str(checkpointing), "--f0_onnx", str(f0_onnx), "--embedders_mode", embedders_mode, "--formant_shifting", str(formant_shifting), "--formant_qfrency", str(formant_qfrency), "--formant_timbre", str(formant_timbre), "--f0_file", f0_file, "--proposal_pitch", str(proposal_pitch)])
+    else:
+        from main.inference.conversion.convert import run_convert_script
+        
+        run_convert_script(pitch, filter_radius, index_rate, volume_envelope, protect, hop_length, f0_method, input_path, output_path, pth_path, index_path, f0_autotune, f0_autotune_strength, clean_audio, clean_strength, export_format, embedder_model, resample_sr, split_audio, checkpointing, f0_file, f0_onnx, embedders_mode, formant_shifting, formant_qfrency, formant_timbre, proposal_pitch)
 
     if target_f0_config and proposal_pitch and original_target == 155.0: configs["target_f0"] = 155.0
 

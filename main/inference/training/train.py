@@ -225,11 +225,10 @@ def run(rank, n_gpus, experiment_dir, pretrainG, pretrainD, pitch_guidance, cust
     except:
         dist.init_process_group(backend=("gloo" if sys.platform == "win32" or device.type != "cuda" else "nccl"), init_method="env://?use_libuv=False", world_size=n_gpus, rank=rank)
 
-    if device.type == "cuda": manual_seed = torch.cuda.manual_seed
-    elif device.type == "ocl": manual_seed = torch_amd.pytorch_ocl.manual_seed_all
-    else: manual_seed = torch.manual_seed
+    torch.manual_seed(config.train.seed)
+    if device.type == "cuda": torch.cuda.manual_seed(config.train.seed)
+    elif device.type == "ocl": torch_amd.pytorch_ocl.manual_seed_all(config.train.seed)
 
-    manual_seed(config.train.seed)
     if torch.cuda.is_available(): torch.cuda.set_device(device_id)
 
     writer_eval = SummaryWriter(log_dir=os.path.join(experiment_dir, "eval")) if rank == 0 else None
