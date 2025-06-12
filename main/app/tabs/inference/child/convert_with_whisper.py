@@ -71,10 +71,11 @@ def convert_with_whisper_tab():
                     embed_mode3 = gr.Radio(label=translations["embed_mode"], info=translations["embed_mode_info"], value="fairseq", choices=embedders_mode, interactive=True, visible=True)
                     embedders3 = gr.Radio(label=translations["hubert_model"], info=translations["hubert_info"], choices=embedders_model, value="hubert_base", interactive=True)
                     custom_embedders3 = gr.Textbox(label=translations["modelname"], info=translations["modelname_info"], value="", placeholder="hubert_base", interactive=True, visible=embedders3.value == "custom")
-                with gr.Column():      
+                with gr.Column():     
+                    resample_sr3 = gr.Radio(choices=[0]+sample_rate_choice, label=translations["resample"], info=translations["resample_info"], value=0, interactive=True)
+                    proposal_pitch_threshold = gr.Slider(minimum=50.0, maximum=1200.0, label=translations["proposal_pitch_threshold"], info=translations["proposal_pitch_threshold_info"], value=255.0, step=0.1, interactive=True, visible=proposal_pitch.value)
                     clean_strength3 = gr.Slider(label=translations["clean_strength"], info=translations["clean_strength_info"], minimum=0, maximum=1, value=0.5, step=0.1, interactive=True, visible=cleaner2.value)
                     f0_autotune_strength3 = gr.Slider(minimum=0, maximum=1, label=translations["autotune_rate"], info=translations["autotune_rate_info"], value=1, step=0.1, interactive=True, visible=autotune2.value)
-                    resample_sr3 = gr.Radio(choices=[0]+sample_rate_choice, label=translations["resample"], info=translations["resample_info"], value=0, interactive=True)
                     filter_radius3 = gr.Slider(minimum=0, maximum=7, label=translations["filter_radius"], info=translations["filter_radius_info"], value=3, step=1, interactive=True)
                     volume_envelope3 = gr.Slider(minimum=0, maximum=1, label=translations["volume_envelope"], info=translations["volume_envelope_info"], value=1, step=0.1, interactive=True)
                     protect3 = gr.Slider(minimum=0, maximum=1, label=translations["protect"], info=translations["protect_info"], value=0.5, step=0.01, interactive=True)
@@ -112,6 +113,8 @@ def convert_with_whisper_tab():
     with gr.Row():
         unlock_full_method2.change(fn=unlock_f0, inputs=[unlock_full_method2], outputs=[method3])
         embed_mode3.change(fn=visible_embedders, inputs=[embed_mode3], outputs=[embedders3])
+        proposal_pitch.change(fn=visible, inputs=[proposal_pitch], outputs=[proposal_pitch_threshold])
+    with gr.Row():
         convert_button3.click(
             fn=convert_with_whisper,
             inputs=[
@@ -149,7 +152,8 @@ def convert_with_whisper_tab():
                 formant_timbre3,
                 formant_qfrency4,
                 formant_timbre4,
-                proposal_pitch
+                proposal_pitch,
+                proposal_pitch_threshold
             ],
             outputs=[play_audio3],
             api_name="convert_with_whisper"

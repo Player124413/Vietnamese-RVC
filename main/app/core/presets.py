@@ -33,7 +33,7 @@ def save_presets(name, cleaner, autotune, pitch, clean_strength, index_strength,
     gr_info(translations["export_settings"].format(name=name))
     return change_preset_choices()
 
-def audio_effect_load_presets(presets, resample_checkbox, audio_effect_resample_sr, chorus_depth, chorus_rate_hz, chorus_mix, chorus_centre_delay_ms, chorus_feedback, distortion_drive_db, reverb_room_size, reverb_damping, reverb_wet_level, reverb_dry_level, reverb_width, reverb_freeze_mode, pitch_shift_semitones, delay_second, delay_feedback, delay_mix, compressor_threashold_db, compressor_ratio, compressor_attack_ms, compressor_release_ms, limiter_threashold_db, limiter_release_ms, gain_db, bitcrush_bit_depth, clipping_threashold_db, phaser_rate_hz, phaser_depth, phaser_centre_frequency_hz, phaser_feedback, phaser_mix, bass_boost, bass_frequency, treble_boost, treble_frequency, fade_in, fade_out, chorus_check_box, distortion_checkbox, reverb_check_box, delay_check_box, compressor_check_box, limiter, gain_checkbox, bitcrush_checkbox, clipping_checkbox, phaser_check_box, bass_or_treble, fade):
+def audio_effect_load_presets(presets, resample_checkbox, audio_effect_resample_sr, chorus_depth, chorus_rate_hz, chorus_mix, chorus_centre_delay_ms, chorus_feedback, distortion_drive_db, reverb_room_size, reverb_damping, reverb_wet_level, reverb_dry_level, reverb_width, reverb_freeze_mode, pitch_shift_semitones, delay_second, delay_feedback, delay_mix, compressor_threshold_db, compressor_ratio, compressor_attack_ms, compressor_release_ms, limiter_threshold_db, limiter_release_ms, gain_db, bitcrush_bit_depth, clipping_threshold_db, phaser_rate_hz, phaser_depth, phaser_centre_frequency_hz, phaser_feedback, phaser_mix, bass_boost, bass_frequency, treble_boost, treble_frequency, fade_in, fade_out, chorus_check_box, distortion_checkbox, reverb_check_box, delay_check_box, compressor_check_box, limiter, gain_checkbox, bitcrush_checkbox, clipping_checkbox, phaser_check_box, bass_or_treble, fade):
     if not presets: gr_warning(translations["provide_file_settings"])
     
     file = {}
@@ -52,11 +52,11 @@ def audio_effect_load_presets(presets, resample_checkbox, audio_effect_resample_
         file.get("reverb_width", reverb_width), file.get("reverb_freeze_mode", reverb_freeze_mode), 
         file.get("pitch_shift_semitones", pitch_shift_semitones), file.get("delay_second", delay_second), 
         file.get("delay_feedback", delay_feedback), file.get("delay_mix", delay_mix), 
-        file.get("compressor_threashold_db", compressor_threashold_db), file.get("compressor_ratio", compressor_ratio), 
+        file.get("compressor_threshold_db", compressor_threshold_db), file.get("compressor_ratio", compressor_ratio), 
         file.get("compressor_attack_ms", compressor_attack_ms), file.get("compressor_release_ms", compressor_release_ms), 
-        file.get("limiter_threashold_db", limiter_threashold_db), file.get("limiter_release_ms", limiter_release_ms), 
+        file.get("limiter_threshold_db", limiter_threshold_db), file.get("limiter_release_ms", limiter_release_ms), 
         file.get("gain_db", gain_db), file.get("bitcrush_bit_depth", bitcrush_bit_depth), 
-        file.get("clipping_threashold_db", clipping_threashold_db), file.get("phaser_rate_hz", phaser_rate_hz), 
+        file.get("clipping_threshold_db", clipping_threshold_db), file.get("phaser_rate_hz", phaser_rate_hz), 
         file.get("phaser_depth", phaser_depth), file.get("phaser_centre_frequency_hz", phaser_centre_frequency_hz), 
         file.get("phaser_feedback", phaser_feedback), file.get("phaser_mix", phaser_mix), 
         file.get("bass_boost", bass_boost), file.get("bass_frequency", bass_frequency), 
@@ -70,7 +70,7 @@ def audio_effect_load_presets(presets, resample_checkbox, audio_effect_resample_
         file.get("bass_or_treble", bass_or_treble), file.get("fade", fade)
     ]
 
-def audio_effect_save_presets(name, resample_checkbox, audio_effect_resample_sr, chorus_depth, chorus_rate_hz, chorus_mix, chorus_centre_delay_ms, chorus_feedback, distortion_drive_db, reverb_room_size, reverb_damping, reverb_wet_level, reverb_dry_level, reverb_width, reverb_freeze_mode, pitch_shift_semitones, delay_second, delay_feedback, delay_mix, compressor_threashold_db, compressor_ratio, compressor_attack_ms, compressor_release_ms, limiter_threashold_db, limiter_release_ms, gain_db, bitcrush_bit_depth, clipping_threashold_db, phaser_rate_hz, phaser_depth, phaser_centre_frequency_hz, phaser_feedback, phaser_mix, bass_boost, bass_frequency, treble_boost, treble_frequency, fade_in, fade_out, chorus_check_box, distortion_checkbox, reverb_check_box, delay_check_box, compressor_check_box, limiter, gain_checkbox, bitcrush_checkbox, clipping_checkbox, phaser_check_box, bass_or_treble, fade):
+def audio_effect_save_presets(name, resample_checkbox, audio_effect_resample_sr, chorus_depth, chorus_rate_hz, chorus_mix, chorus_centre_delay_ms, chorus_feedback, distortion_drive_db, reverb_room_size, reverb_damping, reverb_wet_level, reverb_dry_level, reverb_width, reverb_freeze_mode, pitch_shift_semitones, delay_second, delay_feedback, delay_mix, compressor_threshold_db, compressor_ratio, compressor_attack_ms, compressor_release_ms, limiter_threshold_db, limiter_release_ms, gain_db, bitcrush_bit_depth, clipping_threshold_db, phaser_rate_hz, phaser_depth, phaser_centre_frequency_hz, phaser_feedback, phaser_mix, bass_boost, bass_frequency, treble_boost, treble_frequency, fade_in, fade_out, chorus_check_box, distortion_checkbox, reverb_check_box, delay_check_box, compressor_check_box, limiter, gain_checkbox, bitcrush_checkbox, clipping_checkbox, phaser_check_box, bass_or_treble, fade):
     if not name: return gr_warning(translations["provide_filename_settings"])
     if not any([resample_checkbox, chorus_check_box, distortion_checkbox, reverb_check_box, delay_check_box, compressor_check_box, limiter, gain_checkbox, bitcrush_checkbox, clipping_checkbox, phaser_check_box, bass_or_treble, fade, pitch_shift_semitones != 0]): return gr_warning(translations["choose1"])
 
@@ -113,14 +113,14 @@ def audio_effect_save_presets(name, resample_checkbox, audio_effect_resample_sr,
         }), 
         (compressor_check_box, {
             "compressor_check_box": compressor_check_box,
-            "compressor_threashold_db": compressor_threashold_db,
+            "compressor_threshold_db": compressor_threshold_db,
             "compressor_ratio": compressor_ratio,
             "compressor_attack_ms": compressor_attack_ms,
             "compressor_release_ms": compressor_release_ms
         }), 
         (limiter, {
             "limiter": limiter,
-            "limiter_threashold_db": limiter_threashold_db,
+            "limiter_threshold_db": limiter_threshold_db,
             "limiter_release_ms": limiter_release_ms
         }), 
         (gain_checkbox, {
@@ -133,7 +133,7 @@ def audio_effect_save_presets(name, resample_checkbox, audio_effect_resample_sr,
         }),
         (clipping_checkbox, {
             "clipping_checkbox": clipping_checkbox,
-            "clipping_threashold_db": clipping_threashold_db
+            "clipping_threshold_db": clipping_threshold_db
         }),
         (phaser_check_box, {
             "phaser_check_box": phaser_check_box,

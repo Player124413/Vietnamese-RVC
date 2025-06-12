@@ -105,8 +105,9 @@ def convert_tab():
                         split_audio = gr.Checkbox(label=translations["split_audio"], value=False, interactive=True)
                         formant_shifting = gr.Checkbox(label=translations["formantshift"], value=False, interactive=True)
                         proposal_pitch = gr.Checkbox(label=translations["proposal_pitch"], value=False, interactive=True)
-                    f0_autotune_strength = gr.Slider(minimum=0, maximum=1, label=translations["autotune_rate"], info=translations["autotune_rate_info"], value=1, step=0.1, interactive=True, visible=autotune.value)
                     resample_sr = gr.Radio(choices=[0]+sample_rate_choice, label=translations["resample"], info=translations["resample_info"], value=0, interactive=True)
+                    proposal_pitch_threshold = gr.Slider(minimum=50.0, maximum=1200.0, label=translations["proposal_pitch_threshold"], info=translations["proposal_pitch_threshold_info"], value=255.0, step=0.1, interactive=True, visible=proposal_pitch.value)
+                    f0_autotune_strength = gr.Slider(minimum=0, maximum=1, label=translations["autotune_rate"], info=translations["autotune_rate_info"], value=1, step=0.1, interactive=True, visible=autotune.value)
                     filter_radius = gr.Slider(minimum=0, maximum=7, label=translations["filter_radius"], info=translations["filter_radius_info"], value=3, step=1, interactive=True)
                     volume_envelope = gr.Slider(minimum=0, maximum=1, label=translations["volume_envelope"], info=translations["volume_envelope_info"], value=1, step=0.1, interactive=True)
                     protect = gr.Slider(minimum=0, maximum=1, label=translations["protect"], info=translations["protect_info"], value=0.5, step=0.01, interactive=True)
@@ -223,6 +224,9 @@ def convert_tab():
         convert_button.click(fn=lambda: visible(False), inputs=[], outputs=[convert_button])
         convert_button_2.click(fn=lambda: [visible(False), visible(False)], inputs=[], outputs=[audio_select, convert_button_2])
     with gr.Row():
+        embed_mode.change(fn=visible_embedders, inputs=[embed_mode], outputs=[embedders])
+        proposal_pitch.change(fn=visible, inputs=[proposal_pitch], outputs=[proposal_pitch_threshold])
+    with gr.Row():
         convert_button.click(
             fn=convert_selection,
             inputs=[
@@ -259,12 +263,12 @@ def convert_tab():
                 formant_timbre,
                 f0_file_dropdown,
                 embed_mode,
-                proposal_pitch
+                proposal_pitch,
+                proposal_pitch_threshold
             ],
             outputs=[audio_select, main_convert, backing_convert, main_backing, original_convert, vocal_instrument, convert_button],
             api_name="convert_selection"
         )
-        embed_mode.change(fn=visible_embedders, inputs=[embed_mode], outputs=[embedders])
         convert_button_2.click(
             fn=convert_audio,
             inputs=[
@@ -302,7 +306,8 @@ def convert_tab():
                 formant_timbre,
                 f0_file_dropdown,
                 embed_mode,
-                proposal_pitch
+                proposal_pitch,
+                proposal_pitch_threshold
             ],
             outputs=[main_convert, backing_convert, main_backing, original_convert, vocal_instrument, convert_button],
             api_name="convert_audio"
