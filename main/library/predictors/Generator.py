@@ -125,7 +125,7 @@ class Generator:
             self.fcpe = FCPE(configs, os.path.join(configs["predictors_path"], ("fcpe_legacy" if legacy else "fcpe") + (".onnx" if self.f0_onnx_mode else ".pt")), hop_length=self.hop_length, f0_min=self.f0_min, f0_max=self.f0_max, dtype=torch.float32, device=self.device, sample_rate=self.sample_rate, threshold=0.03 if legacy else 0.006, providers=self.providers, onnx=self.f0_onnx_mode, legacy=legacy)
         
         f0 = self.fcpe.compute_f0(x, p_len)
-        if self.f0_onnx_mode: del self.fcpe
+        if self.f0_onnx_mode: del self.fcpe.model.model, self.fcpe
 
         return f0
     
@@ -135,7 +135,7 @@ class Generator:
             self.rmvpe = RMVPE(os.path.join(configs["predictors_path"], "rmvpe" + (".onnx" if self.f0_onnx_mode else ".pt")), is_half=self.is_half, device=self.device if not self.device.startswith("ocl") else "cpu", onnx=self.f0_onnx_mode, providers=self.providers)
 
         f0 = self.rmvpe.infer_from_audio_with_pitch(x, thred=0.03, f0_min=self.f0_min, f0_max=self.f0_max) if legacy else self.rmvpe.infer_from_audio(x, thred=0.03)
-        if self.f0_onnx_mode: del self.rmvpe, self.rmvpe.model
+        if self.f0_onnx_mode: del self.rmvpe.model, self.rmvpe
 
         return self._resize_f0(f0, p_len)
     

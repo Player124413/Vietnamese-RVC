@@ -41,3 +41,31 @@ def extract_median_f0(f0):
 
 def proposal_f0_up_key(f0, target_f0 = 155.0, limit = 12):
     return max(-limit, min(limit, int(np.round(12 * np.log2(target_f0 / extract_median_f0(f0))))))
+
+def get_onnx_argument(net_g, feats, p_len, sid, pitch, pitchf, energy, pitch_guidance, energy_use):
+    inputs = {
+        net_g.get_inputs()[0].name: feats.cpu().numpy().astype(np.float32),
+        net_g.get_inputs()[1].name: p_len.cpu().numpy(),
+        net_g.get_inputs()[2].name: np.array([sid.cpu().item()], dtype=np.int64),
+        net_g.get_inputs()[3].name: np.random.randn(1, 192, p_len).astype(np.float32)
+    }
+
+    if energy_use:
+        if pitch_guidance:
+            inputs.update({
+                net_g.get_inputs()[4].name: pitch.cpu().numpy().astype(np.int64),
+                net_g.get_inputs()[5].name: pitchf.cpu().numpy().astype(np.float32),
+                net_g.get_inputs()[6].name: energy.cpu().numpy().astype(np.float32)
+            })
+        else:
+            inputs.update({
+                net_g.get_inputs()[4].name: energy.cpu().numpy().astype(np.float32)
+            })
+    else:
+        if pitch_guidance:
+            inputs.update({
+                net_g.get_inputs()[4].name: pitch.cpu().numpy().astype(np.int64),
+                net_g.get_inputs()[5].name: pitchf.cpu().numpy().astype(np.float32)
+            })
+
+    return inputs

@@ -110,7 +110,7 @@
     "clean_strength_info": "Strength of the audio cleaner for filtering vocals during export",
     "input_output": "Audio input, output",
     "audio_path": "Input audio path",
-    "refesh": "Refresh",
+    "refresh": "Refresh",
     "output_folder": "Output audio folder path",
     "output_folder_info": "Enter the folder path where the audio will be exported",
     "input_audio": "Audio input",
@@ -304,7 +304,7 @@
     "overtraining_detector": "Overtraining detector",
     "overtraining_detector_info": "Check for overtraining during model training",
     "cleanup_training": "Clean Up",
-    "cleanup_training_info": "Only enable if you need to retrain the model from scratch.",
+    "cleanup_training_info": "Clean up and retrain from scratch",
     "cache_in_gpu": "Cache in GPU",
     "cache_in_gpu_info": "Store the model in GPU cache memory",
     "dataset_folder": "Folder containing dataset",
@@ -355,7 +355,6 @@
     "search_2": "Search",
     "select_download_model": "Choose a searched model (Click to select)",
     "download_pretrained_2": "Download pre-trained model",
-    "only_huggingface": "Supports only huggingface.co",
     "pretrained_url": "Pre-trained model link {dg}",
     "select_pretrain": "Choose pre-trained model",
     "select_pretrain_info": "Choose a pre-trained model to download",
@@ -826,5 +825,9 @@
     "proposal_f0": "Proposed pitch: {up_key}",
     "startautotune": "Start autotune pitch...",
     "proposal_pitch_threshold": "Proposal Pitch Threshold",
-    "proposal_pitch_threshold_info": "Proposal Pitch Threshold, for male models use 155.0 and female models use 255.0"
+    "proposal_pitch_threshold_info": "Proposal Pitch Threshold, for male models use 155.0 and female models use 255.0",
+    "rms_start_extract": "Starting audio energy extraction with {num_processes} cores...",
+    "rms_success_extract": "Energy extraction completed in {elapsed_time} seconds.",
+    "train&energy": "Training with energy",
+    "train&energy_info": "Training model with RMS energy"
 }

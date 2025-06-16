@@ -110,7 +110,7 @@
     "clean_strength_info": "Mức độ của bộ làm sạch âm thanh để lọc giọng hát khi xuất",
     "input_output": "Đầu vào, đầu ra âm thanh",
     "audio_path": "Đường dẫn đầu vào âm thanh",
-    "refesh": "Tải lại",
+    "refresh": "Tải lại",
     "output_folder": "Đường dẫn thư mục đầu ra âm thanh",
     "output_folder_info": "Nhập đường dẫn thư mục âm thanh sẽ xuất ra ở đó",
     "input_audio": "Đầu vào âm thanh",
@@ -304,7 +304,7 @@
     "overtraining_detector": "Kiểm tra quá sức",
     "overtraining_detector_info": "Kiểm tra huấn luyện mô hình quá sức",
     "cleanup_training": "Làm sạch huấn luyện",
-    "cleanup_training_info": "Bật khi cần huấn luyện lại từ đầu.",
+    "cleanup_training_info": "Dọn dẹp và huấn luyện lại từ đầu",
     "cache_in_gpu": "Lưu mô hình vào đệm",
     "cache_in_gpu_info": "Lưu mô hình vào bộ nhớ đệm gpu",
     "dataset_folder": "Thư mục chứa dữ liệu",
@@ -355,7 +355,6 @@
     "search_2": "Tìm kiếm",
     "select_download_model": "Chọn mô hình đã được tìm kiếm(Bấm vào để chọn)",
     "download_pretrained_2": "Tải xuống mô hình huấn luyện trước",
-    "only_huggingface": "Chỉ hỗ trợ huggingface.co",
     "pretrained_url": "Đường dẫn liên kết đến mô hình huấn luyện trước {dg}",
     "select_pretrain": "Chọn mô hình huấn luyện trước",
     "select_pretrain_info": "Chọn mô hình huấn luyện trước để cài đặt về",
@@ -826,5 +825,9 @@
     "proposal_f0": "Đã đề xuất cao độ: {up_key}",
     "startautotune": "Bắt đầu tự động điều chỉnh cao độ...",
     "proposal_pitch_threshold": "Tần số ước tính cao độ",
-    "proposal_pitch_threshold_info": "Tần số ước tính cao độ, đối với mô hình nam sử dụng ở mức 155.0 và mô hình nữ với mức 255.0"
+    "proposal_pitch_threshold_info": "Tần số ước tính cao độ, đối với mô hình nam sử dụng ở mức 155.0 và mô hình nữ với mức 255.0",
+    "rms_start_extract": "Bắt đầu trích xuất năng lượng âm thanh với {num_processes} lõi...",
+    "rms_success_extract": "Quá trình trích xuất năng lượng đã hoàn tất vào {elapsed_time} giây.",
+    "train&energy": "Huấn luyện năng lượng",
+    "train&energy_info": "Huấn luyện mô hình với năng lượng RMS"
 }

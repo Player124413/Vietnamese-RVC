@@ -22,7 +22,7 @@ elif argv_is_allows[1] in argv: from main.inference.audioldm2 import main
 elif argv_is_allows[2] in argv: from main.inference.conversion.convert import main
 elif argv_is_allows[3] in argv: from main.inference.create_dataset import main
 elif argv_is_allows[4] in argv: from main.inference.create_index import main
-elif argv_is_allows[5] in argv: from main.inference.extract import main
+elif argv_is_allows[5] in argv: from main.inference.extracting.extract import main
 elif argv_is_allows[6] in argv: from main.inference.preprocess.preprocess import main
 elif argv_is_allows[7] in argv: from main.inference.separator_music import main
 elif argv_is_allows[8] in argv: from main.inference.training.train import main
@@ -142,6 +142,7 @@ elif argv_is_allows[11] in argv:
             - `--f0_file` (mặc định: ``): Đường dẫn tệp F0 có sẵn.
             - `--f0_onnx` (mặc định: `False`): Có sử dụng phiên bản ONNX của F0 hay không.
             - `--proposal_pitch` (mặc định: `False`): Đề xuất cao độ thay vì điều chỉnh thủ công.
+            - `--proposal_pitch_threshold` (mặc định: `255.0`): Tần số ước tính cao độ.
 
         4. Mô hình nhúng:
             - `--embedder_model` (mặc định: `contentvec_base`): Mô hình nhúng sử dụng.
@@ -231,6 +232,9 @@ elif argv_is_allows[14] in argv:
             - `--embedder_model` (mặc định: `contentvec_base`): Tên mô hình nhúng.
             - `--f0_onnx` (mặc định: `False`): Có sử dụng phiên bản ONNX của F0 hay không.
             - `--embedders_mode` (mặc định: `fairseq`): Chế độ nhúng (`fairseq`, `transformers`, `onnx`).
+          
+        4. RMS:
+            - `--rms_extract` (mặc định: False): Trích xuất thêm năng lượng rms.
     """)
     quit()
 elif argv_is_allows[15] in argv:
@@ -308,6 +312,7 @@ elif argv_is_allows[17] in argv:
             - `--g_pretrained_path` (mặc định: ``): Đường dẫn đến trọng số G đã huấn luyện trước.
             - `--d_pretrained_path` (mặc định: ``): Đường dẫn đến trọng số D đã huấn luyện trước.
             - `--vocoder` (mặc định: `Default`): Bộ mã hóa được sử dụng (`Default`, `MRF-HiFi-GAN`, `RefineGAN`).
+            - `--energy_use` (mặc định: `False`): Sử dụng năng lượng rms.
 
         6. Phát hiện huấn luyện quá mức:
             - `--overtraining_detector` (mặc định: `False`): Bật/tắt chế độ phát hiện huấn luyện quá mức.

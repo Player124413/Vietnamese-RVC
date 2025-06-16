@@ -33,7 +33,7 @@ def convert_with_whisper_tab():
                     model_pth2 = gr.Dropdown(label=translations["model_name"], choices=model_name, value=model_name[0] if len(model_name) >= 1 else "", interactive=True, allow_custom_value=True)
                     model_index2 = gr.Dropdown(label=translations["index_path"], choices=index_path, value=index_path[0] if len(index_path) >= 1 else "", interactive=True, allow_custom_value=True)
                 with gr.Row():
-                    refesh2 = gr.Button(translations["refesh"])
+                    refresh2 = gr.Button(translations["refresh"])
                 with gr.Row():
                     pitch3 = gr.Slider(minimum=-20, maximum=20, step=1, info=translations["pitch_info"], label=translations["pitch"], value=0, interactive=True)
                     index_strength2 = gr.Slider(label=translations["index_strength"], info=translations["index_strength_info"], minimum=0, maximum=1, value=0.5, step=0.01, interactive=True, visible=model_index2.value != "")
@@ -43,7 +43,7 @@ def convert_with_whisper_tab():
                     input_audio1 = gr.Dropdown(label=translations["audio_path"], value="", choices=paths_for_files, info=translations["provide_audio"], allow_custom_value=True, interactive=True)
                     output_audio2 = gr.Textbox(label=translations["output_path"], value="audios/output.wav", placeholder="audios/output.wav", info=translations["output_path_info"], interactive=True)
                 with gr.Column():
-                    refesh4 = gr.Button(translations["refesh"])
+                    refresh4 = gr.Button(translations["refresh"])
                 with gr.Row():
                     input2 = gr.File(label=translations["drop_audio"], file_types=[".wav", ".mp3", ".flac", ".ogg", ".opus", ".m4a", ".mp4", ".aac", ".alac", ".wma", ".aiff", ".webm", ".ac3"])
         with gr.Column():
@@ -52,7 +52,7 @@ def convert_with_whisper_tab():
                     model_pth3 = gr.Dropdown(label=translations["model_name"], choices=model_name, value=model_name[0] if len(model_name) >= 1 else "", interactive=True, allow_custom_value=True)
                     model_index3 = gr.Dropdown(label=translations["index_path"], choices=index_path, value=index_path[0] if len(index_path) >= 1 else "", interactive=True, allow_custom_value=True)
                 with gr.Row():
-                    refesh3 = gr.Button(translations["refesh"])
+                    refresh3 = gr.Button(translations["refresh"])
                 with gr.Row():
                     pitch4 = gr.Slider(minimum=-20, maximum=20, step=1, info=translations["pitch_info"], label=translations["pitch"], value=0, interactive=True)
                     index_strength3 = gr.Slider(label=translations["index_strength"], info=translations["index_strength_info"], minimum=0, maximum=1, value=0.5, step=0.01, interactive=True, visible=model_index3.value != "")
@@ -96,10 +96,10 @@ def convert_with_whisper_tab():
         method3.change(fn=lambda method, hybrid: [visible(method == "hybrid"), hoplength_show(method, hybrid)], inputs=[method3, hybrid_method3], outputs=[hybrid_method3, hop_length3])
     with gr.Row():
         hybrid_method3.change(fn=hoplength_show, inputs=[method3, hybrid_method3], outputs=[hop_length3])
-        refesh2.click(fn=change_models_choices, inputs=[], outputs=[model_pth2, model_index2])
+        refresh2.click(fn=change_models_choices, inputs=[], outputs=[model_pth2, model_index2])
         model_pth2.change(fn=get_index, inputs=[model_pth2], outputs=[model_index2])
     with gr.Row():
-        refesh3.click(fn=change_models_choices, inputs=[], outputs=[model_pth3, model_index3])
+        refresh3.click(fn=change_models_choices, inputs=[], outputs=[model_pth3, model_index3])
         model_pth3.change(fn=get_index, inputs=[model_pth3], outputs=[model_index3])
         input2.upload(fn=lambda audio_in: shutil_move(audio_in.name, configs["audios_path"]), inputs=[input2], outputs=[input_audio1])
     with gr.Row():
@@ -107,7 +107,7 @@ def convert_with_whisper_tab():
         formant_shifting2.change(fn=lambda a: [visible(a)]*4, inputs=[formant_shifting2], outputs=[formant_qfrency3, formant_timbre3, formant_qfrency4, formant_timbre4])
         embedders3.change(fn=lambda embedders: visible(embedders == "custom"), inputs=[embedders3], outputs=[custom_embedders3])
     with gr.Row():
-        refesh4.click(fn=change_audios_choices, inputs=[input_audio1], outputs=[input_audio1])
+        refresh4.click(fn=change_audios_choices, inputs=[input_audio1], outputs=[input_audio1])
         model_index2.change(fn=index_strength_show, inputs=[model_index2], outputs=[index_strength2])
         model_index3.change(fn=index_strength_show, inputs=[model_index3], outputs=[index_strength3])
     with gr.Row():

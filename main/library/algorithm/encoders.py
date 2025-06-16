@@ -44,7 +44,7 @@ class Encoder(torch.nn.Module):
         return x * x_mask
     
 class TextEncoder(torch.nn.Module):
-    def __init__(self, out_channels, hidden_channels, filter_channels, n_heads, n_layers, kernel_size, p_dropout, embedding_dim, f0=True, onnx=False):
+    def __init__(self, out_channels, hidden_channels, filter_channels, n_heads, n_layers, kernel_size, p_dropout, embedding_dim, f0=True, energy=False, onnx=False):
         super(TextEncoder, self).__init__()
         self.out_channels = out_channels
         self.hidden_channels = hidden_channels
@@ -53,14 +53,20 @@ class TextEncoder(torch.nn.Module):
         self.n_layers = n_layers
         self.kernel_size = kernel_size
         self.p_dropout = float(p_dropout)
-        self.emb_phone = torch.nn.Linear(embedding_dim, hidden_channels)
         self.lrelu = torch.nn.LeakyReLU(0.1, inplace=True)
-        if f0: self.emb_pitch = torch.nn.Embedding(256, hidden_channels)
+        self.emb_phone = torch.nn.Linear(embedding_dim, hidden_channels)
+        self.emb_pitch = torch.nn.Embedding(256, hidden_channels) if f0 else None
+        self.emb_energy = torch.nn.Linear(1, hidden_channels) if energy else None
         self.encoder = Encoder(hidden_channels, filter_channels, n_heads, n_layers, kernel_size, float(p_dropout), onnx=onnx)
         self.proj = torch.nn.Conv1d(hidden_channels, out_channels * 2, 1)
 
-    def forward(self, phone, pitch, lengths):
-        x = torch.transpose(self.lrelu(((self.emb_phone(phone) if pitch is None else (self.emb_phone(phone) + self.emb_pitch(pitch))) * math.sqrt(self.hidden_channels))), 1, -1) 
+    def forward(self, phone, pitch, lengths, energy):
+        x = self.emb_phone(phone)
+
+        if pitch is not None: x += self.emb_pitch(pitch)
+        if energy is not None: x += self.emb_energy(energy.unsqueeze(-1))
+
+        x = torch.transpose(self.lrelu(x * math.sqrt(self.hidden_channels)), 1, -1) 
         x_mask = torch.unsqueeze(sequence_mask(lengths, x.size(2)), 1).to(x.dtype)
         m, logs = torch.split((self.proj(self.encoder(x * x_mask, x_mask)) * x_mask), self.out_channels, dim=1)
 

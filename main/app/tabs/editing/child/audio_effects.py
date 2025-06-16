@@ -37,7 +37,7 @@ def audio_effects_tab():
                 main_vol = gr.Slider(minimum=-80, maximum=80, label=translations["main_volume"], info=translations["main_volume_info"], value=-4, step=1, interactive=True, visible=audio_combination.value)
                 combine_vol = gr.Slider(minimum=-80, maximum=80, label=translations["combination_volume"], info=translations["combination_volume_info"], value=-7, step=1, interactive=True, visible=audio_combination.value)
             with gr.Row():
-                audio_effects_refesh = gr.Button(translations["refesh"])
+                audio_effects_refresh = gr.Button(translations["refresh"])
             with gr.Row():
                 audio_output_format = gr.Radio(label=translations["export_format"], info=translations["export_info"], choices=["wav", "mp3", "flac", "ogg", "opus", "m4a", "mp4", "aac", "alac", "wma", "aiff", "webm", "ac3"], value="wav", interactive=True)
     with gr.Row():
@@ -46,7 +46,7 @@ def audio_effects_tab():
                 presets_name = gr.Dropdown(label=translations["file_preset"], choices=audio_effect_presets_file, value=audio_effect_presets_file[0] if len(audio_effect_presets_file) > 0 else '', interactive=True, allow_custom_value=True)
             with gr.Row():
                 load_click = gr.Button(translations["load_file"], variant="primary")
-                refesh_click = gr.Button(translations["refesh"])
+                refresh_click = gr.Button(translations["refresh"])
             with gr.Accordion(translations["export_file"], open=False):
                 with gr.Row():
                     with gr.Column():
@@ -152,14 +152,14 @@ def audio_effects_tab():
     with gr.Row():
         upload_audio.upload(fn=lambda audio_in: shutil_move(audio_in.name, configs["audios_path"]), inputs=[upload_audio], outputs=[audio_in_path])
         audio_in_path.change(fn=lambda audio: audio if audio else None, inputs=[audio_in_path], outputs=[audio_play_input])
-        audio_effects_refesh.click(fn=lambda a, b: [change_audios_choices(a), change_audios_choices(b)], inputs=[audio_in_path, audio_combination_input], outputs=[audio_in_path, audio_combination_input])
+        audio_effects_refresh.click(fn=lambda a, b: [change_audios_choices(a), change_audios_choices(b)], inputs=[audio_in_path, audio_combination_input], outputs=[audio_in_path, audio_combination_input])
     with gr.Row():
         more_options.change(fn=lambda: [False]*8, inputs=[], outputs=[fade, bass_or_treble, limiter, resample_checkbox, distortion_checkbox, gain_checkbox, clipping_checkbox, bitcrush_checkbox])
         audio_combination.change(fn=visible, inputs=[audio_combination], outputs=[audio_combination_input])
         audio_combination.change(fn=lambda a: [visible(a)]*2, inputs=[audio_combination], outputs=[main_vol, combine_vol])
     with gr.Row():
         upload_presets.upload(fn=lambda audio_in: shutil_move(audio_in.name, configs["presets_path"]), inputs=[upload_presets], outputs=[presets_name])
-        refesh_click.click(fn=change_effect_preset_choices, inputs=[], outputs=[presets_name])
+        refresh_click.click(fn=change_effect_preset_choices, inputs=[], outputs=[presets_name])
     with gr.Row():
         load_click.click(
             fn=audio_effect_load_presets,

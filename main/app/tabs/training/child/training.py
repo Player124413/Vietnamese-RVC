@@ -68,10 +68,17 @@ def training_model_tab():
                     with gr.Row():
                         index_algorithm = gr.Radio(label=translations["index_algorithm"], info=translations["index_algorithm_info"], choices=["Auto", "Faiss", "KMeans"], value="Auto", interactive=True)
                     with gr.Row():
-                        custom_dataset = gr.Checkbox(label=translations["custom_dataset"], info=translations["custom_dataset_info"], value=False, interactive=True)
-                        overtraining_detector = gr.Checkbox(label=translations["overtraining_detector"], info=translations["overtraining_detector_info"], value=False, interactive=True)
-                        clean_up = gr.Checkbox(label=translations["cleanup_training"], info=translations["cleanup_training_info"], value=False, interactive=True)
                         cache_in_gpu = gr.Checkbox(label=translations["cache_in_gpu"], info=translations["cache_in_gpu_info"], value=True, interactive=True)
+                        rms_extract = gr.Checkbox(label=translations["train&energy"], info=translations["train&energy_info"], value=False, interactive=True)
+                        overtraining_detector = gr.Checkbox(label=translations["overtraining_detector"], info=translations["overtraining_detector_info"], value=False, interactive=True)
+                    with gr.Row():
+                        custom_dataset = gr.Checkbox(label=translations["custom_dataset"], info=translations["custom_dataset_info"], value=False, interactive=True)
+                        save_only_latest = gr.Checkbox(label=translations["save_only_latest"], info=translations["save_only_latest_info"], value=True, interactive=True)
+                        save_every_weights = gr.Checkbox(label=translations["save_every_weights"], info=translations["save_every_weights_info"], value=True, interactive=True)
+                    with gr.Row():
+                        clean_up = gr.Checkbox(label=translations["cleanup_training"], info=translations["cleanup_training_info"], value=False, interactive=True)
+                        not_use_pretrain = gr.Checkbox(label=translations["not_use_pretrain_2"], info=translations["not_use_pretrain_info"], value=False, interactive=True)
+                        custom_pretrain = gr.Checkbox(label=translations["custom_pretrain"], info=translations["custom_pretrain_info"], value=False, interactive=True)
                     with gr.Column():
                         dataset_path = gr.Textbox(label=translations["dataset_folder"], value="dataset", interactive=True, visible=custom_dataset.value)
                     with gr.Column():
@@ -80,13 +87,8 @@ def training_model_tab():
                             with gr.Column():
                                 gpu_number = gr.Textbox(label=translations["gpu_number"], value=gpu_number_str(), info=translations["gpu_number_info"], interactive=True)
                                 gpu_info = gr.Textbox(label=translations["gpu_info"], value=get_gpu_info(), info=translations["gpu_info_2"], interactive=False)
-                                cpu_core = gr.Slider(label=translations["cpu_core"], info=translations["cpu_core_info"], minimum=0, maximum=os.cpu_count(), value=os.cpu_count(), step=1, interactive=True)          
+                                cpu_core = gr.Slider(label=translations["cpu_core"], info=translations["cpu_core_info"], minimum=1, maximum=os.cpu_count(), value=os.cpu_count(), step=1, interactive=True)          
                                 train_batch_size = gr.Slider(label=translations["batch_size"], info=translations["batch_size_info"], minimum=1, maximum=64, value=8, step=1, interactive=True)
-                    with gr.Row():
-                        save_only_latest = gr.Checkbox(label=translations["save_only_latest"], info=translations["save_only_latest_info"], value=True, interactive=True)
-                        save_every_weights = gr.Checkbox(label=translations["save_every_weights"], info=translations["save_every_weights_info"], value=True, interactive=True)
-                        not_use_pretrain = gr.Checkbox(label=translations["not_use_pretrain_2"], info=translations["not_use_pretrain_info"], value=False, interactive=True)
-                        custom_pretrain = gr.Checkbox(label=translations["custom_pretrain"], info=translations["custom_pretrain_info"], value=False, interactive=True)
                     with gr.Row():
                         vocoders = gr.Radio(label=translations["vocoder"], info=translations["vocoder_info"], choices=["Default", "MRF-HiFi-GAN", "RefineGAN"], value="Default", interactive=True) 
                     with gr.Row():
@@ -101,7 +103,7 @@ def training_model_tab():
                             with gr.Accordion(translations["custom_pretrain_info"], open=False, visible=custom_pretrain.value and not not_use_pretrain.value) as pretrain_setting:
                                 pretrained_D = gr.Dropdown(label=translations["pretrain_file"].format(dg="D"), choices=pretrainedD, value=pretrainedD[0] if len(pretrainedD) > 0 else '', interactive=True, allow_custom_value=True)
                                 pretrained_G = gr.Dropdown(label=translations["pretrain_file"].format(dg="G"), choices=pretrainedG, value=pretrainedG[0] if len(pretrainedG) > 0 else '', interactive=True, allow_custom_value=True)
-                                refesh_pretrain = gr.Button(translations["refesh"], scale=2)
+                                refresh_pretrain = gr.Button(translations["refresh"], scale=2)
             with gr.Row():
                 training_info = gr.Textbox(label=translations["train_info"], value="", interactive=False)
             with gr.Row():
@@ -111,7 +113,7 @@ def training_model_tab():
                             model_file= gr.Dropdown(label=translations["model_name"], choices=model_name, value=model_name[0] if len(model_name) >= 1 else "", interactive=True, allow_custom_value=True)
                             index_file = gr.Dropdown(label=translations["index_path"], choices=index_path, value=index_path[0] if len(index_path) >= 1 else "", interactive=True, allow_custom_value=True)
                         with gr.Row():
-                            refesh_file = gr.Button(f"1. {translations['refesh']}", scale=2)
+                            refresh_file = gr.Button(f"1. {translations['refresh']}", scale=2)
                             zip_model = gr.Button(translations["zip_model"], variant="primary", scale=2)
                         with gr.Row():
                             zip_output = gr.File(label=translations["output_zip"], file_types=[".zip"], interactive=False, visible=False)
@@ -120,7 +122,7 @@ def training_model_tab():
         training_f0.change(fn=vocoders_lock, inputs=[training_f0, vocoders], outputs=[vocoders])
         unlock_full_method4.change(fn=unlock_f0, inputs=[unlock_full_method4], outputs=[extract_method])
     with gr.Row():
-        refesh_file.click(fn=change_models_choices, inputs=[], outputs=[model_file, index_file]) 
+        refresh_file.click(fn=change_models_choices, inputs=[], outputs=[model_file, index_file]) 
         zip_model.click(fn=zip_file, inputs=[training_name, model_file, index_file], outputs=[zip_output])                
         dataset_path.change(fn=lambda folder: os.makedirs(folder, exist_ok=True), inputs=[dataset_path], outputs=[])
     with gr.Row():
@@ -145,7 +147,7 @@ def training_model_tab():
     with gr.Row():
         not_use_pretrain.change(fn=lambda a, b: visible(a and not b), inputs=[custom_pretrain, not_use_pretrain], outputs=[pretrain_setting])
         custom_pretrain.change(fn=lambda a, b: visible(a and not b), inputs=[custom_pretrain, not_use_pretrain], outputs=[pretrain_setting])
-        refesh_pretrain.click(fn=change_pretrained_choices, inputs=[], outputs=[pretrained_D, pretrained_G])
+        refresh_pretrain.click(fn=change_pretrained_choices, inputs=[], outputs=[pretrained_D, pretrained_G])
     with gr.Row():
         preprocess_button.click(
             fn=preprocess,
@@ -183,7 +185,8 @@ def training_model_tab():
                 embed_mode2,
                 autotune,
                 f0_autotune_strength,
-                extract_hybrid_method
+                extract_hybrid_method,
+                rms_extract
             ],
             outputs=[extract_info],
             api_name="extract"
@@ -226,7 +229,8 @@ def training_model_tab():
                 checkpointing1,
                 deterministic, 
                 benchmark,
-                optimizer
+                optimizer,
+                rms_extract
             ],
             outputs=[training_info],
             api_name="training_model"

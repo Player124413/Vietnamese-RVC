@@ -46,7 +46,7 @@ def convert_tab():
                     model_pth = gr.Dropdown(label=translations["model_name"], choices=model_name, value=model_name[0] if len(model_name) >= 1 else "", interactive=True, allow_custom_value=True)
                     model_index = gr.Dropdown(label=translations["index_path"], choices=index_path, value=index_path[0] if len(index_path) >= 1 else "", interactive=True, allow_custom_value=True)
                 with gr.Row():
-                    refesh = gr.Button(translations["refesh"])
+                    refresh = gr.Button(translations["refresh"])
                 with gr.Row():
                     index_strength = gr.Slider(label=translations["index_strength"], info=translations["index_strength_info"], minimum=0, maximum=1, value=0.5, step=0.01, interactive=True, visible=model_index.value != "")
             with gr.Accordion(translations["input_output"], open=False):
@@ -55,7 +55,7 @@ def convert_tab():
                     input_audio0 = gr.Dropdown(label=translations["audio_path"], value="", choices=paths_for_files, info=translations["provide_audio"], allow_custom_value=True, interactive=True)
                     output_audio = gr.Textbox(label=translations["output_path"], value="audios/output.wav", placeholder="audios/output.wav", info=translations["output_path_info"], interactive=True)
                 with gr.Column():
-                    refesh0 = gr.Button(translations["refesh"])
+                    refresh0 = gr.Button(translations["refresh"])
             with gr.Accordion(translations["setting"], open=False):
                 with gr.Accordion(translations["f0_method"], open=False):
                     with gr.Group():
@@ -68,7 +68,7 @@ def convert_tab():
                 with gr.Accordion(translations["f0_file"], open=False):
                     upload_f0_file = gr.File(label=translations["upload_f0"], file_types=[".txt"])  
                     f0_file_dropdown = gr.Dropdown(label=translations["f0_file_2"], value="", choices=f0_file, allow_custom_value=True, interactive=True)
-                    refesh_f0_file = gr.Button(translations["refesh"])
+                    refresh_f0_file = gr.Button(translations["refresh"])
                 with gr.Accordion(translations["hubert_model"], open=False):
                     embed_mode = gr.Radio(label=translations["embed_mode"], info=translations["embed_mode_info"], value="fairseq", choices=embedders_mode, interactive=True, visible=True)
                     embedders = gr.Radio(label=translations["hubert_model"], info=translations["hubert_info"], choices=embedders_model, value="hubert_base", interactive=True)
@@ -78,7 +78,7 @@ def convert_tab():
                         presets_name = gr.Dropdown(label=translations["file_preset"], choices=presets_file, value=presets_file[0] if len(presets_file) > 0 else '', interactive=True, allow_custom_value=True)
                     with gr.Row():
                         load_click = gr.Button(translations["load_file"], variant="primary")
-                        refesh_click = gr.Button(translations["refesh"])
+                        refresh_click = gr.Button(translations["refresh"])
                     with gr.Accordion(translations["export_file"], open=False):
                         with gr.Row():
                             with gr.Column():
@@ -125,7 +125,7 @@ def convert_tab():
         vocal_instrument = gr.Audio(show_download_button=True, interactive=False, label=translations["voice_or_instruments"], visible=merge_instrument.value)  
     with gr.Row():
         upload_f0_file.upload(fn=lambda inp: shutil_move(inp.name, configs["f0_path"]), inputs=[upload_f0_file], outputs=[f0_file_dropdown])
-        refesh_f0_file.click(fn=change_f0_choices, inputs=[], outputs=[f0_file_dropdown])
+        refresh_f0_file.click(fn=change_f0_choices, inputs=[], outputs=[f0_file_dropdown])
         unlock_full_method.change(fn=unlock_f0, inputs=[unlock_full_method], outputs=[method])
     with gr.Row():
         load_click.click(
@@ -163,7 +163,7 @@ def convert_tab():
                 formant_timbre
             ]
         )
-        refesh_click.click(fn=change_preset_choices, inputs=[], outputs=[presets_name])
+        refresh_click.click(fn=change_preset_choices, inputs=[], outputs=[presets_name])
         save_file_button.click(
             fn=save_presets, 
             inputs=[
@@ -209,7 +209,7 @@ def convert_tab():
         method.change(fn=lambda method, hybrid: [visible(method == "hybrid"), hoplength_show(method, hybrid)], inputs=[method, hybrid_method], outputs=[hybrid_method, hop_length])
     with gr.Row():
         hybrid_method.change(fn=hoplength_show, inputs=[method, hybrid_method], outputs=[hop_length])
-        refesh.click(fn=change_models_choices, inputs=[], outputs=[model_pth, model_index])
+        refresh.click(fn=change_models_choices, inputs=[], outputs=[model_pth, model_index])
         model_pth.change(fn=get_index, inputs=[model_pth], outputs=[model_index])
     with gr.Row():
         input0.upload(fn=lambda audio_in: shutil_move(audio_in.name, configs["audios_path"]), inputs=[input0], outputs=[input_audio0])
@@ -217,7 +217,7 @@ def convert_tab():
         formant_shifting.change(fn=lambda a: [visible(a)]*2, inputs=[formant_shifting], outputs=[formant_qfrency, formant_timbre])
     with gr.Row():
         embedders.change(fn=lambda embedders: visible(embedders == "custom"), inputs=[embedders], outputs=[custom_embedders])
-        refesh0.click(fn=change_audios_choices, inputs=[input_audio0], outputs=[input_audio0])
+        refresh0.click(fn=change_audios_choices, inputs=[input_audio0], outputs=[input_audio0])
         model_index.change(fn=index_strength_show, inputs=[model_index], outputs=[index_strength])
     with gr.Row():
         audio_select.change(fn=lambda: visible(True), inputs=[], outputs=[convert_button_2])

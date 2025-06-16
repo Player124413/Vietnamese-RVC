@@ -35,7 +35,7 @@ def audio_editing_tab():
                     input_audiopath = gr.Dropdown(label=translations["audio_path"], value="", choices=paths_for_files, info=translations["provide_audio"], allow_custom_value=True, interactive=True)
                     output_audiopath = gr.Textbox(label=translations["output_path"], value="audios/output.wav", placeholder="audios/output.wav", info=translations["output_path_info"], interactive=True)
                 with gr.Column():
-                    refesh_audio = gr.Button(translations["refesh"])
+                    refresh_audio = gr.Button(translations["refresh"])
             with gr.Accordion(translations["setting"], open=False):
                 audioldm2_model = gr.Radio(label=translations["audioldm2_model"], info=translations["audioldm2_model_info"], choices=["audioldm2", "audioldm2-large", "audioldm2-music"], value="audioldm2-music", interactive=True)
                 with gr.Row():
@@ -60,7 +60,7 @@ def audio_editing_tab():
         translate_button2.click(fn=google_translate, inputs=[tar_prompt, source_lang2, target_lang2], outputs=[tar_prompt], api_name="google_translate2")
         translate_button3.click(fn=google_translate, inputs=[src_prompt, source_lang2, target_lang2], outputs=[src_prompt], api_name="google_translate3")
     with gr.Row():
-        refesh_audio.click(fn=change_audios_choices, inputs=[input_audiopath], outputs=[input_audiopath])
+        refresh_audio.click(fn=change_audios_choices, inputs=[input_audiopath], outputs=[input_audiopath])
         drop_audio_file.upload(fn=lambda audio_in: shutil_move(audio_in.name, configs["audios_path"]), inputs=[drop_audio_file], outputs=[input_audiopath])
         input_audiopath.change(fn=lambda audio: audio if os.path.isfile(audio) else None, inputs=[input_audiopath], outputs=[display_audio])
     with gr.Row():

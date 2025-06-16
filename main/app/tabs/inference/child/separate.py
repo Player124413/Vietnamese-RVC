@@ -55,7 +55,7 @@ def separate_tab():
             with gr.Accordion(translations["input_output"], open=False):
                 format = gr.Radio(label=translations["export_format"], info=translations["export_info"], choices=["wav", "mp3", "flac", "ogg", "opus", "m4a", "mp4", "aac", "alac", "wma", "aiff", "webm", "ac3"], value="wav", interactive=True)
                 input_audio = gr.Dropdown(label=translations["audio_path"], value="", choices=paths_for_files, allow_custom_value=True, interactive=True)
-                refesh_separator = gr.Button(translations["refesh"])
+                refresh_separator = gr.Button(translations["refresh"])
                 output_separator = gr.Textbox(label=translations["output_folder"], value="audios", placeholder="audios", info=translations["output_folder_info"], interactive=True)
             audio_input = gr.Audio(show_download_button=True, interactive=False, label=translations["input_audio"])
     with gr.Row():
@@ -74,7 +74,7 @@ def separate_tab():
         cleaner.change(fn=visible, inputs=[cleaner], outputs=[clean_strength])
     with gr.Row():
         input.upload(fn=lambda audio_in: shutil_move(audio_in.name, configs["audios_path"]), inputs=[input], outputs=[input_audio])
-        refesh_separator.click(fn=change_audios_choices, inputs=[input_audio], outputs=[input_audio])
+        refresh_separator.click(fn=change_audios_choices, inputs=[input_audio], outputs=[input_audio])
     with gr.Row():
         download_button.click(
             fn=download_url, 

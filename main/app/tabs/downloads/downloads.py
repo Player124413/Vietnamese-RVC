@@ -44,8 +44,8 @@ def download_tab():
                     gr.Markdown("___")
                 with gr.Column():
                     with gr.Row():
-                        pretrainD = gr.Textbox(label=translations["pretrained_url"].format(dg="D"), value="", info=translations["only_huggingface"], placeholder="https://...", interactive=True, scale=4)
-                        pretrainG = gr.Textbox(label=translations["pretrained_url"].format(dg="G"), value="", info=translations["only_huggingface"], placeholder="https://...", interactive=True, scale=4)
+                        pretrainD = gr.Textbox(label=translations["pretrained_url"].format(dg="D"), value="", placeholder="https://...", interactive=True, scale=4)
+                        pretrainG = gr.Textbox(label=translations["pretrained_url"].format(dg="G"), value="", placeholder="https://...", interactive=True, scale=4)
                     download_pretrain_button = gr.Button(translations["downloads"], scale=2)
                 with gr.Column():
                     with gr.Row():
@@ -92,7 +92,7 @@ def download_tab():
                     pretrainD, 
                     pretrainG
                 ],
-                outputs=[pretrainD],
+                outputs=[pretrainD, pretrainG],
                 api_name="download_pretrain_link"
             )
             download_pretrain_choices_button.click(

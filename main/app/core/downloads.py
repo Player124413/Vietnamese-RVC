@@ -12,7 +12,7 @@ from bs4 import BeautifulSoup
 
 sys.path.append(os.getcwd())
 
-from main.tools import huggingface
+from main.tools import huggingface, gdown, meganz, mediafire, pixeldrain
 from main.app.core.ui import gr_info, gr_warning, gr_error, process_output
 from main.app.variables import logger, translations, model_options, configs
 from main.app.core.process import move_files_from_directory, fetch_pretrained_data
@@ -75,8 +75,6 @@ def download_model(url=None, model=None):
             if "drive.google.com" in url or "drive.usercontent.google.com" in url:
                 file_id = None
 
-                from main.tools import gdown
-
                 if "/file/d/" in url: file_id = url.split("/d/")[1].split("/")[0]
                 elif "open?id=" in url: file_id = url.split("open?id=")[1].split("/")[0]
                 elif "/download?id=" in url: file_id = url.split("/download?id=")[1].split("&")[0]
@@ -87,8 +85,6 @@ def download_model(url=None, model=None):
 
                     move_files_from_directory(download_dir, weights_dir, logs_dir, model)
             elif "mega.nz" in url:
-                from main.tools import meganz
-                
                 meganz.mega_download_url(url, download_dir)
 
                 file_download = next((f for f in os.listdir(download_dir)), None)
@@ -96,15 +92,11 @@ def download_model(url=None, model=None):
 
                 move_files_from_directory(download_dir, weights_dir, logs_dir, model)
             elif "mediafire.com" in url:
-                from main.tools import mediafire
-
                 file = mediafire.Mediafire_Download(url, download_dir)
                 if file.endswith(".zip"): shutil.unpack_archive(file, download_dir)
 
                 move_files_from_directory(download_dir, weights_dir, logs_dir, model)
             elif "pixeldrain.com" in url:
-                from main.tools import pixeldrain
-
                 file = pixeldrain.pixeldrain(url, download_dir)
                 if file.endswith(".zip"): shutil.unpack_archive(file, download_dir)
 
@@ -123,6 +115,7 @@ def download_model(url=None, model=None):
         
 def download_pretrained_model(choices, model, sample_rate):
     pretraineds_custom_path = configs["pretrained_custom_path"]
+
     if choices == translations["list_model"]:
         paths = fetch_pretrained_data()[model][sample_rate]
 
@@ -137,18 +130,34 @@ def download_pretrained_model(choices, model, sample_rate):
             os.remove(file)
 
         gr_info(translations["success"])
-        return translations["success"]
+        return translations["success"], None
     elif choices == translations["download_url"]:
         if not model: return gr_warning(translations["provide_pretrain"].format(dg="D"))
         if not sample_rate: return gr_warning(translations["provide_pretrain"].format(dg="G"))
 
         gr_info(translations["download_pretrain"])
 
-        huggingface.HF_download_file(model.replace("/blob/", "/resolve/").replace("?download=true", "").strip(), pretraineds_custom_path)
-        huggingface.HF_download_file(sample_rate.replace("/blob/", "/resolve/").replace("?download=true", "").strip(), pretraineds_custom_path)
+        for url in [model, sample_rate]:
+            url = url.replace("/blob/", "/resolve/").replace("?download=true", "").strip()
+        
+            if url.endswith(".pth"): huggingface.HF_download_file(url, pretraineds_custom_path)
+            elif "drive.google.com" in url or "drive.usercontent.google.com" in url:
+                file_id = None
+
+                if "/file/d/" in url: file_id = url.split("/d/")[1].split("/")[0]
+                elif "open?id=" in url: file_id = url.split("open?id=")[1].split("/")[0]
+                elif "/download?id=" in url: file_id = url.split("/download?id=")[1].split("&")[0]
+                
+                if file_id: gdown.gdown_download(id=file_id, output=pretraineds_custom_path)
+            elif "mega.nz" in url: meganz.mega_download_url(url, pretraineds_custom_path)
+            elif "mediafire.com" in url: mediafire.Mediafire_Download(url, pretraineds_custom_path)
+            elif "pixeldrain.com" in url: pixeldrain.pixeldrain(url, pretraineds_custom_path)
+            else:
+                gr_warning(translations["not_support_url"])
+                return translations["not_support_url"], translations["not_support_url"]
 
         gr_info(translations["success"])
-        return translations["success"]
+        return translations["success"], translations["success"]
 
 def fetch_models_data(search):
     all_table_data = [] 

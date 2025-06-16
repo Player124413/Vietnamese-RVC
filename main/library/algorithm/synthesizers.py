@@ -13,7 +13,7 @@ from main.library.algorithm.encoders import TextEncoder, PosteriorEncoder
 from main.library.algorithm.commons import slice_segments, rand_slice_segments
 
 class Synthesizer(torch.nn.Module):
-    def __init__(self, spec_channels, segment_size, inter_channels, hidden_channels, filter_channels, n_heads, n_layers, kernel_size, p_dropout, resblock, resblock_kernel_sizes, resblock_dilation_sizes, upsample_rates, upsample_initial_channel, upsample_kernel_sizes, spk_embed_dim, gin_channels, sr, use_f0, text_enc_hidden_dim=768, vocoder="Default", checkpointing=False, onnx=False, **kwargs):
+    def __init__(self, spec_channels, segment_size, inter_channels, hidden_channels, filter_channels, n_heads, n_layers, kernel_size, p_dropout, resblock, resblock_kernel_sizes, resblock_dilation_sizes, upsample_rates, upsample_initial_channel, upsample_kernel_sizes, spk_embed_dim, gin_channels, sr, use_f0, text_enc_hidden_dim=768, vocoder="Default", checkpointing=False, onnx=False, energy=False, **kwargs):
         super(Synthesizer, self).__init__()
         self.spec_channels = spec_channels
         self.inter_channels = inter_channels
@@ -32,7 +32,7 @@ class Synthesizer(torch.nn.Module):
         self.gin_channels = gin_channels
         self.spk_embed_dim = spk_embed_dim
         self.use_f0 = use_f0
-        self.enc_p = TextEncoder(inter_channels, hidden_channels, filter_channels, n_heads, n_layers, kernel_size, float(p_dropout), text_enc_hidden_dim, f0=use_f0, onnx=onnx)
+        self.enc_p = TextEncoder(inter_channels, hidden_channels, filter_channels, n_heads, n_layers, kernel_size, float(p_dropout), text_enc_hidden_dim, f0=use_f0, energy=energy, onnx=onnx)
 
         if use_f0:
             if vocoder == "RefineGAN": self.dec = RefineGANGenerator(sample_rate=sr, upsample_rates=upsample_rates, num_mels=inter_channels, checkpointing=checkpointing)
@@ -50,9 +50,9 @@ class Synthesizer(torch.nn.Module):
         self.enc_q.remove_weight_norm()
 
     @torch.jit.ignore
-    def forward(self, phone, phone_lengths, pitch = None, pitchf = None, y = None, y_lengths = None, ds = None):
+    def forward(self, phone, phone_lengths, pitch = None, pitchf = None, y = None, y_lengths = None, ds = None, energy = None):
         g = self.emb_g(ds).unsqueeze(-1)
-        m_p, logs_p, x_mask = self.enc_p(phone, pitch, phone_lengths)
+        m_p, logs_p, x_mask = self.enc_p(phone, pitch, phone_lengths, energy)
 
         if y is not None:
             z, m_q, logs_q, y_mask = self.enc_q(y, y_lengths, g=g)
@@ -62,9 +62,9 @@ class Synthesizer(torch.nn.Module):
         else: return None, None, x_mask, None, (None, None, m_p, logs_p, None, None)
 
     @torch.jit.export
-    def infer(self, phone, phone_lengths, pitch = None, nsff0 = None, sid = None, rate = None):
+    def infer(self, phone, phone_lengths, pitch = None, nsff0 = None, sid = None, energy = None, rate = None):
         g = self.emb_g(sid).unsqueeze(-1)
-        m_p, logs_p, x_mask = self.enc_p(phone, pitch, phone_lengths)
+        m_p, logs_p, x_mask = self.enc_p(phone, pitch, phone_lengths, energy)
         z_p = (m_p + torch.exp(logs_p) * torch.randn_like(m_p) * 0.66666) * x_mask
 
         if rate is not None:
@@ -84,8 +84,8 @@ class Synthesizer(torch.nn.Module):
         return o, x_mask, (z, z_p, m_p, logs_p)
     
 class SynthesizerONNX(Synthesizer):
-    def __init__(self, spec_channels, segment_size, inter_channels, hidden_channels, filter_channels, n_heads, n_layers, kernel_size, p_dropout, resblock, resblock_kernel_sizes, resblock_dilation_sizes, upsample_rates, upsample_initial_channel, upsample_kernel_sizes, spk_embed_dim, gin_channels, sr, use_f0, text_enc_hidden_dim=768, vocoder="Default", checkpointing=False, **kwargs):
-        super().__init__(spec_channels, segment_size, inter_channels, hidden_channels, filter_channels, n_heads, n_layers, kernel_size, p_dropout, resblock, resblock_kernel_sizes, resblock_dilation_sizes, upsample_rates, upsample_initial_channel, upsample_kernel_sizes, spk_embed_dim, gin_channels, sr, use_f0, text_enc_hidden_dim, vocoder, checkpointing, True)
+    def __init__(self, spec_channels, segment_size, inter_channels, hidden_channels, filter_channels, n_heads, n_layers, kernel_size, p_dropout, resblock, resblock_kernel_sizes, resblock_dilation_sizes, upsample_rates, upsample_initial_channel, upsample_kernel_sizes, spk_embed_dim, gin_channels, sr, use_f0, text_enc_hidden_dim=768, vocoder="Default", checkpointing=False, energy=False, **kwargs):
+        super().__init__(spec_channels, segment_size, inter_channels, hidden_channels, filter_channels, n_heads, n_layers, kernel_size, p_dropout, resblock, resblock_kernel_sizes, resblock_dilation_sizes, upsample_rates, upsample_initial_channel, upsample_kernel_sizes, spk_embed_dim, gin_channels, sr, use_f0, text_enc_hidden_dim, vocoder, checkpointing, True, energy)
         self.speaker_map = None
 
     def remove_weight_norm(self):
@@ -101,9 +101,9 @@ class SynthesizerONNX(Synthesizer):
 
         self.speaker_map = self.speaker_map.unsqueeze(0)
 
-    def forward(self, phone, phone_lengths, g=None, rnd=None, pitch=None, nsff0=None, max_len=None):
+    def forward(self, phone, phone_lengths, g=None, rnd=None, pitch=None, nsff0=None, energy=None, max_len=None):
         g = self.emb_g(g).unsqueeze(-1)
-        m_p, logs_p, x_mask = self.enc_p(phone, pitch, phone_lengths)
+        m_p, logs_p, x_mask = self.enc_p(phone, pitch, phone_lengths, energy)
         z_p = (m_p + torch.exp(logs_p) * rnd) * x_mask
 
         return self.dec((self.flow(z_p, x_mask, g=g, reverse=True) * x_mask)[:, :, :max_len], nsff0, g=g) if self.use_f0 else self.dec((self.flow(z_p, x_mask, g=g, reverse=True) * x_mask)[:, :, :max_len], g=g)

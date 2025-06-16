@@ -31,6 +31,8 @@ class Config:
         self.is_half = self.is_fp16()
         self.x_pad, self.x_query, self.x_center, self.x_max = self.device_config()
         self.debug_mode = self.configs.get("debug_mode", False)
+        self.cpu_mode = self.configs.get("cpu_mode", False)
+        if self.cpu_mode: self.device = "cpu"
     
     def multi_language(self):
         try:
@@ -78,10 +80,11 @@ class Config:
         return configs
 
     def device_config(self):
-        if self.device.startswith("cuda"): self.set_cuda_config()
-        elif torch_amd.is_available(): self.device = "ocl:0"
-        elif self.has_mps(): self.device = "mps"
-        else: self.device = "cpu"
+        if not self.cpu_mode:
+            if self.device.startswith("cuda"): self.set_cuda_config()
+            elif torch_amd.is_available(): self.device = "ocl:0"
+            elif self.has_mps(): self.device = "mps"
+            else: self.device = "cpu"
 
         if self.gpu_mem is not None and self.gpu_mem <= 4: 
             self.preprocess_per = 3.0

@@ -556,7 +556,7 @@
     "separate_path": "main/inference/separator_music.py",
     "create_dataset_path": "main/inference/create_dataset.py",
     "preprocess_path": "main/inference/preprocess/preprocess.py",
-    "extract_path": "main/inference/extract.py",
+    "extract_path": "main/inference/extracting/extract.py",
     "create_index_path": "main/inference/create_index.py",
     "train_path": "main/inference/training/train.py",
     "ico_path": "assets/ico.png",
@@ -579,5 +579,8 @@
     "demucs_segments_enable": true,
     "demucs_cpu_mode": false,
     "limit_f0": 8,
-    "debug_mode": false
+    "debug_mode": false,
+    "pretrain_verify_shape": true,
+    "pretrain_strict": true,
+    "cpu_mode": false
 }

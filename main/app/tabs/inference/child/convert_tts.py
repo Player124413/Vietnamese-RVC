@@ -44,7 +44,7 @@ def convert_tts_tab():
                     model_pth0 = gr.Dropdown(label=translations["model_name"], choices=model_name, value=model_name[0] if len(model_name) >= 1 else "", interactive=True, allow_custom_value=True)
                     model_index0 = gr.Dropdown(label=translations["index_path"], choices=index_path, value=index_path[0] if len(index_path) >= 1 else "", interactive=True, allow_custom_value=True)
                 with gr.Row():
-                    refesh1 = gr.Button(translations["refesh"])
+                    refresh1 = gr.Button(translations["refresh"])
                 with gr.Row():
                     index_strength0 = gr.Slider(label=translations["index_strength"], info=translations["index_strength_info"], minimum=0, maximum=1, value=0.5, step=0.01, interactive=True, visible=model_index0.value != "")
             with gr.Accordion(translations["output_path"], open=False):
@@ -63,7 +63,7 @@ def convert_tts_tab():
                 with gr.Accordion(translations["f0_file"], open=False):
                     upload_f0_file0 = gr.File(label=translations["upload_f0"], file_types=[".txt"])  
                     f0_file_dropdown0 = gr.Dropdown(label=translations["f0_file_2"], value="", choices=f0_file, allow_custom_value=True, interactive=True)
-                    refesh_f0_file0 = gr.Button(translations["refesh"])
+                    refresh_f0_file0 = gr.Button(translations["refresh"])
                 with gr.Accordion(translations["hubert_model"], open=False):
                     embed_mode1 = gr.Radio(label=translations["embed_mode"], info=translations["embed_mode_info"], value="fairseq", choices=embedders_mode, interactive=True, visible=True)
                     embedders0 = gr.Radio(label=translations["hubert_model"], info=translations["hubert_info"], choices=embedders_model, value="hubert_base", interactive=True)
@@ -99,7 +99,7 @@ def convert_tts_tab():
     with gr.Row():
         unlock_full_method3.change(fn=unlock_f0, inputs=[unlock_full_method3], outputs=[method0])
         upload_f0_file0.upload(fn=lambda inp: shutil_move(inp.name, configs["f0_path"]), inputs=[upload_f0_file0], outputs=[f0_file_dropdown0])
-        refesh_f0_file0.click(fn=change_f0_choices, inputs=[], outputs=[f0_file_dropdown0])
+        refresh_f0_file0.click(fn=change_f0_choices, inputs=[], outputs=[f0_file_dropdown0])
     with gr.Row():
         embed_mode1.change(fn=visible_embedders, inputs=[embed_mode1], outputs=[embedders0])
         autotune3.change(fn=visible, inputs=[autotune3], outputs=[f0_autotune_strength0])
@@ -109,7 +109,7 @@ def convert_tts_tab():
         method0.change(fn=lambda method, hybrid: [visible(method == "hybrid"), hoplength_show(method, hybrid)], inputs=[method0, hybrid_method0], outputs=[hybrid_method0, hop_length0])
         hybrid_method0.change(fn=hoplength_show, inputs=[method0, hybrid_method0], outputs=[hop_length0])
     with gr.Row():
-        refesh1.click(fn=change_models_choices, inputs=[], outputs=[model_pth0, model_index0])
+        refresh1.click(fn=change_models_choices, inputs=[], outputs=[model_pth0, model_index0])
         embedders0.change(fn=lambda embedders: visible(embedders == "custom"), inputs=[embedders0], outputs=[custom_embedders0])
         formant_shifting1.change(fn=lambda a: [visible(a)]*2, inputs=[formant_shifting1], outputs=[formant_qfrency1, formant_timbre1])
     with gr.Row():

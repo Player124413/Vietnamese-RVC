@@ -64,7 +64,7 @@ def parse_arguments():
 
 def main():
     args = parse_arguments()
-    pitch, filter_radius, index_rate, volume_envelope, protect, hop_length, f0_method, input_path, output_path, pth_path, index_path, f0_autotune, f0_autotune_strength, clean_audio, clean_strength, export_format, embedder_model, resample_sr, split_audio, checkpointing, f0_file, f0_onnx, embedders_mode, formant_shifting, formant_qfrency, formant_timbre, proposal_pitch, proposal_pitch_threshold = args.pitch, args.filter_radius, args.index_rate, args.volume_envelope,args.protect, args.hop_length, args.f0_method, args.input_path, args.output_path, args.pth_path, args.index_path, args.f0_autotune, args.f0_autotune_strength, args.clean_audio, args.clean_strength, args.export_format, args.embedder_model, args.resample_sr, args.split_audio, args.checkpointing, args.f0_file, args.f0_onnx, args.embedders_mode, args.formant_shifting, args.formant_qfrency, args.formant_timbre, args.proposal_pitch
+    pitch, filter_radius, index_rate, volume_envelope, protect, hop_length, f0_method, input_path, output_path, pth_path, index_path, f0_autotune, f0_autotune_strength, clean_audio, clean_strength, export_format, embedder_model, resample_sr, split_audio, checkpointing, f0_file, f0_onnx, embedders_mode, formant_shifting, formant_qfrency, formant_timbre, proposal_pitch, proposal_pitch_threshold = args.pitch, args.filter_radius, args.index_rate, args.volume_envelope,args.protect, args.hop_length, args.f0_method, args.input_path, args.output_path, args.pth_path, args.index_path, args.f0_autotune, args.f0_autotune_strength, args.clean_audio, args.clean_strength, args.export_format, args.embedder_model, args.resample_sr, args.split_audio, args.checkpointing, args.f0_file, args.f0_onnx, args.embedders_mode, args.formant_shifting, args.formant_qfrency, args.formant_timbre, args.proposal_pitch, args.proposal_pitch_threshold
     
     run_convert_script(pitch=pitch, filter_radius=filter_radius, index_rate=index_rate, volume_envelope=volume_envelope, protect=protect, hop_length=hop_length, f0_method=f0_method, input_path=input_path, output_path=output_path, pth_path=pth_path, index_path=index_path, f0_autotune=f0_autotune, f0_autotune_strength=f0_autotune_strength, clean_audio=clean_audio, clean_strength=clean_strength, export_format=export_format, embedder_model=embedder_model, resample_sr=resample_sr, split_audio=split_audio, checkpointing=checkpointing, f0_file=f0_file, f0_onnx=f0_onnx, embedders_mode=embedders_mode, formant_shifting=formant_shifting, formant_qfrency=formant_qfrency, formant_timbre=formant_timbre, proposal_pitch=proposal_pitch, proposal_pitch_threshold=proposal_pitch_threshold)
 
@@ -155,7 +155,6 @@ class VoiceConverter:
                 audio_max = np.abs(audio).max() / 0.95
                 if audio_max > 1: audio /= audio_max
 
-                pbar.update(1)
                 if not self.hubert_model:
                     models, embed_suffix = load_embedders_model(embedder_model, embedders_mode, providers=get_providers())
                     self.hubert_model = (models.to(self.device).half() if self.config.is_half else models.to(self.device).float()).eval() if embed_suffix in [".pt", ".safetensors"] else models
@@ -169,7 +168,7 @@ class VoiceConverter:
                 else: chunks = [(audio, 0, 0)]
 
                 pbar.update(1)
-                converted_chunks = [(start, end, self.vc.pipeline(logger=logger, model=self.hubert_model, net_g=self.net_g, sid=self.sid, audio=waveform, f0_up_key=pitch, f0_method=f0_method, file_index=(index_path.strip().strip('"').strip("\n").strip('"').strip().replace("trained", "added")), index_rate=index_rate, pitch_guidance=self.use_f0, filter_radius=filter_radius, volume_envelope=volume_envelope, version=self.version, protect=protect, hop_length=hop_length, f0_autotune=f0_autotune, f0_autotune_strength=f0_autotune_strength, suffix=self.suffix, embed_suffix=self.embed_suffix, f0_file=f0_file, f0_onnx=f0_onnx, pbar=pbar, proposal_pitch=proposal_pitch, proposal_pitch_threshold=proposal_pitch_threshold)) for waveform, start, end in chunks]
+                converted_chunks = [(start, end, self.vc.pipeline(logger=logger, model=self.hubert_model, net_g=self.net_g, sid=self.sid, audio=waveform, f0_up_key=pitch, f0_method=f0_method, file_index=(index_path.strip().strip('"').strip("\n").strip('"').strip().replace("trained", "added")), index_rate=index_rate, pitch_guidance=self.use_f0, filter_radius=filter_radius, volume_envelope=volume_envelope, version=self.version, protect=protect, hop_length=hop_length, f0_autotune=f0_autotune, f0_autotune_strength=f0_autotune_strength, suffix=self.suffix, embed_suffix=self.embed_suffix, f0_file=f0_file, f0_onnx=f0_onnx, pbar=pbar, proposal_pitch=proposal_pitch, proposal_pitch_threshold=proposal_pitch_threshold, energy_use=self.energy)) for waveform, start, end in chunks]
 
                 pbar.update(1)
                 audio_output = restore(converted_chunks, total_len=len(audio), dtype=converted_chunks[0][2].dtype) if split_audio else converted_chunks[0][2]
@@ -223,12 +222,16 @@ class VoiceConverter:
             if self.loaded_model.endswith(".pth"):
                 self.tgt_sr = self.cpt["config"][-1]
                 self.cpt["config"][-3] = self.cpt["weight"]["emb_g.weight"].shape[0]
+
                 self.use_f0 = self.cpt.get("f0", 1)
                 self.version = self.cpt.get("version", "v1")
                 self.vocoder = self.cpt.get("vocoder", "Default")
+                self.energy = self.cpt.get("rms_extract", False)
+
                 if self.vocoder != "Default": self.config.is_half = False
-                self.net_g = Synthesizer(*self.cpt["config"], use_f0=self.use_f0, text_enc_hidden_dim=768 if self.version == "v2" else 256, vocoder=self.vocoder, checkpointing=self.checkpointing)
+                self.net_g = Synthesizer(*self.cpt["config"], use_f0=self.use_f0, text_enc_hidden_dim=768 if self.version == "v2" else 256, vocoder=self.vocoder, checkpointing=self.checkpointing, energy=self.energy)
                 del self.net_g.enc_q
+
                 self.net_g.load_state_dict(self.cpt["weight"], strict=False)
                 self.net_g.eval().to(self.device)
                 self.net_g = (self.net_g.half() if self.config.is_half else self.net_g.float())
@@ -245,6 +248,7 @@ class VoiceConverter:
                 self.tgt_sr = metadata_dict.get("sr", 32000)
                 self.use_f0 = metadata_dict.get("f0", 1)
                 self.version = metadata_dict.get("version", "v1")
+                self.energy = metadata_dict.get("rms_extract", False)
                 self.suffix = ".onnx"
 
             self.vc = Pipeline(self.tgt_sr, self.config)

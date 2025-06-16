@@ -27,7 +27,7 @@ def f0_extract_tab():
                     f0_method_extract = gr.Radio(label=translations["f0_method"], info=translations["f0_method_info"], choices=[m for m in method_f0 if m != "hybrid"], value="rmvpe", interactive=True)
             with gr.Accordion(translations["audio_path"], open=True):
                 input_audio_path = gr.Dropdown(label=translations["audio_path"], value="", choices=paths_for_files, allow_custom_value=True, interactive=True)
-                refesh_audio_button = gr.Button(translations["refesh"])
+                refresh_audio_button = gr.Button(translations["refresh"])
     with gr.Row():
         gr.Markdown("___")
     with gr.Row():
@@ -36,7 +36,7 @@ def f0_extract_tab():
     with gr.Row():
         upload_audio_file.upload(fn=lambda audio_in: shutil_move(audio_in.name, configs["audios_path"]), inputs=[upload_audio_file], outputs=[input_audio_path])
         input_audio_path.change(fn=lambda audio: audio if os.path.isfile(audio) else None, inputs=[input_audio_path], outputs=[audioplay])
-        refesh_audio_button.click(fn=change_audios_choices, inputs=[input_audio_path], outputs=[input_audio_path])
+        refresh_audio_button.click(fn=change_audios_choices, inputs=[input_audio_path], outputs=[input_audio_path])
     with gr.Row():
         unlock_full_method.change(fn=lambda method: [m for m in unlock_f0(method) if m != "hybrid"], inputs=[unlock_full_method], outputs=[f0_method_extract])
         extractor_button.click(

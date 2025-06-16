@@ -17,7 +17,7 @@ sys.path.append(os.getcwd())
 
 from main.tools import huggingface
 from main.library.architectures import fairseq
-from main.app.variables import translations, configs
+from main.app.variables import translations, configs, config
 
 for l in ["httpx", "httpcore"]:
     logging.getLogger(l).setLevel(logging.ERROR)
@@ -176,8 +176,12 @@ def restore(segments, total_len, dtype=np.float32):
 def get_providers():
     ort_providers = onnxruntime.get_available_providers()
 
-    if "CUDAExecutionProvider" in ort_providers: providers = ["CUDAExecutionProvider"]
-    elif "CoreMLExecutionProvider" in ort_providers: providers = ["CoreMLExecutionProvider"]
+    if "CUDAExecutionProvider" in ort_providers and config.device.startswith("cuda"): 
+        providers = ["CUDAExecutionProvider"]
+    elif "DmlExecutionProvider" in ort_providers and config.device.startswith("ocl"): 
+        providers = ["DmlExecutionProvider"]
+    elif "CoreMLExecutionProvider" in ort_providers and config.device.startswith("mps"): 
+        providers = ["CoreMLExecutionProvider"]
     else: providers = ["CPUExecutionProvider"]
 
     return providers

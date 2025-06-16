@@ -27,13 +27,13 @@ def quirk_tab():
                 quirk_input_path = gr.Dropdown(label=translations["audio_path"], value="", choices=paths_for_files, info=translations["provide_audio"], allow_custom_value=True, interactive=True)
                 quirk_output_path = gr.Textbox(label=translations["output_path"], value="audios/output.wav", placeholder="audios/output.wav", info=translations["output_path_info"], interactive=True)
             with gr.Column():
-                quirk_refesh = gr.Button(translations["refesh"])
+                quirk_refresh = gr.Button(translations["refresh"])
     with gr.Row():
         output_audio_play = gr.Audio(show_download_button=True, interactive=False, label=translations["output_audio"])
     with gr.Row():
         quirk_upload_audio.upload(fn=lambda audio_in: shutil_move(audio_in.name, configs["audios_path"]), inputs=[quirk_upload_audio], outputs=[quirk_input_path])
         quirk_input_path.change(fn=lambda audio: audio if audio else None, inputs=[quirk_input_path], outputs=[input_audio_play])
-        quirk_refesh.click(fn=change_audios_choices, inputs=[quirk_input_path], outputs=[quirk_input_path])
+        quirk_refresh.click(fn=change_audios_choices, inputs=[quirk_input_path], outputs=[quirk_input_path])
     with gr.Row():
         apply_quirk_button.click(
             fn=apply_voice_quirk,
