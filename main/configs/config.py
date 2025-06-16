@@ -29,10 +29,10 @@ class Config:
         self.gpu_mem = None
         self.per_preprocess = 3.7
         self.is_half = self.is_fp16()
-        self.x_pad, self.x_query, self.x_center, self.x_max = self.device_config()
-        self.debug_mode = self.configs.get("debug_mode", False)
         self.cpu_mode = self.configs.get("cpu_mode", False)
         if self.cpu_mode: self.device = "cpu"
+        self.x_pad, self.x_query, self.x_center, self.x_max = self.device_config()
+        self.debug_mode = self.configs.get("debug_mode", False)
     
     def multi_language(self):
         try:
