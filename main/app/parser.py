@@ -142,7 +142,11 @@ elif argv_is_allows[11] in argv:
             - `--f0_file` (mặc định: ``): Đường dẫn tệp F0 có sẵn.
             - `--f0_onnx` (mặc định: `False`): Có sử dụng phiên bản ONNX của F0 hay không.
             - `--proposal_pitch` (mặc định: `False`): Đề xuất cao độ thay vì điều chỉnh thủ công.
+<<<<<<< HEAD
             - `--proposal_pitch_threshold` (mặc định: `255.0`): Tần số ước tính cao độ.
+=======
+            - `--proposal_pitch_threshold` (mặc định: `255.0`): Tần số ước tính cao độ.
+>>>>>>> 0b6a2aee1f2d05e4ef92ec51c07043a99dd8eceb
 
         4. Mô hình nhúng:
             - `--embedder_model` (mặc định: `contentvec_base`): Mô hình nhúng sử dụng.
