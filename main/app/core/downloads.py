@@ -185,6 +185,7 @@ def fetch_models_data(search):
     return all_table_data
 
 def search_models(name):
+    if not name: return gr_warning(translations["provide_name"])
     gr_info(translations["start"].format(start=translations["search"]))
     tables = fetch_models_data(name)
 
