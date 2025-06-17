@@ -33,24 +33,6 @@ def audio_effects(input_path, output_path, resample, resample_sr, chorus_depth, 
     gr_info(translations["success"])
     return output_path.replace("wav", export_format)
 
-def run_audioldm2(input_path, output_path, export_format, sample_rate, audioldm_model, source_prompt, target_prompt, steps, cfg_scale_src, cfg_scale_tar, t_start, save_compute):
-    if not input_path or not os.path.exists(input_path) or os.path.isdir(input_path): 
-        gr_warning(translations["input_not_valid"])
-        return None
-        
-    if not output_path:
-        gr_warning(translations["output_not_valid"])
-        return None
-    
-    output_path = output_path.replace("wav", export_format)
-    output_path = process_output(output_path)
-
-    gr_info(translations["start_edit"].format(input_path=input_path))
-    subprocess.run([python, configs["audioldm2_path"], "--input_path", input_path, "--output_path", output_path, "--export_format", str(export_format), "--sample_rate", str(sample_rate), "--audioldm_model", audioldm_model, "--source_prompt", source_prompt, "--target_prompt", target_prompt, "--steps", str(steps), "--cfg_scale_src", str(cfg_scale_src), "--cfg_scale_tar", str(cfg_scale_tar), "--t_start", str(t_start), "--save_compute", str(save_compute)])
-    
-    gr_info(translations["success"])
-    return output_path
-
 def vibrato(y, sr, freq=5, depth=0.003):
     return y[np.clip((np.arange(len(y)) + (depth * np.sin(2 * np.pi * freq * (np.arange(len(y)) / sr))) * sr).astype(int), 0, len(y) - 1)]
 

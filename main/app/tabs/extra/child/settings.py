@@ -35,7 +35,6 @@ def settings_tab(app):
                 separate_stop = gr.Button(translations["stop_separate"])
                 convert_stop = gr.Button(translations["stop_convert"])
                 create_dataset_stop = gr.Button(translations["stop_create_dataset"])
-                audioldm2_stop = gr.Button(translations["stop_audioldm2"])
                 with gr.Accordion(translations["stop_training"], open=False):
                     model_name_stop = gr.Textbox(label=translations["modelname"], info=translations["training_model_name"], value="", placeholder=translations["modelname"], interactive=True)
                     preprocess_stop = gr.Button(translations["stop_preprocess"])
@@ -60,5 +59,3 @@ def settings_tab(app):
         preprocess_stop.click(fn=lambda model_name_stop: stop_pid("preprocess_pid", model_name_stop, False), inputs=[model_name_stop], outputs=[])
         extract_stop.click(fn=lambda model_name_stop: stop_pid("extract_pid", model_name_stop, False), inputs=[model_name_stop], outputs=[])
         train_stop.click(fn=lambda model_name_stop: stop_pid("train_pid", model_name_stop, True), inputs=[model_name_stop], outputs=[])
-    with gr.Row():
-        audioldm2_stop.click(fn=lambda: stop_pid("audioldm2_pid", None, False), inputs=[], outputs=[])

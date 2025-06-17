@@ -11,22 +11,21 @@ try:
 except IndexError:
     argv = None
 
-argv_is_allows = ["--audio_effects", "--audioldm2", "--convert", "--create_dataset", "--create_index", "--extract", "--preprocess", "--separator_music", "--train", "--help_audio_effects", "--help_audioldm2", "--help_convert", "--help_create_dataset", "--help_create_index", "--help_extract", "--help_preprocess", "--help_separator_music",  "--help_train", "--help"]
+argv_is_allows = ["--audio_effects", "--convert", "--create_dataset", "--create_index", "--extract", "--preprocess", "--separator_music", "--train", "--help_audio_effects", "--help_convert", "--help_create_dataset", "--help_create_index", "--help_extract", "--help_preprocess", "--help_separator_music",  "--help_train", "--help"]
 
 if argv not in argv_is_allows:
     print("Cú pháp không hợp lệ! Sử dụng --help để biết thêm")
     quit()
 
 if argv_is_allows[0] in argv: from main.inference.audio_effects import main
-elif argv_is_allows[1] in argv: from main.inference.audioldm2 import main
-elif argv_is_allows[2] in argv: from main.inference.conversion.convert import main
-elif argv_is_allows[3] in argv: from main.inference.create_dataset import main
-elif argv_is_allows[4] in argv: from main.inference.create_index import main
-elif argv_is_allows[5] in argv: from main.inference.extracting.extract import main
-elif argv_is_allows[6] in argv: from main.inference.preprocess.preprocess import main
-elif argv_is_allows[7] in argv: from main.inference.separator_music import main
-elif argv_is_allows[8] in argv: from main.inference.training.train import main
-elif argv_is_allows[9] in argv:
+elif argv_is_allows[1] in argv: from main.inference.conversion.convert import main
+elif argv_is_allows[2] in argv: from main.inference.create_dataset import main
+elif argv_is_allows[3] in argv: from main.inference.create_index import main
+elif argv_is_allows[4] in argv: from main.inference.extracting.extract import main
+elif argv_is_allows[5] in argv: from main.inference.preprocess.preprocess import main
+elif argv_is_allows[6] in argv: from main.inference.separator_music import main
+elif argv_is_allows[7] in argv: from main.inference.training.train import main
+elif argv_is_allows[8] in argv:
     print("""Các tham số của `--audio_effects`:
         1. Đường dẫn tệp:
             - `--input_path` (bắt buộc): Đường dẫn đến tệp âm thanh đầu vào.
@@ -96,34 +95,7 @@ elif argv_is_allows[9] in argv:
             - `--combination_volume`:: Âm lượng của âm thanh cần kết hợp.
     """)
     quit()
-elif argv_is_allows[10] in argv:
-    print("""Các tham số của --audioldm2:
-        1. Đường dẫn tệp:
-            - `--input_path` (bắt buộc): Đường dẫn đến tệp âm thanh đầu vào.
-            - `--output_path` (mặc định: `./output.wav`): Đường dẫn lưu tệp đầu ra.
-            - `--export_format` (mặc định: `wav`): Định dạng xuất tệp.
-
-        2. Cấu hình âm thanh:
-            - `--sample_rate` (mặc định: `44100`): Tần số lấy mẫu (Hz).
-
-        3. Cấu hình mô hình AudioLDM:
-            - `--audioldm_model` (mặc định: `audioldm2-music`): Chọn mô hình AudioLDM để xử lý.
-
-        4. Prompt hướng dẫn mô hình:
-            - `--source_prompt` (mặc định: ``): Mô tả âm thanh nguồn.
-            - `--target_prompt` (mặc định: ``): Mô tả âm thanh đích.
-
-        5. Cấu hình thuật toán xử lý:
-            - `--steps` (mặc định: `200`): Số bước xử lý trong quá trình tổng hợp âm thanh.
-            - `--cfg_scale_src` (mặc định: `3.5`): Hệ số điều chỉnh hướng dẫn cho âm thanh nguồn.
-            - `--cfg_scale_tar` (mặc định: `12`): Hệ số điều chỉnh hướng dẫn cho âm thanh đích.
-            - `--t_start` (mặc định: `45`): Mức độ chỉnh sửa.
-
-        6. Tối ưu hóa tính toán:
-            - `--save_compute` (mặc định: `False`): Có bật chế độ tối ưu tính toán hay không.
-    """)
-    quit()
-elif argv_is_allows[11] in argv:
+elif argv_is_allows[9] in argv:
     print("""Các tham số của --convert:
         1. Cấu hình xử lý giọng nói:
             - `--pitch` (mặc định: `0`): Điều chỉnh cao độ.
@@ -142,11 +114,7 @@ elif argv_is_allows[11] in argv:
             - `--f0_file` (mặc định: ``): Đường dẫn tệp F0 có sẵn.
             - `--f0_onnx` (mặc định: `False`): Có sử dụng phiên bản ONNX của F0 hay không.
             - `--proposal_pitch` (mặc định: `False`): Đề xuất cao độ thay vì điều chỉnh thủ công.
-<<<<<<< HEAD
             - `--proposal_pitch_threshold` (mặc định: `255.0`): Tần số ước tính cao độ.
-=======
-            - `--proposal_pitch_threshold` (mặc định: `255.0`): Tần số ước tính cao độ.
->>>>>>> 0b6a2aee1f2d05e4ef92ec51c07043a99dd8eceb
 
         4. Mô hình nhúng:
             - `--embedder_model` (mặc định: `contentvec_base`): Mô hình nhúng sử dụng.
@@ -176,7 +144,7 @@ elif argv_is_allows[11] in argv:
             - `--formant_timbre` (mặc định: `0.8`): Hệ số thay đổi màu sắc giọng.
     """)
     quit()
-elif argv_is_allows[12] in argv:
+elif argv_is_allows[10] in argv:
     print("""Các tham số của --create_dataset:
         1. Đường dẫn & cấu hình dataset:
             - `--input_audio` (bắt buộc): Đường dẫn liên kết đến âm thanh (Liên kết Youtube, có thể dùng dấu `,` để dùng nhiều liên kết).
@@ -206,7 +174,7 @@ elif argv_is_allows[12] in argv:
             - `--skip_end_audios` (mặc định: `0`): Thời gian (giây) cần bỏ qua ở cuối audio.
     """)
     quit()
-elif argv_is_allows[13] in argv:
+elif argv_is_allows[11] in argv:
     print("""Các tham số của --create_index:
         1. Thông tin mô hình:
             - `--model_name` (bắt buộc): Tên mô hình.
@@ -214,7 +182,7 @@ elif argv_is_allows[13] in argv:
             - `--index_algorithm` (mặc định: `Auto`): Thuật toán index sử dụng (`Auto`, `Faiss`, `KMeans`).
     """)
     quit()
-elif argv_is_allows[14] in argv:
+elif argv_is_allows[12] in argv:
     print("""Các tham số của --extract:
         1. Thông tin mô hình:
             - `--model_name` (bắt buộc): Tên mô hình.
@@ -241,7 +209,7 @@ elif argv_is_allows[14] in argv:
             - `--rms_extract` (mặc định: False): Trích xuất thêm năng lượng rms.
     """)
     quit()
-elif argv_is_allows[15] in argv:
+elif argv_is_allows[13] in argv:
     print("""Các tham số của --preprocess:
         1. Thông tin mô hình:
             - `--model_name` (bắt buộc): Tên mô hình.
@@ -258,7 +226,7 @@ elif argv_is_allows[15] in argv:
             - `--clean_strength` (mặc định: `0.7`): Độ mạnh của quá trình làm sạch dữ liệu.
     """)
     quit()
-elif argv_is_allows[16] in argv:
+elif argv_is_allows[14] in argv:
     print("""Các tham số của --separator_music:
         1. Đường dẫn dữ liệu:
             - `--input_path` (bắt buộc): Đường dẫn tệp âm thanh đầu vào.
@@ -290,7 +258,7 @@ elif argv_is_allows[16] in argv:
             - `--sample_rate` (mặc định: `44100`): Tần số lấy mẫu của âm thanh đầu ra.
     """)
     quit()
-elif argv_is_allows[17] in argv:
+elif argv_is_allows[15] in argv:
     print("""Các tham số của --train:
         1. Cấu hình mô hình:
             - `--model_name` (bắt buộc): Tên mô hình.
@@ -332,17 +300,16 @@ elif argv_is_allows[17] in argv:
             - `--optimizer` (mặc định: `AdamW`): Trình tối ưu hóa được sử dụng (`AdamW`, `RAdam`).
     """)
     quit()
-elif argv_is_allows[18] in argv:
+elif argv_is_allows[16] in argv:
     print("""Sử dụng:
         1. `--help_audio_effects`: Trợ giúp về phần thêm hiệu ứng âm thanh.
-        2. `--help_audioldm2`: Trợ giúp về phần chỉnh sửa nhạc.
-        3. `--help_convert`: Trợ giúp về chuyển đổi âm thanh.
-        4. `--help_create_dataset`: Trợ giúp về tạo dữ liệu huấn luyện.
-        5. `--help_create_index`: Trợ giúp về tạo chỉ mục.
-        6. `--help_extract`: Trợ giúp về trích xuất dữ liệu huấn luyện.
-        7. `--help_preprocess`: Trợ giúp về xử lý trước dữ liệu.
-        8. `--help_separator_music`: Trợ giúp về tách nhạc.
-        9. `--help_train`: Trợ giúp về huấn luyện mô hình.
+        2. `--help_convert`: Trợ giúp về chuyển đổi âm thanh.
+        3. `--help_create_dataset`: Trợ giúp về tạo dữ liệu huấn luyện.
+        4. `--help_create_index`: Trợ giúp về tạo chỉ mục.
+        5. `--help_extract`: Trợ giúp về trích xuất dữ liệu huấn luyện.
+        6. `--help_preprocess`: Trợ giúp về xử lý trước dữ liệu.
+        7. `--help_separator_music`: Trợ giúp về tách nhạc.
+        8. `--help_train`: Trợ giúp về huấn luyện mô hình.
     """)
     quit()
 

@@ -27,8 +27,6 @@ Dự án này là một công cụ chuyển đổi giọng nói đơn giản, d�
 
 - Chuyển đổi giọng nói (Chuyển đổi tệp / Chuyển đổi hàng loạt / Chuyển đổi với Whisper / Chuyển đổi văn bản)
 
-- Chỉnh sửa nhạc nền
-
 - Áp dụng hiệu ứng cho âm thanh
 
 - Tạo dữ liệu huấn luyện (Từ đường dẫn liên kết)
@@ -164,6 +162,8 @@ Vietnamese-RVC-main
 │   │   └── vi-VN.json
 │   ├── logs
 │   │   └── mute
+│   │       ├── energy
+│   │       │   └── mute.wav.npy
 │   │       ├── f0
 │   │       │   └── mute.wav.npy
 │   │       ├── f0_voiced
@@ -181,7 +181,6 @@ Vietnamese-RVC-main
 │   │           ├── mute.npy
 │   │           └── mute_spin.npy
 │   ├── models
-│   │   ├── audioldm2
 │   │   ├── embedders
 │   │   ├── predictors
 │   │   ├── pretrained_custom
@@ -221,7 +220,6 @@ Vietnamese-RVC-main
 │   │   │   ├── editing
 │   │   │   │   ├── editing.py
 │   │   │   │   └── child
-│   │   │   │       ├── audio_editing.py
 │   │   │   │       ├── audio_effects.py
 │   │   │   │       └── quirk.py
 │   │   │   ├── extra
@@ -261,7 +259,6 @@ Vietnamese-RVC-main
 │   │       ├── 40000.json
 │   │       └── 48000.json
 │   ├── inference
-│   │   ├── audioldm2.py
 │   │   ├── audio_effects.py
 │   │   ├── create_dataset.py
 │   │   ├── create_index.py
@@ -298,9 +295,6 @@ Vietnamese-RVC-main
 │   │   │   ├── demucs_separator.py
 │   │   │   ├── fairseq.py
 │   │   │   └── mdx_separator.py
-│   │   ├── audioldm2
-│   │   │   ├── models.py
-│   │   │   └── utils.py
 │   │   ├── generators
 │   │   │   ├── hifigan.py
 │   │   │   ├── mrf_hifigan.py
@@ -364,8 +358,7 @@ Vietnamese-RVC-main
 
 - **Hiện tại các bộ mã hóa mới như MRF HIFIGAN vẫn chưa đầy đủ các bộ huấn luyện trước**
 - **Bộ mã hóa MRF HIFIGAN và REFINEGAN không hỗ trợ huấn luyện khi không không huấn luyện cao độ**
-- **Các mô hình trong kho lưu trữ Vietnamese-RVC được thu thập rải rác trên AI Hub, HuggingFace và các các kho lưu trữ khác. Có thể mang các giấy phép bản quyền khác nhau (Ví dụ: Audioldm2 có các trọng số mô hình với điều khoản "Phi Thương Mại")**
-- **Mã nguồn này có chứa thành phần phần mềm bên thứ ba được cấp phép với điều khoản "phi thương mại". Bất kỳ hành vi sử dụng thương mại nào, bao gồm kêu gọi tài trợ hoặc tài chính hóa phần mềm phái sinh, đều có thể vi phạm giấy phép và sẽ phải chịu trách nhiệm pháp lý tương ứng.**
+- **Các mô hình trong kho lưu trữ Vietnamese-RVC được thu thập rải rác trên AI Hub, HuggingFace và các các kho lưu trữ khác. Có thể mang các giấy phép bản quyền khác nhau**
 
 # Tuyên bố miễn trừ trách nhiệm
 
@@ -416,7 +409,7 @@ Vietnamese-RVC-main
 
 - **[VOICE-MODELS.COM](https://voice-models.com/)**
 
-# Các phương pháp trích xuất Pitch trong RVC
+# Các phương pháp trích xuất F0 trong RVC
 
 Tài liệu này trình bày chi tiết các phương pháp trích xuất cao độ được sử dụng, thông tin về ưu, nhược điểm, sức mạnh và độ tin cậy của từng phương pháp theo trải nghiệm cá nhân.
 
