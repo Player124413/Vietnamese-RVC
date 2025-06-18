@@ -804,5 +804,6 @@
     "rms_start_extract": "Starting audio energy extraction with {num_processes} cores...",
     "rms_success_extract": "Energy extraction completed in {elapsed_time} seconds.",
     "train&energy": "Training with energy",
-    "train&energy_info": "Training model with RMS energy"
+    "train&energy_info": "Training model with RMS energy",
+    "editing": "Editing"
 }

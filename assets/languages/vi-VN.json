@@ -804,5 +804,6 @@
     "rms_start_extract": "Bắt đầu trích xuất năng lượng âm thanh với {num_processes} lõi...",
     "rms_success_extract": "Quá trình trích xuất năng lượng đã hoàn tất vào {elapsed_time} giây.",
     "train&energy": "Huấn luyện năng lượng",
-    "train&energy_info": "Huấn luyện mô hình với năng lượng RMS"
+    "train&energy_info": "Huấn luyện mô hình với năng lượng RMS",
+    "editing": "Chỉnh Sửa"
 }
