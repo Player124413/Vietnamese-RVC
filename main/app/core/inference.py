@@ -236,7 +236,7 @@ def convert_with_whisper(num_spk, model_size, cleaner, clean_strength, autotune,
         audio = Audio()
 
         embedding_model = SpeechBrainPretrainedSpeakerEmbedding(embedding=os.path.join(configs["speaker_diarization_path"], "models", "speechbrain"), device=config.device)
-        segments = load_model(model_size, device=config.device if not config.device.startswith("ocl") else "cpu").transcribe(input_audio, fp16=configs.get("fp16", False), word_timestamps=True)["segments"]
+        segments = load_model(model_size, device=config.device).transcribe(input_audio, fp16=configs.get("fp16", False), word_timestamps=True)["segments"]
 
         y, sr = librosa.load(input_audio, sr=None)  
         duration = len(y) / sr

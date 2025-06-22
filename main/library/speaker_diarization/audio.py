@@ -31,7 +31,7 @@ class Audio:
             waveform = file["waveform"]
             if len(waveform.shape) != 2 or waveform.shape[0] > waveform.shape[1]: raise ValueError
 
-            sample_rate: int = file.get("sample_rate", None)
+            sample_rate = file.get("sample_rate", None)
             if sample_rate is None: raise ValueError
 
             file.setdefault("uri", "waveform")
@@ -46,7 +46,7 @@ class Audio:
 
         return file
 
-    def __init__(self, sample_rate: int = None, mono=None, backend: str = None):
+    def __init__(self, sample_rate = None, mono=None, backend = None):
         super().__init__()
         self.sample_rate = sample_rate
         self.mono = mono

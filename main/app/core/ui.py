@@ -9,7 +9,7 @@ import gradio as gr
 
 sys.path.append(os.getcwd())
 
-from main.library import torch_amd
+from main.library import opencl
 from main.app.variables import config, configs, configs_json, logger, translations, edgetts, google_tts_voice, method_f0, method_f0_full
 
 def gr_info(message):
@@ -29,16 +29,16 @@ def get_gpu_info():
     gpu_infos = [f"{i}: {torch.cuda.get_device_name(i)} ({int(torch.cuda.get_device_properties(i).total_memory / 1024 / 1024 / 1024 + 0.4)} GB)" for i in range(ngpu) if torch.cuda.is_available() or ngpu != 0]
 
     if len(gpu_infos) == 0:
-        ngpu = torch_amd.device_count()
-        gpu_infos = [f"{i}: {torch_amd.device_name(i)}" for i in range(ngpu) if torch_amd.is_available() or ngpu != 0]
+        ngpu = opencl.device_count()
+        gpu_infos = [f"{i}: {opencl.device_name(i)}" for i in range(ngpu) if opencl.is_available() or ngpu != 0]
 
     return "\n".join(gpu_infos) if len(gpu_infos) > 0 else translations["no_support_gpu"]
 
 def gpu_number_str():
     ngpu = torch.cuda.device_count()
-    if ngpu == 0: ngpu = torch_amd.device_count()
+    if ngpu == 0: ngpu = opencl.device_count()
 
-    return str("-".join(map(str, range(ngpu))) if torch.cuda.is_available() or torch_amd.is_available() else "-")
+    return str("-".join(map(str, range(ngpu))) if torch.cuda.is_available() or opencl.is_available() else "-")
 
 def change_f0_choices(): 
     f0_file = sorted([os.path.abspath(os.path.join(root, f)) for root, _, files in os.walk(configs["f0_path"]) for f in files if f.endswith(".txt")])

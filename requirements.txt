@@ -18,7 +18,6 @@ faiss-cpu>=1.7.3
 
 # Machine learning, NLP and deep learning
 transformers>=4.49.0
-diffusers
 scikit-learn
 einops>=0.8.0
 

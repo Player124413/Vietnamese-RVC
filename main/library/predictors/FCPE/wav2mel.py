@@ -10,7 +10,7 @@ from torchaudio.transforms import Resample
 
 sys.path.append(os.getcwd())
 
-from main.library import torch_amd
+from main.library import opencl
 from main.library.predictors.FCPE.stft import STFT
 
 def spawn_wav2mel(args, device = None):
@@ -76,7 +76,7 @@ class MelModule(torch.nn.Module):
         pad = F.pad(y.unsqueeze(1), (pad_left, pad_right), mode=mode).squeeze(1)
 
         if str(y.device).startswith("ocl"):
-            stft = torch_amd.STFT(filter_length=n_fft_new, hop_length=hop_length_new, win_length=win_size_new).to(y.device)
+            stft = opencl.STFT(filter_length=n_fft_new, hop_length=hop_length_new, win_length=win_size_new).to(y.device)
             spec = stft.transform(pad, 1e-9)
         else:
             spec = torch.stft(pad, n_fft_new, hop_length=hop_length_new, win_length=win_size_new, window=hann_window_tensor, center=center, pad_mode='reflect', normalized=False, onesided=True, return_complex=True)

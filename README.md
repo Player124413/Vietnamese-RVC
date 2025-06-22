@@ -109,7 +109,6 @@ python -m pip install -r requirements.txt
 
 Lưu ý đối với AMD: 
 - Chỉ cài đặt AMD trên python 3.11 vì DLPRIM không có bản cho python 3.10.
-- RMVPE và Whisper phải chạy trên cpu vì có một số thuật toán không được hỗ trợ.
 - Demucs có thể gây quá tải và tràn bộ nhớ đối với GPU (nếu cần sử dụng demucs hãy mở tệp config.json trong main\configs sửa đối số demucs_cpu_mode thành true).
 - DDP không hỗ trợ huấn luyện đa GPU đối với OPENCL (AMD).
 - Một số thuật toán khác phải chạy trên cpu nên có thể hiệu suất của GPU có thể không sử dụng hết.
@@ -279,7 +278,7 @@ Vietnamese-RVC-main
 │   │       └── slicer2.py
 │   ├── library
 │   │   ├── utils.py
-│   │   ├── torch_amd.py
+│   │   ├── opencl.py
 │   │   ├── algorithm
 │   │   │   ├── attentions.py
 │   │   │   ├── commons.py
@@ -323,7 +322,7 @@ Vietnamese-RVC-main
 │   │   │   ├── segment.py
 │   │   │   ├── speechbrain.py
 │   │   │   └── whisper.py
-│   │   └── uvr5_separator
+│   │   └── uvr5_lib
 │   │       ├── common_separator.py
 │   │       ├── separator.py
 │   │       ├── spec_utils.py
@@ -341,10 +340,12 @@ Vietnamese-RVC-main
 │       ├── meganz.py
 │       ├── noisereduce.py
 │       └── pixeldrain.py
+├── docker-compose-amd.yaml
 ├── docker-compose-cpu.yaml
 ├── docker-compose-cuda118.yaml
 ├── docker-compose-cuda128.yaml
 ├── Dockerfile
+├── Dockerfile.amd
 ├── Dockerfile.cuda118
 ├── Dockerfile.cuda128
 ├── LICENSE

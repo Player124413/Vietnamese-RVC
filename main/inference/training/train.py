@@ -26,8 +26,9 @@ from torch.nn.parallel import DistributedDataParallel as DDP
 
 sys.path.append(os.getcwd())
 
-from main.library import torch_amd
+from main.library import opencl
 from main.app.variables import logger, translations
+from main.inference.conversion.utils import clear_gpu_cache
 from main.library.algorithm.synthesizers import Synthesizer
 from main.library.algorithm.discriminators import MultiPeriodDiscriminator
 from main.library.algorithm.commons import slice_segments, clip_grad_value
@@ -108,7 +109,7 @@ def main():
         if torch.cuda.is_available():
             device, gpus = torch.device("cuda"), [int(item) for item in gpus.split("-")]
             n_gpus = len(gpus)
-        elif torch_amd.is_available():
+        elif opencl.is_available():
             device, gpus = torch.device("ocl"), [int(item) for item in gpus.split("-")]
             n_gpus = len(gpus)
         elif torch.backends.mps.is_available():
@@ -229,7 +230,7 @@ def run(rank, n_gpus, experiment_dir, pretrainG, pretrainD, pitch_guidance, cust
 
     torch.manual_seed(config.train.seed)
     if device.type == "cuda": torch.cuda.manual_seed(config.train.seed)
-    elif device.type == "ocl": torch_amd.pytorch_ocl.manual_seed_all(config.train.seed)
+    elif device.type == "ocl": opencl.pytorch_ocl.manual_seed_all(config.train.seed)
 
     if torch.cuda.is_available(): torch.cuda.set_device(device_id)
 
@@ -423,6 +424,9 @@ def train_and_evaluate(rank, epoch, hps, nets, optims, scaler, train_loader, wri
             global_step += 1
             pbar.update(1)
 
+    with torch.no_grad():
+        clear_gpu_cache()
+
     def check_overtraining(smoothed_loss_history, threshold, epsilon=0.004):
         if len(smoothed_loss_history) < threshold + 1: return False
 
@@ -484,16 +488,6 @@ def train_and_evaluate(rank, epoch, hps, nets, optims, scaler, train_loader, wri
         if epoch >= custom_total_epoch:
             logger.info(translations["success_training"].format(epoch=epoch, global_step=global_step, loss_gen_all=round(loss_gen_all.item(), 3)))
             logger.info(translations["training_info"].format(lowest_value_rounded=round(float(lowest_value["value"]), 3), lowest_value_epoch=lowest_value['epoch'], lowest_value_step=lowest_value['step']))
-            
-            pid_file_path = os.path.join(experiment_dir, "config.json")
-            with open(pid_file_path, "r") as pid_file:
-                pid_data = json.load(pid_file)
-
-            with open(pid_file_path, "w") as pid_file:
-                pid_data.pop("process_pids", None)
-                json.dump(pid_data, pid_file, indent=4)
-
-            if os.path.exists(os.path.join(experiment_dir, "train_pid.txt")): os.remove(os.path.join(experiment_dir, "train_pid.txt"))
             model_add.append(os.path.join(main_configs["weights_path"], f"{model_name}_{epoch}e_{global_step}s.pth"))
             done = True
             
@@ -514,7 +508,20 @@ def train_and_evaluate(rank, epoch, hps, nets, optims, scaler, train_loader, wri
         logger.debug(f"loss_gen_all: {loss_gen_all} loss_gen: {loss_gen} loss_fm: {loss_fm} loss_mel: {loss_mel} loss_kl: {loss_kl}")
         last_loss_gen_all = loss_gen_all
 
-        if done: os._exit(0)
+        if done: 
+            pid_file_path = os.path.join(experiment_dir, "config.json")
+            with open(pid_file_path, "r") as pid_file:
+                pid_data = json.load(pid_file)
+
+            with open(pid_file_path, "w") as pid_file:
+                pid_data.pop("process_pids", None)
+                json.dump(pid_data, pid_file, indent=4)
+
+            if os.path.exists(os.path.join(experiment_dir, "train_pid.txt")): os.remove(os.path.join(experiment_dir, "train_pid.txt"))
+            os._exit(0)
+
+        with torch.no_grad():
+            clear_gpu_cache()
 
 if __name__ == "__main__": 
     torch.multiprocessing.set_start_method("spawn")

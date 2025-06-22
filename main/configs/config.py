@@ -5,7 +5,7 @@ import torch
 
 sys.path.append(os.getcwd())
 
-from main.library import torch_amd
+from main.library import opencl
 
 version_config_paths = [os.path.join(version, size) for version in ["v1", "v2"] for size in ["32000.json", "40000.json", "48000.json"]]
 
@@ -21,7 +21,7 @@ def singleton(cls):
 @singleton
 class Config:
     def __init__(self):
-        self.device = "cuda:0" if torch.cuda.is_available() else ("ocl:0" if torch_amd.is_available() else "cpu")
+        self.device = "cuda:0" if torch.cuda.is_available() else ("ocl:0" if opencl.is_available() else "cpu")
         self.configs_path = os.path.join("main", "configs", "config.json")
         self.configs = json.load(open(self.configs_path, "r"))
         self.translations = self.multi_language()
@@ -82,7 +82,7 @@ class Config:
     def device_config(self):
         if not self.cpu_mode:
             if self.device.startswith("cuda"): self.set_cuda_config()
-            elif torch_amd.is_available(): self.device = "ocl:0"
+            elif opencl.is_available(): self.device = "ocl:0"
             elif self.has_mps(): self.device = "mps"
             else: self.device = "cpu"
 

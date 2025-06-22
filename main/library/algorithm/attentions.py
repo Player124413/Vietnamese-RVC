@@ -42,6 +42,7 @@ class MultiHeadAttention(nn.Module):
         nn.init.xavier_uniform_(self.conv_q.weight)
         nn.init.xavier_uniform_(self.conv_k.weight)
         nn.init.xavier_uniform_(self.conv_v.weight)
+        nn.init.xavier_uniform_(self.conv_o.weight)
 
         if proximal_init:
             with torch.no_grad():
@@ -61,23 +62,23 @@ class MultiHeadAttention(nn.Module):
         scores = torch.matmul(query / math.sqrt(self.k_channels), key.transpose(-2, -1))
     
         if self.window_size is not None:
-            assert (t_s == t_t), "(t_s == t_t)"
-            scores = scores + self._relative_position_to_absolute_position(self._matmul_with_relative_keys(query / math.sqrt(self.k_channels), self._get_relative_embeddings(self.emb_rel_k, t_s, onnx=self.onnx)), onnx=self.onnx)
+            assert (t_s == t_t)
+            scores += self._relative_position_to_absolute_position(self._matmul_with_relative_keys(query / math.sqrt(self.k_channels), self._get_relative_embeddings(self.emb_rel_k, t_s, onnx=self.onnx)), onnx=self.onnx)
 
         if self.proximal_bias:
-            assert t_s == t_t, "t_s == t_t"
-            scores = scores + self._attention_bias_proximal(t_s).to(device=scores.device, dtype=scores.dtype)
+            assert t_s == t_t
+            scores += self._attention_bias_proximal(t_s).to(device=scores.device, dtype=scores.dtype)
 
         if mask is not None:
             scores = scores.masked_fill(mask == 0, -1e4)
             if self.block_length is not None:
-                assert (t_s == t_t), "(t_s == t_t)"
+                assert (t_s == t_t)
                 scores = scores.masked_fill((torch.ones_like(scores).triu(-self.block_length).tril(self.block_length)) == 0, -1e4)
 
         p_attn = self.drop(F.softmax(scores, dim=-1))
         output = torch.matmul(p_attn, value.view(b, self.n_heads, self.k_channels, t_s).transpose(2, 3))
 
-        if self.window_size is not None: output = output + self._matmul_with_relative_values(self._absolute_position_to_relative_position(p_attn, onnx=self.onnx), self._get_relative_embeddings(self.emb_rel_v, t_s, onnx=self.onnx))
+        if self.window_size is not None: output += self._matmul_with_relative_values(self._absolute_position_to_relative_position(p_attn, onnx=self.onnx), self._get_relative_embeddings(self.emb_rel_v, t_s, onnx=self.onnx))
         return (output.transpose(2, 3).contiguous().view(b, d, t_t)), p_attn
 
     def _matmul_with_relative_values(self, x, y):

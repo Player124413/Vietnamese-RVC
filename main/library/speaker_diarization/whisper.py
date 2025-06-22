@@ -21,12 +21,13 @@ from functools import cached_property, lru_cache
 
 sys.path.append(os.getcwd())
 
+from main.library import opencl
 from main.app.variables import configs
 from main.library.utils import load_audio
 
 LANGUAGES = {"en": "english", "zh": "chinese", "de": "german", "es": "spanish", "ru": "russian", "ko": "korean", "fr": "french", "ja": "japanese", "pt": "portuguese", "tr": "turkish", "pl": "polish", "ca": "catalan", "nl": "dutch", "ar": "arabic", "sv": "swedish", "it": "italian", "id": "indonesian", "hi": "hindi", "fi": "finnish", "vi": "vietnamese", "he": "hebrew", "uk": "ukrainian", "el": "greek", "ms": "malay", "cs": "czech", "ro": "romanian", "da": "danish", "hu": "hungarian", "ta": "tamil", "no": "norwegian", "th": "thai", "ur": "urdu", "hr": "croatian", "bg": "bulgarian", "lt": "lithuanian", "la": "latin", "mi": "maori", "ml": "malayalam", "cy": "welsh", "sk": "slovak", "te": "telugu", "fa": "persian", "lv": "latvian", "bn": "bengali", "sr": "serbian", "az": "azerbaijani", "sl": "slovenian", "kn": "kannada", "et": "estonian", "mk": "macedonian", "br": "breton", "eu": "basque", "is": "icelandic", "hy": "armenian", "ne": "nepali", "mn": "mongolian", "bs": "bosnian", "kk": "kazakh", "sq": "albanian", "sw": "swahili", "gl": "galician", "mr": "marathi", "pa": "punjabi", "si": "sinhala", "km": "khmer", "sn": "shona", "yo": "yoruba", "so": "somali", "af": "afrikaans", "oc": "occitan", "ka": "georgian", "be": "belarusian", "tg": "tajik", "sd": "sindhi", "gu": "gujarati", "am": "amharic", "yi": "yiddish", "lo": "lao", "uz": "uzbek", "fo": "faroese", "ht": "haitian creole", "ps": "pashto", "tk": "turkmen", "nn": "nynorsk", "mt": "maltese", "sa": "sanskrit", "lb": "luxembourgish", "my": "myanmar", "bo": "tibetan", "tl": "tagalog", "mg": "malagasy", "as": "assamese", "tt": "tatar", "haw": "hawaiian", "ln": "lingala", "ha": "hausa", "ba": "bashkir", "jw": "javanese", "su": "sundanese", "yue": "cantonese"}
 TO_LANGUAGE_CODE = {**{language: code for code, language in LANGUAGES.items()}, "burmese": "my", "valencian": "ca", "flemish": "nl", "haitian": "ht", "letzeburgesch": "lb", "pushto": "ps", "panjabi": "pa", "moldavian": "ro", "moldovan": "ro", "sinhalese": "si", "castilian": "es", "mandarin": "zh"}
-_ALIGNMENT_HEADS = {"tiny": b"ABzY8bu8Lr0{>%RKn9Fp%m@SkK7Kt=7ytkO", "base": b"ABzY8KQ!870{>%RzyTQH3`Q^yNP!>##QT-<FaQ7m", "small": b"ABzY8DmU6=0{>%Rpa?J`kvJ6qF(V^F86#Xh7JUGMK}P<N0000", "medium": b"ABzY8B0Jh+0{>%R7}kK1fFL7w6%<-Pf*t^=N)Qr&0RR9", "large-v1": b"ABzY8r9j$a0{>%R7#4sLmoOs{s)o3~84-RPdcFk!JR<kSfC2yj", "large-v2": b"ABzY8zd+h!0{>%R7=D0pU<_bnWW*tkYAhobTNnu$jnkEkXqp)j;w1Tzk)UH3X%SZd&fFZ2fC2yj", "large-v3": b"ABzY8gWO1E0{>%R7(9S+Kn!D~%ngiGaR?*L!iJG9p-nab0JQ=-{D1-g00", "large-v3-turbo": b"ABzY8j^C+e0{>%RARaKHP%t(lGR*)0g!tONPyhe`"}
+_ALIGNMENT_HEADS = {"tiny.en": b"ABzY8J1N>@0{>%R00Bk>$p{7v037`oCl~+#00", "tiny": b"ABzY8bu8Lr0{>%RKn9Fp%m@SkK7Kt=7ytkO", "base.en": b"ABzY8;40c<0{>%RzzG;p*o+Vo09|#PsxSZm00", "base": b"ABzY8KQ!870{>%RzyTQH3`Q^yNP!>##QT-<FaQ7m", "small.en": b"ABzY8>?_)10{>%RpeA61k&I|OI3I$65C{;;pbCHh0B{qLQ;+}v00", "small": b"ABzY8DmU6=0{>%Rpa?J`kvJ6qF(V^F86#Xh7JUGMK}P<N0000", "medium.en": b"ABzY8usPae0{>%R7<zz_OvQ{)4kMa0BMw6u5rT}kRKX;$NfYBv00*Hl@qhsU00", "medium": b"ABzY8B0Jh+0{>%R7}kK1fFL7w6%<-Pf*t^=N)Qr&0RR9", "large-v1": b"ABzY8r9j$a0{>%R7#4sLmoOs{s)o3~84-RPdcFk!JR<kSfC2yj", "large-v2": b"ABzY8zd+h!0{>%R7=D0pU<_bnWW*tkYAhobTNnu$jnkEkXqp)j;w1Tzk)UH3X%SZd&fFZ2fC2yj", "large-v3": b"ABzY8gWO1E0{>%R7(9S+Kn!D~%ngiGaR?*L!iJG9p-nab0JQ=-{D1-g00", "large": b"ABzY8gWO1E0{>%R7(9S+Kn!D~%ngiGaR?*L!iJG9p-nab0JQ=-{D1-g00", "large-v3-turbo": b"ABzY8j^C+e0{>%RARaKHP%t(lGR*)0g!tONPyhe`"}
 
 SAMPLE_RATE, N_FFT, HOP_LENGTH, CHUNK_LENGTH = 16000, 400, 160, 30
 N_SAMPLES = CHUNK_LENGTH * SAMPLE_RATE 
@@ -37,10 +38,8 @@ def exact_div(x, y):
     return x // y
 
 N_FRAMES = exact_div(N_SAMPLES, HOP_LENGTH)  
-
 FRAMES_PER_SECOND = exact_div(SAMPLE_RATE, HOP_LENGTH) 
 TOKENS_PER_SECOND = exact_div(SAMPLE_RATE, N_SAMPLES_PER_TOKEN) 
-
 
 def load_model(name = "base", device = "cpu"):
     checkpoint_file = os.path.join(configs["speaker_diarization_path"], "models", name + ".pt")
@@ -179,7 +178,12 @@ def find_alignment(model, tokenizer, text_tokens, mel, num_frames, *, medfilt_wi
     for hook in hooks:
         hook.remove()
 
-    weights = (torch.stack([QKs[_l][_h] for _l, _h in model.alignment_heads.indices().T])[:, :, : num_frames // 2] * qk_scale).softmax(dim=-1)
+    if not opencl.is_available():
+        alignment_indices = model.alignment_heads.indices().T
+    else:
+        alignment_indices = [(l, h) for l in range(model.alignment_heads.size(0)) for h in range(model.alignment_heads.size(1)) if model.alignment_heads[l, h]]
+        
+    weights = (torch.stack([QKs[_l][_h] for _l, _h in alignment_indices])[:, :, : num_frames // 2] * qk_scale).softmax(dim=-1)
     std, mean = torch.std_mean(weights, dim=-2, keepdim=True, unbiased=False)
     weights = median_filter((weights - mean) / std, medfilt_width)
 
@@ -286,7 +290,7 @@ def get_end(segments):
     return next((w["end"] for s in reversed(segments) for w in reversed(s["words"])), segments[-1]["end"] if segments else None)
 
 def transcribe_function(model, audio, *, verbose = None, temperature = (0.0, 0.2, 0.4, 0.6, 0.8, 1.0), compression_ratio_threshold = 2.4, logprob_threshold = -1.0, no_speech_threshold = 0.6, condition_on_previous_text = True, initial_prompt = None, carry_initial_prompt = False, word_timestamps = False, prepend_punctuations = "\"'“¿([{-", append_punctuations = "\"'.。,，!！?？:：”)]}、", clip_timestamps = "0", hallucination_silence_threshold = None, fp16 = False, **decode_options):
-    dtype = torch.float32
+    dtype = torch.float16 if fp16 else torch.float32
     decode_options["fp16"] = fp16
 
     mel = log_mel_spectrogram(audio, model.dims.n_mels, padding=N_SAMPLES)
@@ -681,10 +685,13 @@ class Whisper(nn.Module):
 
         all_heads = torch.zeros(self.dims.n_text_layer, self.dims.n_text_head, dtype=torch.bool)
         all_heads[self.dims.n_text_layer // 2 :] = True
-        self.register_buffer("alignment_heads", all_heads.to_sparse(), persistent=False)
+        self.register_buffer("alignment_heads", all_heads if opencl.is_available() else all_heads.to_sparse(), persistent=False)
 
     def set_alignment_heads(self, dump):
-        self.register_buffer("alignment_heads", torch.from_numpy(np.frombuffer(gzip.decompress(base64.b85decode(dump)), dtype=bool).copy()).reshape(self.dims.n_text_layer, self.dims.n_text_head).to_sparse(), persistent=False)
+        alignment = torch.from_numpy(np.frombuffer(gzip.decompress(base64.b85decode(dump)), dtype=bool).copy()).reshape(self.dims.n_text_layer, self.dims.n_text_head)
+        if not opencl.is_available(): alignment = alignment.to_sparse()
+
+        self.register_buffer("alignment_heads", alignment, persistent=False)
 
     def embed_audio(self, mel):
         return self.encoder(mel)
@@ -854,14 +861,15 @@ class TokenDecoder:
     def finalize(self, tokens, sum_logprobs):
         pass
 
-
 class GreedyDecoder(TokenDecoder):
     def __init__(self, temperature, eot):
         self.temperature = temperature
         self.eot = eot
 
     def update(self, tokens, logits, sum_logprobs):
-        next_tokens = logits.argmax(dim=-1) if self.temperature == 0 else Categorical(logits=logits / self.temperature).sample()
+        next_tokens = logits.argmax(dim=-1) if self.temperature == 0 else (
+            Categorical(logits=(logits / self.temperature).cpu()) if opencl.is_available() else Categorical(logits=logits / self.temperature)
+        ).sample().to(logits.device)
 
         logprobs = F.log_softmax(logits.float(), dim=-1)
         sum_logprobs += logprobs[torch.arange(logprobs.shape[0]), next_tokens] * (tokens[:, -1] != self.eot)
@@ -1083,7 +1091,7 @@ class DecodingTask:
 
                 logits = logits[:, -1]
                 for logit_filter in self.logit_filters:
-                    logit_filter.apply(logits, tokens)
+                    logit_filter.apply(logits.to("cpu") if opencl.is_available() else logits, tokens)
 
                 tokens, completed = self.decoder.update(tokens, logits, sum_logprobs)
                 if completed or tokens.shape[-1] > self.n_ctx: break

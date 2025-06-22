@@ -9,7 +9,7 @@ from librosa.filters import mel
 
 sys.path.append(os.getcwd())
 
-from main.library import torch_amd
+from main.library import opencl
 
 class STFT:
     def __init__(self, sr=22050, n_mels=80, n_fft=1024, win_size=1024, hop_length=256, fmin=20, fmax=11025, clip_val=1e-5):
@@ -44,12 +44,13 @@ class STFT:
         pad_right = max((win_size_new - hop_length_new + 1) // 2, win_size_new - y.size(-1) - pad_left)
 
         pad = F.pad(y.unsqueeze(1), (pad_left, pad_right), mode="reflect" if pad_right < y.size(-1) else "constant").squeeze(1)
+        n_fft = int(np.round(n_fft * factor))
 
         if str(y.device).startswith("ocl"):
-            stft = torch_amd.STFT(filter_length=int(np.round(n_fft * factor)), hop_length=hop_length_new, win_length=win_size_new).to(y.device)
+            stft = opencl.STFT(filter_length=n_fft, hop_length=hop_length_new, win_length=win_size_new).to(y.device)
             spec = stft.transform(pad, 1e-9)
         else:
-            spec = torch.stft(pad, int(np.round(n_fft * factor)), hop_length=hop_length_new, win_length=win_size_new, window=hann_window[keyshift_key], center=center, pad_mode="reflect", normalized=False, onesided=True, return_complex=True)
+            spec = torch.stft(pad, n_fft, hop_length=hop_length_new, win_length=win_size_new, window=hann_window[keyshift_key], center=center, pad_mode="reflect", normalized=False, onesided=True, return_complex=True)
             spec = torch.sqrt(spec.real.pow(2) + spec.imag.pow(2) + 1e-9)
 
         if keyshift != 0:

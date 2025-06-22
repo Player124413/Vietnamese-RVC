@@ -29,7 +29,7 @@ def f0_extract(audio, f0_method, f0_onnx):
 
     y, sr = librosa.load(audio, sr=None)
 
-    f0_generator = Generator(sr, 160, 50, 1600, is_half=config.is_half, device=config.device, providers=get_providers(), f0_onnx_mode=f0_onnx)
+    f0_generator = Generator(sr, 160, 50, 1600, is_half=config.is_half, device=config.device, providers=get_providers(), f0_onnx_mode=f0_onnx, del_onnx_model=f0_onnx)
     _, pitchf = f0_generator.calculator(config.x_pad, f0_method, y, 0, None, 3, False, 0, None, False)
 
     F_temp = np.array(pitchf, dtype=np.float32)

@@ -9,8 +9,8 @@ import torch.nn.functional as F
 
 sys.path.append(os.getcwd())
 
-from main.library.uvr5_separator.demucs.utils import center_trim
-from main.library.uvr5_separator.demucs.states import capture_init
+from main.library.uvr5_lib.demucs.utils import center_trim
+from main.library.uvr5_lib.demucs.states import capture_init
 
 def unfold(a, kernel_size, stride):
     *shape, length = a.shape

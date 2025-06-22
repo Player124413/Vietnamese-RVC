@@ -12,10 +12,8 @@ from pedalboard import Pedalboard, Chorus, Distortion, Reverb, PitchShift, Delay
 
 sys.path.append(os.getcwd())
 
-from main.configs.config import Config
 from main.library.utils import pydub_load
-
-translations = Config().translations
+from main.app.variables import translations, logger
 
 def parse_arguments():
     parser = argparse.ArgumentParser()
@@ -82,17 +80,30 @@ def parse_arguments():
     return parser.parse_args()
 
 def process_audio(input_path, output_path, resample, resample_sr, chorus_depth, chorus_rate, chorus_mix, chorus_delay, chorus_feedback, distortion_drive, reverb_room_size, reverb_damping, reverb_wet_level, reverb_dry_level, reverb_width, reverb_freeze_mode, pitch_shift, delay_seconds, delay_feedback, delay_mix, compressor_threshold, compressor_ratio, compressor_attack_ms, compressor_release_ms, limiter_threshold, limiter_release, gain_db, bitcrush_bit_depth, clipping_threshold, phaser_rate_hz, phaser_depth, phaser_centre_frequency_hz, phaser_feedback, phaser_mix, bass_boost_db, bass_boost_frequency, treble_boost_db, treble_boost_frequency, fade_in_duration, fade_out_duration, export_format, chorus, distortion, reverb, pitchshift, delay, compressor, limiter, gain, bitcrush, clipping, phaser, treble_bass_boost, fade_in_out, audio_combination, audio_combination_input, main_volume, combination_volume):
+    def _filtfilt(b, a, audio):
+        padlen = 3 * max(len(a), len(b))
+        original_len = len(audio)
+
+        if original_len <= padlen:
+            pad_width = padlen - original_len + 1
+            audio = np.pad(audio, (pad_width, 0), mode='reflect')
+
+        filtered = filtfilt(b, a, audio, padlen=0)
+        return filtered[-original_len:]
+    
     def bass_boost(audio, gain_db, frequency, sample_rate):
         if gain_db >= 1:
             b, a = butter(4, frequency / (0.5 * sample_rate), btype='low')
-            return filtfilt(b, a, audio) * 10 ** (gain_db / 20)
-        else: return audio
-    
+            boosted = _filtfilt(b, a, audio)
+            return boosted * (10 ** (gain_db / 20))
+        return audio
+
     def treble_boost(audio, gain_db, frequency, sample_rate):
-        if gain_db >=1:
+        if gain_db >= 1:
             b, a = butter(4, frequency / (0.5 * sample_rate), btype='high')
-            return filtfilt(b, a, audio) * 10 ** (gain_db / 20)
-        else: return audio
+            boosted = _filtfilt(b, a, audio)
+            return boosted * (10 ** (gain_db / 20))
+        return audio
 
     def fade_out_effect(audio, sr, duration=3.0):
         length = int(duration * sr)
@@ -111,11 +122,11 @@ def process_audio(input_path, output_path, resample, resample_sr, chorus_depth, 
         return audio
 
     if not input_path or not os.path.exists(input_path): 
-        print(translations["input_not_valid"])
+        logger.warning(translations["input_not_valid"])
         sys.exit(1)
 
     if not output_path: 
-        print(translations["output_not_valid"])
+        logger.warning(translations["output_not_valid"])
         sys.exit(1)
     
     if os.path.exists(output_path): os.remove(output_path)
@@ -127,6 +138,7 @@ def process_audio(input_path, output_path, resample, resample_sr, chorus_depth, 
         except:
             audio, sample_rate = librosa.load(input_path, sr=None)
     except Exception as e:
+        logger.debug(f"{translations['errors_loading_audio']}: {e}")
         raise RuntimeError(f"{translations['errors_loading_audio']}: {e}")
 
     try:
@@ -161,6 +173,8 @@ def process_audio(input_path, output_path, resample, resample_sr, chorus_depth, 
         sf.write(output_path.replace("wav", export_format), processed_audio, sample_rate, format=export_format)
         if audio_combination: pydub_load(audio_combination_input, combination_volume).overlay(pydub_load(output_path.replace("wav", export_format), main_volume)).export(output_path.replace("wav", export_format), format=export_format)
     except Exception as e:
+        import traceback
+        logger.debug(traceback.format_exc())
         raise RuntimeError(translations["apply_error"].format(e=e))
     return output_path
 

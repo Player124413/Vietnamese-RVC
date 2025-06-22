@@ -11,13 +11,13 @@ from hashlib import sha256
 sys.path.append(os.getcwd())
 
 from main.configs.config import Config
-from main.library.uvr5_separator import spec_utils, common_separator
-from main.library.uvr5_separator.demucs import hdemucs, states, apply
+from main.library.uvr5_lib import spec_utils, common_separator
+from main.library.uvr5_lib.demucs import hdemucs, states, apply
 
 warnings.filterwarnings("ignore")
 config = Config()
 translations = config.translations
-sys.path.insert(0, os.path.join(os.getcwd(), "main", "library", "uvr5_separator"))
+sys.path.insert(0, os.path.join(os.getcwd(), "main", "library", "uvr5_lib"))
 
 DEMUCS_4_SOURCE_MAPPER = {common_separator.CommonSeparator.BASS_STEM: 0, common_separator.CommonSeparator.DRUM_STEM: 1, common_separator.CommonSeparator.OTHER_STEM: 2, common_separator.CommonSeparator.VOCAL_STEM: 3}
 
@@ -28,59 +28,42 @@ class DemucsSeparator(common_separator.CommonSeparator):
         self.shifts = arch_config.get("shifts", 2)
         self.overlap = arch_config.get("overlap", 0.25)
         self.segments_enabled = arch_config.get("segments_enabled", True)
-        self.logger.debug(translations["demucs_info"].format(segment_size=self.segment_size, segments_enabled=self.segments_enabled))
-        self.logger.debug(translations["demucs_info_2"].format(shifts=self.shifts, overlap=self.overlap))
         self.demucs_source_map = DEMUCS_4_SOURCE_MAPPER
         self.audio_file_path = None
         self.audio_file_base = None
         self.demucs_model_instance = None
-        self.logger.info(translations["start_demucs"])
         if config.configs.get("demucs_cpu_mode", False): self.torch_device = torch.device("cpu")
 
     def separate(self, audio_file_path):
-        self.logger.debug(translations["start_separator"])
         source = None
         inst_source = {}
         self.audio_file_path = audio_file_path
         self.audio_file_base = os.path.splitext(os.path.basename(audio_file_path))[0]
-        self.logger.debug(translations["prepare_mix"])
         mix = self.prepare_mix(self.audio_file_path)
-        self.logger.debug(translations["demix"].format(shape=mix.shape))
-        self.logger.debug(translations["cancel_mix"])
         self.demucs_model_instance = hdemucs.HDemucs(sources=["drums", "bass", "other", "vocals"])
         self.demucs_model_instance = get_demucs_model(name=os.path.splitext(os.path.basename(self.model_path))[0], repo=os.path.dirname(self.model_path))
         self.demucs_model_instance = apply.demucs_segments(self.segment_size, self.demucs_model_instance)
         self.demucs_model_instance.to(self.torch_device)
         self.demucs_model_instance.eval()
-        self.logger.debug(translations["model_review"])
         source = self.demix_demucs(mix)
         del self.demucs_model_instance
         self.clear_gpu_cache()
-        self.logger.debug(translations["del_gpu_cache_after_demix"])
         output_files = []
-        self.logger.debug(translations["process_output_file"])
 
         if isinstance(inst_source, np.ndarray):
-            self.logger.debug(translations["process_ver"])
             inst_source[self.demucs_source_map[common_separator.CommonSeparator.VOCAL_STEM]] = spec_utils.reshape_sources(inst_source[self.demucs_source_map[common_separator.CommonSeparator.VOCAL_STEM]], source[self.demucs_source_map[common_separator.CommonSeparator.VOCAL_STEM]])
             source = inst_source
 
         if isinstance(source, np.ndarray):
             source_length = len(source)
-            self.logger.debug(translations["source_length"].format(source_length=source_length))
-            self.logger.debug(translations["set_map"].format(part=source_length))
 
-            match source_length:
-                case 2: self.demucs_source_map = {common_separator.CommonSeparator.INST_STEM: 0, common_separator.CommonSeparator.VOCAL_STEM: 1}
-                case 6: self.demucs_source_map = {common_separator.CommonSeparator.BASS_STEM: 0, common_separator.CommonSeparator.DRUM_STEM: 1, common_separator.CommonSeparator.OTHER_STEM: 2, common_separator.CommonSeparator.VOCAL_STEM: 3, common_separator.CommonSeparator.GUITAR_STEM: 4, common_separator.CommonSeparator.PIANO_STEM: 5}
-                case _: self.demucs_source_map = DEMUCS_4_SOURCE_MAPPER
-
-        self.logger.debug(translations["process_all_part"])
+            if source_length == 2: self.demucs_source_map = {common_separator.CommonSeparator.INST_STEM: 0, common_separator.CommonSeparator.VOCAL_STEM: 1}
+            elif source_length == 6: self.demucs_source_map = {common_separator.CommonSeparator.BASS_STEM: 0, common_separator.CommonSeparator.DRUM_STEM: 1, common_separator.CommonSeparator.OTHER_STEM: 2, common_separator.CommonSeparator.VOCAL_STEM: 3, common_separator.CommonSeparator.GUITAR_STEM: 4, common_separator.CommonSeparator.PIANO_STEM: 5}
+            else: self.demucs_source_map = DEMUCS_4_SOURCE_MAPPER
 
         for stem_name, stem_value in self.demucs_source_map.items():
             if self.output_single_stem is not None:
                 if stem_name.lower() != self.output_single_stem.lower():
-                    self.logger.debug(translations["skip_part"].format(stem_name=stem_name, output_single_stem=self.output_single_stem))
                     continue
 
             stem_path = os.path.join(f"{self.audio_file_base}_({stem_name})_{self.model_name}.{self.output_format.lower()}")
@@ -90,7 +73,6 @@ class DemucsSeparator(common_separator.CommonSeparator):
         return output_files
 
     def demix_demucs(self, mix):
-        self.logger.debug(translations["starting_demix_demucs"])
         processed = {}
         mix = torch.tensor(mix, dtype=torch.float32)
         ref = mix.mean(0)
@@ -98,7 +80,6 @@ class DemucsSeparator(common_separator.CommonSeparator):
         mix_infer = mix
 
         with torch.no_grad():
-            self.logger.debug(translations["model_infer"])
             sources = apply.apply_model(model=self.demucs_model_instance, mix=mix_infer[None], shifts=self.shifts, split=self.segments_enabled, overlap=self.overlap, static_shifts=1 if self.shifts == 0 else self.shifts, set_progress_bar=None, device=self.torch_device, progress=True)[0]
 
         sources = (sources * ref.std() + ref.mean()).cpu().numpy()
@@ -126,7 +107,7 @@ class LocalRepo:
                     self._checksums[xp_sig] = checksum
                 else: xp_sig = stem
 
-                if xp_sig in self._models: raise RuntimeError(translations["del_all_but_one"].format(xp_sig=xp_sig))
+                if xp_sig in self._models: raise RuntimeError
                 self._models[xp_sig] = filepath
 
     def has_model(self, sig):
@@ -136,7 +117,7 @@ class LocalRepo:
         try:
             file = self._models[sig]
         except KeyError:
-            raise RuntimeError(translations["not_found_model_signature"].format(sig=sig))
+            raise RuntimeError
         
         if sig in self._checksums: check_checksum(file, self._checksums[sig])
         return states.load_model(file)
@@ -160,7 +141,7 @@ class BagOnlyRepo:
         try:
             yaml_file = self._bags[name]
         except KeyError:
-            raise RuntimeError(translations["name_not_pretrained"].format(name=name))
+            raise RuntimeError
         
         with open(yaml_file, 'r') as f:
             bag = yaml.safe_load(f)
@@ -177,7 +158,7 @@ def check_checksum(path, checksum):
             sha.update(buf)
 
     actual_checksum = sha.hexdigest()[:len(checksum)]
-    if actual_checksum != checksum: raise RuntimeError(translations["invalid_checksum"].format(path=path, checksum=checksum, actual_checksum=actual_checksum))
+    if actual_checksum != checksum: raise RuntimeError
 
 def get_demucs_model(name, repo = None):
     model_repo = LocalRepo(repo)

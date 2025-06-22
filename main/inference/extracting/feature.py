@@ -16,16 +16,13 @@ class FeatureInput:
     def __init__(self, sample_rate=16000, hop_size=160, is_half=False, device=config.device):
         self.fs = sample_rate
         self.hop = hop_size
-        self.f0_bin = 256
         self.f0_max = 1100.0
         self.f0_min = 50.0
-        self.f0_mel_min = 1127 * np.log(1 + self.f0_min / 700)
-        self.f0_mel_max = 1127 * np.log(1 + self.f0_max / 700)
         self.device = device
         self.is_half = is_half
 
     def process_file(self, file_info, f0_method, hop_length, f0_onnx, f0_autotune, f0_autotune_strength):
-        if not hasattr(self, "f0_gen"): self.f0_gen = Generator(self.fs, hop_length, self.f0_min, self.f0_max, self.is_half, self.device, get_providers(), f0_onnx)
+        if not hasattr(self, "f0_gen"): self.f0_gen = Generator(self.fs, hop_length, self.f0_min, self.f0_max, self.is_half, self.device, get_providers(), f0_onnx, False)
 
         inp_path, opt_path1, opt_path2, file_inp = file_info
         if os.path.exists(opt_path1 + ".npy") and os.path.exists(opt_path2 + ".npy"): return

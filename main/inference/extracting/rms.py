@@ -15,4 +15,16 @@ class RMSEnergyExtractor(nn.Module):
         assert x.ndim == 2
         assert x.shape[0] == 1
 
-        return torch.from_numpy(librosa.feature.rms(y=x.squeeze(0).cpu().numpy(), frame_length=self.frame_length, hop_length=self.hop_length, center=self.center, pad_mode=self.pad_mode)).squeeze(-2).to(x.device)
+        if str(x.device).startswith("ocl"): x = x.contiguous()
+
+        rms = torch.from_numpy(
+            librosa.feature.rms(
+                y=x.squeeze(0).cpu().numpy(), 
+                frame_length=self.frame_length, 
+                hop_length=self.hop_length, 
+                center=self.center, 
+                pad_mode=self.pad_mode
+            )
+        )
+
+        return rms.squeeze(-2).to(x.device) if not str(x.device).startswith("ocl") else rms.contiguous().squeeze(-2).to(x.device)

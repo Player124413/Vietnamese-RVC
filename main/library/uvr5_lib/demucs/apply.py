@@ -10,7 +10,7 @@ from concurrent.futures import ThreadPoolExecutor
 
 sys.path.append(os.getcwd())
 
-from main.library.uvr5_separator.demucs.utils import center_trim
+from main.library.uvr5_lib.demucs.utils import center_trim
 
 class DummyPoolExecutor:
     class DummyResult:

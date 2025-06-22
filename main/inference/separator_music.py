@@ -10,7 +10,7 @@ from distutils.util import strtobool
 sys.path.append(os.getcwd())
 
 from main.library.utils import pydub_load
-from main.library.uvr5_separator.separator import Separator
+from main.library.uvr5_lib.separator import Separator
 from main.app.variables import config, logger, translations
 
 demucs_models = {"HT-Tuned": "htdemucs_ft.yaml", "HT-Normal": "htdemucs.yaml", "HD_MMI": "hdemucs_mmi.yaml", "HT_6S": "htdemucs_6s.yaml"}
@@ -278,13 +278,13 @@ def separator_reverb(output, format, segments_size, overlap, denoise, original, 
 
 def separator_main(audio_file=None, model_filename="UVR-MDX-NET_Main_340.onnx", output_format="wav", output_dir=".", mdx_segment_size=256, mdx_overlap=0.25, mdx_batch_size=1, mdx_hop_length=1024, mdx_enable_denoise=True, demucs_segment_size=256, demucs_shifts=2, demucs_overlap=0.25, sample_rate=44100):
     try:
-        separator = Separator(logger=logger, output_dir=output_dir, output_format=output_format, output_bitrate=None, normalization_threshold=0.9, output_single_stem=None, invert_using_spec=False, sample_rate=sample_rate, mdx_params={"hop_length": mdx_hop_length, "segment_size": mdx_segment_size, "overlap": mdx_overlap, "batch_size": mdx_batch_size, "enable_denoise": mdx_enable_denoise}, demucs_params={"segment_size": demucs_segment_size, "shifts": demucs_shifts, "overlap": demucs_overlap, "segments_enabled": config.configs.get("demucs_segments_enable", True)})
+        separator = Separator(logger=logger, output_dir=output_dir, output_format=output_format, output_bitrate=None, normalization_threshold=0.9, sample_rate=sample_rate, mdx_params={"hop_length": mdx_hop_length, "segment_size": mdx_segment_size, "overlap": mdx_overlap, "batch_size": mdx_batch_size, "enable_denoise": mdx_enable_denoise}, demucs_params={"segment_size": demucs_segment_size, "shifts": demucs_shifts, "overlap": demucs_overlap, "segments_enabled": config.configs.get("demucs_segments_enable", True)})
         separator.load_model(model_filename=model_filename)
 
         return separator.separate(audio_file)
     except:
         logger.debug(translations["default_setting"])
-        separator = Separator(logger=logger, output_dir=output_dir, output_format=output_format, output_bitrate=None, normalization_threshold=0.9, output_single_stem=None, invert_using_spec=False, sample_rate=44100, mdx_params={"hop_length": 1024, "segment_size": 256, "overlap": 0.25, "batch_size": 1, "enable_denoise": mdx_enable_denoise}, demucs_params={"segment_size": 128, "shifts": 2, "overlap": 0.25, "segments_enabled": config.configs.get("demucs_segments_enable", True)})
+        separator = Separator(logger=logger, output_dir=output_dir, output_format=output_format, output_bitrate=None, normalization_threshold=0.9, sample_rate=44100, mdx_params={"hop_length": 1024, "segment_size": 256, "overlap": 0.25, "batch_size": 1, "enable_denoise": mdx_enable_denoise}, demucs_params={"segment_size": 128, "shifts": 2, "overlap": 0.25, "segments_enabled": config.configs.get("demucs_segments_enable", True)})
         separator.load_model(model_filename=model_filename)
 
         return separator.separate(audio_file)

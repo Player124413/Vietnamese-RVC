@@ -435,7 +435,6 @@ class MultiheadAttention(FairseqIncrementalDecoder):
             attn_weights = attn_weights.reshape((-1,) + attn_weights.size()[-2:])
         else: attn_weights = torch.bmm(q, k.transpose(1, 2))
 
-        attn_weights = self.apply_sparse_mask(attn_weights, tgt_len, src_len, bsz)
         assert list(attn_weights.size()) == [bsz * self.num_heads, tgt_len, src_len]
 
         if attn_mask is not None:
@@ -512,9 +511,6 @@ class MultiheadAttention(FairseqIncrementalDecoder):
 
     def _set_input_buffer(self, incremental_state, buffer):
         return self.set_incremental_state(incremental_state, "attn_state", buffer)
-
-    def apply_sparse_mask(self, attn_weights, tgt_len, src_len, bsz):
-        return attn_weights
 
     def upgrade_state_dict_named(self, state_dict, name):
         prefix = name + "." if name != "" else ""

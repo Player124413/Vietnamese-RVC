@@ -14,9 +14,9 @@ from torch.nn import functional as F
 sys.path.append(os.getcwd())
 
 from main.configs.config import Config
-from main.library.uvr5_separator.demucs.states import capture_init
-from main.library.uvr5_separator.demucs.demucs import rescale_module
-from main.library.uvr5_separator.demucs.hdemucs import pad1d, spectro, ispectro, wiener, ScaledEmbedding, HEncLayer, MultiWrap, HDecLayer
+from main.library.uvr5_lib.demucs.states import capture_init
+from main.library.uvr5_lib.demucs.demucs import rescale_module
+from main.library.uvr5_lib.demucs.hdemucs import pad1d, spectro, ispectro, wiener, ScaledEmbedding, HEncLayer, MultiWrap, HDecLayer
 
 translations = Config().translations
 

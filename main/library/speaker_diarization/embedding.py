@@ -16,7 +16,7 @@ class BaseInference:
     pass
 
 class SpeechBrainPretrainedSpeakerEmbedding(BaseInference):
-    def __init__(self, embedding = "assets/models/speaker_diarization/models/speechbrain", device = None):
+    def __init__(self, embedding, device = None):
         super().__init__()
 
         self.embedding = embedding

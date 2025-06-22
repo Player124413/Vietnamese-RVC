@@ -1,6 +1,7 @@
 import os
 import re
 import sys
+import torch
 import codecs
 import librosa
 import logging
@@ -171,6 +172,17 @@ def get_providers():
         providers = ["DmlExecutionProvider"]
     elif "CoreMLExecutionProvider" in ort_providers and config.device.startswith("mps"): 
         providers = ["CoreMLExecutionProvider"]
-    else: providers = ["CPUExecutionProvider"]
+    else: 
+        providers = ["CPUExecutionProvider"]
 
     return providers
+
+def extract_features(model, feats, version):
+    feats0 = model.run(
+        [model.get_outputs()[0].name, model.get_outputs()[1].name], 
+        {
+            "feats": feats.detach().cpu().numpy()
+        }
+    )[0 if version == "v1" else 1]
+
+    return torch.as_tensor(feats0, dtype=torch.float32, device=feats.device)

@@ -11,9 +11,9 @@ from scipy import signal
 sys.path.append(os.getcwd())
 
 from main.app.variables import translations
-from main.library.utils import get_providers
 from main.library.predictors.Generator import Generator
 from main.inference.extracting.rms import RMSEnergyExtractor
+from main.library.utils import get_providers, extract_features
 from main.inference.conversion.utils import change_rms, clear_gpu_cache, get_onnx_argument
 
 bh, ah = signal.butter(N=5, Wn=48, btype="high", fs=16000)
@@ -39,9 +39,6 @@ class Pipeline:
         self.f0_mel_max = 1127 * np.log(1 + self.f0_max / 700)
         self.device = config.device
         self.is_half = config.is_half
-    
-    def extract_features(self, model, feats, version):
-        return torch.as_tensor(model.run([model.get_outputs()[0].name, model.get_outputs()[1].name], {"feats": feats.detach().cpu().numpy()})[0 if version == "v1" else 1], dtype=torch.float32, device=feats.device)
 
     def voice_conversion(self, model, net_g, sid, audio0, pitch, pitchf, index, big_npy, index_rate, version, protect, energy):
         feats = (torch.from_numpy(audio0).half() if self.is_half else torch.from_numpy(audio0).float())
@@ -57,7 +54,7 @@ class Pipeline:
                 padding_mask = torch.BoolTensor(feats.shape).to(self.device).fill_(False)
                 logits = model.extract_features(**{"source": feats.to(self.device), "padding_mask": padding_mask, "output_layer": 9 if version == "v1" else 12})
                 feats = model.final_proj(logits[0]) if version == "v1" else logits[0]
-            elif self.embed_suffix == ".onnx": feats = self.extract_features(model, feats.to(self.device), version).to(self.device)
+            elif self.embed_suffix == ".onnx": feats = extract_features(model, feats.to(self.device), version).to(self.device)
             elif self.embed_suffix == ".safetensors":
                 logits = model(feats.to(self.device))["last_hidden_state"]
                 feats = (model.final_proj(logits[0]).unsqueeze(0) if version == "v1" else logits)
@@ -132,7 +129,7 @@ class Pipeline:
             )
 
         if self.embed_suffix == ".pt": del padding_mask
-        del feats, p_len, net_g
+        del feats, p_len, net_g, model
 
         clear_gpu_cache()
         return audio1
@@ -188,7 +185,7 @@ class Pipeline:
 
         pbar.update(1)
         if pitch_guidance:
-            if not hasattr(self, "f0_generator"): self.f0_generator = Generator(self.sample_rate, hop_length, self.f0_min, self.f0_max, self.is_half, self.device, get_providers(), f0_onnx)
+            if not hasattr(self, "f0_generator"): self.f0_generator = Generator(self.sample_rate, hop_length, self.f0_min, self.f0_max, self.is_half, self.device, get_providers(), f0_onnx, f0_onnx)
             pitch, pitchf = self.f0_generator.calculator(self.x_pad, f0_method, audio_pad, f0_up_key, p_len, filter_radius, f0_autotune, f0_autotune_strength, manual_f0=inp_f0, proposal_pitch=proposal_pitch, proposal_pitch_threshold=proposal_pitch_threshold)
 
             if self.device == "mps": pitchf = pitchf.astype(np.float32)

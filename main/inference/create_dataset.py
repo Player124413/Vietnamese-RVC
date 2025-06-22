@@ -13,7 +13,7 @@ from distutils.util import strtobool
 sys.path.append(os.getcwd())
 
 from main.app.variables import config, logger, translations
-from main.library.uvr5_separator.separator import Separator
+from main.library.uvr5_lib.separator import Separator
 
 dataset_temp = "dataset_temp"
 
@@ -200,12 +200,12 @@ def separator_reverb_audio(input, output, segments_size, overlap, denoise, hop_l
 
 def separator_main(audio_file=None, model_filename="Kim_Vocal_1.onnx", output_format="wav", output_dir=".", mdx_segment_size=256, mdx_overlap=0.25, mdx_batch_size=1, mdx_hop_length=1024, mdx_enable_denoise=True, sample_rate=44100):
     try:
-        separator = Separator(logger=logger, output_dir=output_dir, output_format=output_format, output_bitrate=None, normalization_threshold=0.9, output_single_stem=None, invert_using_spec=False, sample_rate=sample_rate, mdx_params={"hop_length": mdx_hop_length, "segment_size": mdx_segment_size, "overlap": mdx_overlap, "batch_size": mdx_batch_size, "enable_denoise": mdx_enable_denoise})
+        separator = Separator(logger=logger, output_dir=output_dir, output_format=output_format, output_bitrate=None, normalization_threshold=0.9, sample_rate=sample_rate, mdx_params={"hop_length": mdx_hop_length, "segment_size": mdx_segment_size, "overlap": mdx_overlap, "batch_size": mdx_batch_size, "enable_denoise": mdx_enable_denoise})
         separator.load_model(model_filename=model_filename)
         return separator.separate(audio_file)
     except:
         logger.debug(translations["default_setting"])
-        separator = Separator(logger=logger, output_dir=output_dir, output_format=output_format, output_bitrate=None, normalization_threshold=0.9, output_single_stem=None, invert_using_spec=False, sample_rate=44100, mdx_params={"hop_length": 1024, "segment_size": 256, "overlap": 0.25, "batch_size": 1, "enable_denoise": mdx_enable_denoise})
+        separator = Separator(logger=logger, output_dir=output_dir, output_format=output_format, output_bitrate=None, normalization_threshold=0.9, sample_rate=44100, mdx_params={"hop_length": 1024, "segment_size": 256, "overlap": 0.25, "batch_size": 1, "enable_denoise": mdx_enable_denoise})
         separator.load_model(model_filename=model_filename)
         return separator.separate(audio_file)
 

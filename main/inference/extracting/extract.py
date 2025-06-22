@@ -1,4 +1,5 @@
 import os
+import gc
 import sys
 import time
 import tqdm
@@ -16,12 +17,12 @@ from distutils.util import strtobool
 
 sys.path.append(os.getcwd())
 
-from main.library import torch_amd
+from main.library import opencl
 from main.inference.extracting.feature import FeatureInput
 from main.inference.extracting.rms import RMSEnergyExtractor
 from main.app.variables import config, logger, translations, configs
 from main.inference.extracting.preparing_files import generate_config, generate_filelist
-from main.library.utils import check_predictors, check_embedders, load_audio, load_embedders_model, get_providers
+from main.library.utils import check_predictors, check_embedders, load_audio, load_embedders_model, get_providers, extract_features
 
 warnings.filterwarnings("ignore")
 for l in ["torch", "faiss", "httpx", "httpcore", "faiss.loader", "numba.core", "urllib3", "matplotlib"]:
@@ -65,21 +66,21 @@ def setup_paths(exp_dir, version = None, rms_extract = False):
         return wav_path, output_root1, output_root2
 
 def run_pitch_extraction(exp_dir, f0_method, hop_length, num_processes, devices, f0_onnx, is_half, f0_autotune, f0_autotune_strength):
+    num_processes = max(1, num_processes)
     input_root, *output_roots = setup_paths(exp_dir)
     output_root1, output_root2 = output_roots if len(output_roots) == 2 else (output_roots[0], None)
-    paths = [(os.path.join(input_root, name), os.path.join(output_root1, name) if output_root1 else None, os.path.join(output_root2, name) if output_root2 else None, os.path.join(input_root, name)) for name in sorted(os.listdir(input_root)) if "spec" not in name]
-    
-    logger.info(translations["extract_f0_method"].format(num_processes=num_processes, f0_method=f0_method))
-    start_time = time.time()
 
+    logger.info(translations["extract_f0_method"].format(num_processes=num_processes, f0_method=f0_method))
+    num_processes = 1 if config.device.startswith("ocl") and (f0_method in "crepe" or f0_method in "fcpe" or f0_method in "rmvpe") else num_processes
+    paths = [(os.path.join(input_root, name), os.path.join(output_root1, name) if output_root1 else None, os.path.join(output_root2, name) if output_root2 else None, os.path.join(input_root, name)) for name in sorted(os.listdir(input_root)) if "spec" not in name]
+
+    start_time = time.time()
     feature_input = FeatureInput()
     with concurrent.futures.ProcessPoolExecutor(max_workers=len(devices)) as executor:
         concurrent.futures.wait([executor.submit(feature_input.process_files, paths[i::len(devices)], f0_method, hop_length, f0_onnx, devices[i], is_half, num_processes // len(devices), f0_autotune, f0_autotune_strength) for i in range(len(devices))])
-
+    
+    gc.collect()
     logger.info(translations["extract_f0_success"].format(elapsed_time=f"{(time.time() - start_time):.2f}"))
-
-def extract_features(model, feats, version):
-    return torch.as_tensor(model.run([model.get_outputs()[0].name, model.get_outputs()[1].name], {"feats": feats.detach().cpu().numpy()})[0 if version == "v1" else 1], dtype=torch.float32, device=feats.device)
 
 def process_file_embedding(files, embedder_model, embedders_mode, device, version, is_half, threads):
     model, embed_suffix = load_embedders_model(embedder_model, embedders_mode, providers=get_providers())
@@ -119,15 +120,16 @@ def run_embedding_extraction(exp_dir, version, num_processes, devices, embedder_
     start_time = time.time()
 
     logger.info(translations["start_extract_hubert"])
+    num_processes = 1 if config.device.startswith("ocl") and embedders_mode == "onnx" else num_processes
     paths = sorted([(os.path.join(wav_path, file), out_path) for file in os.listdir(wav_path) if file.endswith(".wav")])
 
     with concurrent.futures.ProcessPoolExecutor(max_workers=len(devices)) as executor:
         concurrent.futures.wait([executor.submit(process_file_embedding, paths[i::len(devices)], embedder_model, embedders_mode, devices[i], version, is_half, num_processes // len(devices)) for i in range(len(devices))])
-
+    
+    gc.collect()
     logger.info(translations["extract_hubert_success"].format(elapsed_time=f"{(time.time() - start_time):.2f}"))
 
 def process_file_rms(files, device, threads):
-    device = device if not device.startswith("ocl") else "cpu"
     threads = max(1, threads)
 
     module = RMSEnergyExtractor(
@@ -141,7 +143,8 @@ def process_file_rms(files, device, threads):
 
             if os.path.exists(out_file_path + ".npy"): return
             with torch.no_grad():
-                feats = module(torch.from_numpy(load_audio(logger, file, 16000)).to(device).unsqueeze(0))
+                feats = torch.from_numpy(load_audio(logger, file, 16000)).unsqueeze(0)
+                feats = module(feats if device.startswith("ocl") else feats.to(device))
                 
             np.save(out_file_path, feats.float().cpu().numpy(), allow_pickle=False)
         except:
@@ -172,7 +175,7 @@ def main():
     f0_method, hop_length, num_processes, gpus, version, pitch_guidance, sample_rate, embedder_model, f0_onnx, embedders_mode, f0_autotune, f0_autotune_strength, rms_extract = args.f0_method, args.hop_length, args.cpu_cores, args.gpu, args.rvc_version, args.pitch_guidance, args.sample_rate, args.embedder_model, args.f0_onnx, args.embedders_mode, args.f0_autotune, args.f0_autotune_strength, args.rms_extract
     exp_dir = os.path.join(configs["logs_path"], args.model_name)
 
-    devices = ["cpu"] if gpus == "-" else [(f"ocl:{idx}" if torch_amd.is_available() else f"cuda:{idx}") for idx in gpus.split("-")]
+    devices = ["cpu"] if gpus == "-" else [(f"ocl:{idx}" if opencl.is_available() else f"cuda:{idx}") for idx in gpus.split("-")]
     check_predictors(f0_method, f0_onnx=f0_onnx); check_embedders(embedder_model, embedders_mode)
 
     log_data = {translations['modelname']: args.model_name, translations['export_process']: exp_dir, translations['f0_method']: f0_method, translations['pretrain_sr']: sample_rate, translations['cpu_core']: num_processes, "Gpu": gpus, "Hop length": hop_length, translations['training_version']: version, translations['extract_f0']: pitch_guidance, translations['hubert_model']: embedder_model, translations["f0_onnx_mode"]: f0_onnx, translations["embed_mode"]: embedders_mode, translations["train&energy"]: rms_extract}

@@ -1,3 +1,5 @@
+import os
+import sys
 import torch
 
 import numpy as np
@@ -5,6 +7,10 @@ import torch.nn as nn
 import torch.nn.functional as F
 
 from librosa.filters import mel
+
+sys.path.append(os.getcwd())
+
+from main.library import opencl
 
 N_MELS, N_CLASS = 128, 360
 
@@ -157,8 +163,16 @@ class MelSpectrogram(torch.nn.Module):
         win_length_new = int(np.round(self.win_length * factor))
         keyshift_key = str(keyshift) + "_" + str(audio.device)
         if keyshift_key not in self.hann_window: self.hann_window[keyshift_key] = torch.hann_window(win_length_new).to(audio.device)
-        fft = torch.stft(audio, n_fft=int(np.round(self.n_fft * factor)), hop_length=int(np.round(self.hop_length * speed)), win_length=win_length_new, window=self.hann_window[keyshift_key], center=center, return_complex=True)
-        magnitude = torch.sqrt(fft.real.pow(2) + fft.imag.pow(2))
+
+        n_fft = int(np.round(self.n_fft * factor))
+        hop_length = int(np.round(self.hop_length * speed))
+
+        if str(audio.device).startswith("ocl"):
+            stft = opencl.STFT(filter_length=n_fft, hop_length=hop_length, win_length=win_length_new).to(audio.device)
+            magnitude = stft.transform(audio, 1e-9)
+        else:
+            fft = torch.stft(audio, n_fft=n_fft, hop_length=hop_length, win_length=win_length_new, window=self.hann_window[keyshift_key], center=center, return_complex=True)
+            magnitude = torch.sqrt(fft.real.pow(2) + fft.imag.pow(2))
 
         if keyshift != 0:
             size = self.n_fft // 2 + 1
