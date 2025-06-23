@@ -5,7 +5,7 @@ setlocal enabledelayedexpansion
 set GPU_NVIDIA=0
 set GPU_AMD=0
 
-set FILES=run_app.bat tensorboard.bat docker-compose-amd.yaml docker-compose-cpu.yaml docker-compose-cuda118.yaml docker-compose-cuda128.yaml Dockerfile Dockerfile.amd Dockerfile.cuda118 Dockerfile.cuda128
+set FILES=requirements.txt run_app.bat tensorboard.bat docker-compose-amd.yaml docker-compose-cpu.yaml docker-compose-cuda118.yaml docker-compose-cuda128.yaml Dockerfile Dockerfile.amd Dockerfile.cuda118 Dockerfile.cuda128
 set BASE_URL=https://huggingface.co/AnhP/Vietnamese-RVC-Project/resolve/main
 set FFMPEG=%BASE_URL%/ffmpeg/ffmpeg.exe
 set FFPROBE=%BASE_URL%/ffmpeg/ffprobe.exe

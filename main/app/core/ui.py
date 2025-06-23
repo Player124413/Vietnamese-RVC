@@ -166,11 +166,11 @@ def process_output(file_path):
         return file_path
     else:
         if not os.path.exists(file_path): return file_path
-        file = os.path.basename(file_path).split(".")
+        file = os.path.splitext(os.path.basename(file_path))
 
         index = 1
         while 1:
-            file_path = os.path.join(os.path.dirname(file_path), f"{file[0]}_{index}." + file[1])
+            file_path = os.path.join(os.path.dirname(file_path), f"{file[0]}_{index}{file[1]}")
             if not os.path.exists(file_path): return file_path
             index += 1
 
