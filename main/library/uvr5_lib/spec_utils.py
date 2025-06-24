@@ -4,6 +4,7 @@ import sys
 import librosa
 import tempfile
 import platform
+import audioread
 import subprocess
 
 import numpy as np
@@ -38,9 +39,17 @@ MAX_WAV = MAX_SPEC
 MIN_WAV = MIN_SPEC
 AVERAGE = "Average"
 
+is_macos = False
 progress_value, last_update_time = 0, 0
-wav_resolution = "sinc_fastest"
-wav_resolution_float_resampling = wav_resolution
+
+if OPERATING_SYSTEM == "Darwin":
+    wav_resolution = "polyphase" if SYSTEM_PROC == ARM or ARM in SYSTEM_ARCH else "sinc_fastest"
+    wav_resolution_float_resampling = "kaiser_best" if SYSTEM_PROC == ARM or ARM in SYSTEM_ARCH else wav_resolution
+    is_macos = True
+else:
+    wav_resolution = "sinc_fastest"
+    wav_resolution_float_resampling = wav_resolution
+
 
 def crop_center(h1, h2):
     h1_shape = h1.size()
@@ -635,6 +644,12 @@ def check_if_phase_inverted(wav1, wav2, is_mono=False):
 
     return np.corrcoef(wav1[:1000], wav2[:1000])[0, 1] < 0
 
+def rerun_mp3(audio_file):
+    with audioread.audio_open(audio_file) as f:
+        track_length = int(f.duration)
+
+    return track_length
+
 def align_audio(file1, file2, file2_aligned, file_subtracted, wav_type_set, is_save_aligned, command_Text, save_format, align_window, align_intro_val, db_analysis, set_progress_bar, phase_option, phase_shifts, is_match_silence, is_spec_match):
     global progress_value
     progress_value = 0
@@ -650,8 +665,17 @@ def align_audio(file1, file2, file2_aligned, file_subtracted, wav_type_set, is_s
         if (0.90 / length * progress_value) >= 0.9: length = progress_value + 1
         set_progress_bar(0.1, (0.9 / length * progress_value))
 
-    wav1, sr1 = librosa.load(file1, sr=44100, mono=False)
-    wav2, sr2 = librosa.load(file2, sr=44100, mono=False)
+    if file1.endswith(".mp3") and is_macos:
+        length1 = rerun_mp3(file1)
+        wav1, sr1 = librosa.load(file1, duration=length1, sr=44100, mono=False)
+    else:
+        wav1, sr1 = librosa.load(file1, sr=44100, mono=False)
+
+    if file2.endswith(".mp3") and is_macos:
+        length2 = rerun_mp3(file2)
+        wav2, sr2 = librosa.load(file2, duration=length2, sr=44100, mono=False)
+    else:
+        wav2, sr2 = librosa.load(file2, sr=44100, mono=False)
 
     if wav1.ndim == 1 and wav2.ndim == 1: is_mono = True
     elif wav1.ndim == 1: wav1 = np.asfortranarray([wav1, wav1])
