@@ -147,7 +147,7 @@ class Pipeline:
                 index = big_npy = None
         else: index = big_npy = None
 
-        pbar.update(1)
+        if pbar: pbar.update(1)
         opt_ts, audio_opt = [], []
         audio = signal.filtfilt(bh, ah, audio)
         audio_pad = np.pad(audio, (self.window // 2, self.window // 2), mode="reflect")
@@ -183,7 +183,7 @@ class Pipeline:
                 logger.error(translations["error_readfile"])
                 inp_f0 = None
 
-        pbar.update(1)
+        if pbar: pbar.update(1)
         if pitch_guidance:
             if not hasattr(self, "f0_generator"): self.f0_generator = Generator(self.sample_rate, hop_length, self.f0_min, self.f0_max, self.is_half, self.device, get_providers(), f0_onnx, f0_onnx)
             pitch, pitchf = self.f0_generator.calculator(self.x_pad, f0_method, audio_pad, f0_up_key, p_len, filter_radius, f0_autotune, f0_autotune_strength, manual_f0=inp_f0, proposal_pitch=proposal_pitch, proposal_pitch_threshold=proposal_pitch_threshold)
@@ -191,7 +191,7 @@ class Pipeline:
             if self.device == "mps": pitchf = pitchf.astype(np.float32)
             pitch, pitchf = torch.tensor(pitch[:p_len], device=self.device).unsqueeze(0).long(), torch.tensor(pitchf[:p_len], device=self.device).unsqueeze(0).float()
 
-        pbar.update(1)
+        if pbar: pbar.update(1)
 
         if energy_use:
             if not hasattr(self, "rms_extract"): self.rms_extract = RMSEnergyExtractor(frame_length=2048, hop_length=self.window, center=True, pad_mode = "reflect").to(self.device).eval()
@@ -200,7 +200,7 @@ class Pipeline:
             if self.device == "mps": energy = energy.astype(np.float32)
             energy = torch.tensor(energy[:p_len], device=self.device).unsqueeze(0).float()
 
-        pbar.update(1)
+        if pbar: pbar.update(1)
 
         for t in opt_ts:
             t = t // self.window * self.window
@@ -240,7 +240,7 @@ class Pipeline:
         )
 
         audio_opt = np.concatenate(audio_opt)
-        pbar.update(1)
+        if pbar: pbar.update(1)
 
         if volume_envelope != 1: audio_opt = change_rms(audio, self.sample_rate, audio_opt, self.sample_rate, volume_envelope)
         audio_max = np.abs(audio_opt).max() / 0.99
