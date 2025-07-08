@@ -37,8 +37,8 @@ def fushion_model_pth(name, pth_1, pth_2, ratio):
         return opt
     
     try:
-        ckpt1 = torch.load(pth_1, map_location="cpu")
-        ckpt2 = torch.load(pth_2, map_location="cpu")
+        ckpt1 = torch.load(pth_1, map_location="cpu", weights_only=True)
+        ckpt2 = torch.load(pth_2, map_location="cpu", weights_only=True)
 
         if ckpt1["sr"] != ckpt2["sr"]: 
             gr_warning(translations["sr_not_same"])
@@ -50,6 +50,7 @@ def fushion_model_pth(name, pth_1, pth_2, ratio):
         cfg_sr = ckpt1["sr"]
 
         vocoder = ckpt1.get("vocoder", "Default")
+        rms_extract = ckpt1.get("energy", False)
 
         ckpt1 = extract(ckpt1) if "model" in ckpt1 else ckpt1["weight"]
         ckpt2 = extract(ckpt2) if "model" in ckpt2 else ckpt2["weight"]
@@ -75,6 +76,7 @@ def fushion_model_pth(name, pth_1, pth_2, ratio):
         opt["version"] = cfg_version
         opt["infos"] = translations["model_fushion_info"].format(name=name, pth_1=pth_1, pth_2=pth_2, ratio=ratio)
         opt["vocoder"] = vocoder
+        opt["energy"] = rms_extract
 
         output_model = configs["weights_path"]
         if not os.path.exists(output_model): os.makedirs(output_model, exist_ok=True)
@@ -154,6 +156,7 @@ def model_info(path):
     model_name = model_data.get("model_name", translations["unregistered"])
     model_author = model_data.get("author", translations["not_author"])
     vocoder = model_data.get("vocoder", "Default")
+    rms_extract = model_data.get("energy", False)
 
     gr_info(translations["success"])
-    return translations["model_info"].format(model_name=model_name, model_author=model_author, epochs=epochs, steps=steps, version=version, sr=sr, pitch_guidance=pitch_guidance, model_hash=model_hash, creation_date_str=creation_date_str, vocoder=vocoder)
+    return translations["model_info"].format(model_name=model_name, model_author=model_author, epochs=epochs, steps=steps, version=version, sr=sr, pitch_guidance=pitch_guidance, model_hash=model_hash, creation_date_str=creation_date_str, vocoder=vocoder, rms_extract=rms_extract)

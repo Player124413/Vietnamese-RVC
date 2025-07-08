@@ -252,7 +252,7 @@ class FCPEInfer_LEGACY:
             sess_options.log_severity_level = 3
             self.model = ort.InferenceSession(decrypt_model(configs, model_path), sess_options=sess_options, providers=providers)
         else:
-            ckpt = torch.load(model_path, map_location=torch.device(self.device))
+            ckpt = torch.load(model_path, map_location=torch.device(self.device), weights_only=True)
             self.args = DotDict(ckpt["config"])
             model = FCPE_LEGACY(input_channel=self.args.model.input_channel, out_dims=self.args.model.out_dims, n_layers=self.args.model.n_layers, n_chans=self.args.model.n_chans, loss_mse_scale=self.args.loss.loss_mse_scale, loss_l2_regularization=self.args.loss.loss_l2_regularization, loss_l2_regularization_scale=self.args.loss.loss_l2_regularization_scale, loss_grad1_mse=self.args.loss.loss_grad1_mse, loss_grad1_mse_scale=self.args.loss.loss_grad1_mse_scale, f0_max=self.f0_max, f0_min=self.f0_min, confidence=self.args.model.confidence)
             model.to(self.device).to(self.dtype)
@@ -281,7 +281,7 @@ class FCPEInfer:
             sess_options.log_severity_level = 3
             self.model = ort.InferenceSession(decrypt_model(configs, model_path), sess_options=sess_options, providers=providers)
         else:
-            ckpt = torch.load(model_path, map_location=torch.device(device))
+            ckpt = torch.load(model_path, map_location=torch.device(device), weights_only=True)
             ckpt["config_dict"]["model"]["conv_dropout"] = ckpt["config_dict"]["model"]["atten_dropout"] = 0.0
             self.args = DotDict(ckpt["config_dict"])
             model = InferCFNaiveMelPE(self.args, ckpt["model"])

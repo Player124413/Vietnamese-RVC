@@ -16,8 +16,7 @@ from Crypto.Util import Counter
 
 sys.path.append(os.getcwd())
 
-from main.configs.config import Config
-translations = Config().translations
+from main.app.variables import translations
 
 def makebyte(x):
     return codecs.latin_1_encode(x)[0]
@@ -118,6 +117,7 @@ def mega_download_file(file_handle, file_key, dest_path=None):
     if os.path.exists(file_path): os.remove(file_path)
 
     shutil.move(temp_output_file.name, file_path)
+    return file_path
 
 def mega_download_url(url, dest_path=None):
     if '/file/' in url:

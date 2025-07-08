@@ -49,7 +49,7 @@ def move_files_from_directory(src_dir, dest_weights, dest_logs, model_name):
                 model_log_dir = os.path.join(dest_logs, model_name)
                 os.makedirs(model_log_dir, exist_ok=True)
 
-                filepath = process_output(os.path.join(model_log_dir, file.replace(' ', '_').replace('(', '').replace(')', '').replace('[', '').replace(']', '').replace(",", "").replace('"', "").replace("'", "").replace("|", "").strip()))
+                filepath = process_output(os.path.join(model_log_dir, file.replace(' ', '_').replace('(', '').replace(')', '').replace('[', '').replace(']', '').replace(",", "").replace('"', "").replace("'", "").replace("|", "").replace("{", "").replace("}", "").strip()))
 
                 shutil.move(file_path, filepath)
             elif file.endswith(".pth") and not file.startswith("D_") and not file.startswith("G_"):
@@ -60,6 +60,10 @@ def move_files_from_directory(src_dir, dest_weights, dest_logs, model_name):
                 pth_path = process_output(os.path.join(dest_weights, model_name + ".onnx"))
 
                 shutil.move(file_path, pth_path)
+
+def extract_name_model(filename):
+    match = re.search(r"_([A-Za-z0-9]+)(?=_v\d*)", filename.replace('-', '').replace('(', '').replace(')', '').replace('[', '').replace(']', '').replace(",", "").replace('"', "").replace("'", "").replace("|", "").replace("{", "").replace("}", "").strip())
+    return match.group(1) if match else None
 
 def save_drop_model(dropbox):
     weight_folder = configs["weights_path"]
@@ -75,26 +79,24 @@ def save_drop_model(dropbox):
     try:
         file_name = os.path.basename(dropbox)
 
-        if file_name.endswith(".pth") and file_name.endswith(".onnx") and file_name.endswith(".index"): gr_warning(translations["not_model"])
-        else:    
-            if file_name.endswith(".zip"):
-                shutil.unpack_archive(os.path.join(save_model_temp, file_name), save_model_temp)
-                move_files_from_directory(save_model_temp, weight_folder, logs_folder, file_name.replace(".zip", ""))
-            elif file_name.endswith((".pth", ".onnx")): 
-                output_file = process_output(os.path.join(weight_folder, file_name))
-                
-                shutil.move(os.path.join(save_model_temp, file_name), output_file)
-            elif file_name.endswith(".index"):
-                def extract_name_model(filename):
-                    match = re.search(r"([A-Za-z]+)(?=_v|\.|$)", filename)
-                    return match.group(1) if match else None
-                
-                model_logs = os.path.join(logs_folder, extract_name_model(file_name))
-                if not os.path.exists(model_logs): os.makedirs(model_logs, exist_ok=True)
-                shutil.move(os.path.join(save_model_temp, file_name), model_logs)
-            else: 
-                gr_warning(translations["unable_analyze_model"])
-                return None
+        if file_name.endswith(".zip"):
+            shutil.unpack_archive(os.path.join(save_model_temp, file_name), save_model_temp)
+            move_files_from_directory(save_model_temp, weight_folder, logs_folder, file_name.replace(".zip", ""))
+        elif file_name.endswith((".pth", ".onnx")): 
+            output_file = process_output(os.path.join(weight_folder, file_name))
+            
+            shutil.move(os.path.join(save_model_temp, file_name), output_file)
+        elif file_name.endswith(".index"):
+            modelname = extract_name_model(file_name)
+            if modelname is None: modelname = os.path.splitext(os.path.basename(file_name))[0]
+
+            model_logs = os.path.join(logs_folder, modelname)
+            if not os.path.exists(model_logs): os.makedirs(model_logs, exist_ok=True)
+
+            shutil.move(os.path.join(save_model_temp, file_name), model_logs)
+        else: 
+            gr_warning(translations["unable_analyze_model"])
+            return None
         
         gr_info(translations["upload_success"].format(name=translations["model"]))
         return None
@@ -119,10 +121,13 @@ def zip_file(name, pth, index):
     return {"visible": True, "value": zip_file_path, "__type__": "update"}
 
 def fetch_pretrained_data():
-    response = requests.get(codecs.decode("uggcf://uhttvatsnpr.pb/NauC/Ivrganzrfr-EIP-Cebwrpg/erfbyir/znva/wfba/phfgbz_cergenvarq.wfba", "rot13"))
-    response.raise_for_status()
+    try:
+        response = requests.get(codecs.decode("uggcf://uhttvatsnpr.pb/NauC/Ivrganzrfr-EIP-Cebwrpg/erfbyir/znva/wfba/phfgbz_cergenvarq.wfba", "rot13"))
+        response.raise_for_status()
 
-    return response.json()
+        return response.json()
+    except:
+        return {}
 
 def update_sample_rate_dropdown(model):
     data = fetch_pretrained_data()

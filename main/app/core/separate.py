@@ -5,7 +5,7 @@ import subprocess
 sys.path.append(os.getcwd())
 
 from main.app.core.ui import gr_info, gr_warning
-from main.app.variables import python, translations, configs
+from main.app.variables import python, translations, configs, config
 
 def separator_music(input, output_audio, format, shifts, segments_size, overlap, clean_audio, clean_strength, denoise, separator_model, kara_model, backing, reverb, backing_reverb, hop_length, batch_size, sample_rate):
     output = os.path.dirname(output_audio) or output_audio
@@ -21,7 +21,12 @@ def separator_music(input, output_audio, format, shifts, segments_size, overlap,
     if not os.path.exists(output): os.makedirs(output)
     gr_info(translations["start"].format(start=translations["separator_music"]))
 
-    subprocess.run([python, configs["separate_path"], "--input_path", input, "--output_path", output, "--format", format, "--shifts", str(shifts), "--segments_size", str(segments_size), "--overlap", str(overlap), "--mdx_hop_length", str(hop_length), "--mdx_batch_size", str(batch_size), "--clean_audio", str(clean_audio), "--clean_strength", str(clean_strength), "--kara_model", kara_model, "--backing", str(backing), "--mdx_denoise", str(denoise), "--reverb", str(reverb), "--backing_reverb", str(backing_reverb), "--model_name", separator_model, "--sample_rate", str(sample_rate)])
+    if config.debug_mode: subprocess.run([python, configs["separate_path"], "--input_path", input, "--output_path", output, "--format", format, "--shifts", str(shifts), "--segments_size", str(segments_size), "--overlap", str(overlap), "--mdx_hop_length", str(hop_length), "--mdx_batch_size", str(batch_size), "--clean_audio", str(clean_audio), "--clean_strength", str(clean_strength), "--kara_model", kara_model, "--backing", str(backing), "--mdx_denoise", str(denoise), "--reverb", str(reverb), "--backing_reverb", str(backing_reverb), "--model_name", separator_model, "--sample_rate", str(sample_rate)])
+    else:
+        from main.inference.separator_music import separate
+
+        separate(input, output, format, shifts, segments_size, overlap, hop_length, batch_size, clean_audio, clean_strength, separator_model, kara_model, backing, denoise, reverb, backing_reverb, sample_rate)
+
     gr_info(translations["success"])
 
     filename, _ = os.path.splitext(os.path.basename(input))

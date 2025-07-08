@@ -34,7 +34,7 @@ from main.library.algorithm.discriminators import MultiPeriodDiscriminator
 from main.library.algorithm.commons import slice_segments, clip_grad_value
 from main.inference.training.mel_processing import spec_to_mel_torch, mel_spectrogram_torch
 from main.inference.training.losses import discriminator_loss, kl_loss, feature_loss, generator_loss
-from main.inference.training.data_utils import TextAudioCollate, TextAudioCollate_RMS, TextAudioCollateMultiNSFsid, TextAudioCollateMultiNSFsid_RMS, TextAudioLoader, TextAudioLoader_RMS, TextAudioLoaderMultiNSFsid, TextAudioLoaderMultiNSFsid_RMS, DistributedBucketSampler
+from main.inference.training.data_utils import TextAudioCollate, TextAudioCollateMultiNSFsid, TextAudioLoader, TextAudioLoaderMultiNSFsid, DistributedBucketSampler
 from main.inference.training.utils import HParams, replace_keys_in_dict, load_checkpoint, latest_checkpoint_path, save_checkpoint, summarize, plot_spectrogram_to_numpy
 
 from main.app.variables import config as main_config
@@ -177,7 +177,7 @@ def main():
         logger.debug(traceback.format_exc())
 
 def verify_checkpoint_shapes(checkpoint_path, model):
-    checkpoint = torch.load(checkpoint_path, map_location="cpu")
+    checkpoint = torch.load(checkpoint_path, map_location="cpu", weights_only=True)
     checkpoint_state_dict = checkpoint["model"]
 
     try:
@@ -214,7 +214,7 @@ def extract_model(ckpt, sr, pitch_guidance, name, model_path, epoch, step, versi
         opt["model_name"] = name
         opt["author"] = model_author
         opt["vocoder"] = vocoder
-        opt["rms_extract"] = energy_use
+        opt["energy"] = energy_use
 
         torch.save(replace_keys_in_dict(replace_keys_in_dict(opt, ".parametrizations.weight.original1", ".weight_v"), ".parametrizations.weight.original0", ".weight_g"), model_path)
     except Exception as e:
@@ -237,22 +237,12 @@ def run(rank, n_gpus, experiment_dir, pretrainG, pretrainD, pitch_guidance, cust
     writer_eval = SummaryWriter(log_dir=os.path.join(experiment_dir, "eval")) if rank == 0 else None
 
     if pitch_guidance:
-        if energy_use:
-            train_dataset_class = TextAudioLoaderMultiNSFsid_RMS
-            collate_fn = TextAudioCollateMultiNSFsid_RMS()
-        else:
-            train_dataset_class = TextAudioLoaderMultiNSFsid
-            collate_fn = TextAudioCollateMultiNSFsid()
-
+        train_dataset = TextAudioLoaderMultiNSFsid(config.data, energy=energy_use)
+        collate_fn = TextAudioCollateMultiNSFsid(energy=energy_use)
     else:
-        if energy_use:
-            train_dataset_class = TextAudioLoader_RMS
-            collate_fn = TextAudioCollate_RMS()
-        else:
-            train_dataset_class = TextAudioLoader
-            collate_fn = TextAudioCollate()
+        train_dataset = TextAudioLoader(config.data, energy=energy_use)
+        collate_fn = TextAudioCollate(energy=energy_use)
 
-    train_dataset = train_dataset_class(config.data)
     train_loader = tdata.DataLoader(train_dataset, num_workers=4, shuffle=False, pin_memory=True, collate_fn=collate_fn, batch_sampler=DistributedBucketSampler(train_dataset, batch_size * n_gpus, [100, 200, 300, 400, 500, 600, 700, 800, 900], num_replicas=n_gpus, rank=rank, shuffle=True), persistent_workers=True, prefetch_factor=8)
 
     net_g, net_d = Synthesizer(config.data.filter_length // 2 + 1, config.train.segment_size // config.data.hop_length, **config.model, use_f0=pitch_guidance, sr=sample_rate, vocoder=vocoder, checkpointing=checkpointing, energy=energy_use), MultiPeriodDiscriminator(version, config.model.use_spectral_norm, checkpointing=checkpointing)
@@ -281,7 +271,8 @@ def run(rank, n_gpus, experiment_dir, pretrainG, pretrainD, pitch_guidance, cust
                 if verify: verify_checkpoint_shapes(pretrainG, net_g)
                 logger.info(translations["import_pretrain"].format(dg="G", pretrain=pretrainG))
 
-            net_g.module.load_state_dict(torch.load(pretrainG, map_location="cpu")["model"], strict=strict) if hasattr(net_g, "module") else net_g.load_state_dict(torch.load(pretrainG, map_location="cpu")["model"], strict=strict)
+            ckptG = torch.load(pretrainG, map_location="cpu", weights_only=True)["model"]
+            net_g.module.load_state_dict(ckptG, strict=strict) if hasattr(net_g, "module") else net_g.load_state_dict(ckptG, strict=strict)
         else: logger.warning(translations["not_using_pretrain"].format(dg="G"))
 
         if pretrainD != "" and pretrainD != "None":
@@ -289,7 +280,8 @@ def run(rank, n_gpus, experiment_dir, pretrainG, pretrainD, pitch_guidance, cust
                 if verify: verify_checkpoint_shapes(pretrainD, net_d)
                 logger.info(translations["import_pretrain"].format(dg="D", pretrain=pretrainD))
 
-            net_d.module.load_state_dict(torch.load(pretrainD, map_location="cpu")["model"], strict=strict) if hasattr(net_d, "module") else net_d.load_state_dict(torch.load(pretrainD, map_location="cpu")["model"], strict=strict)
+            ckptD = torch.load(pretrainD, map_location="cpu", weights_only=True)["model"]
+            net_d.module.load_state_dict(ckptD, strict=strict) if hasattr(net_d, "module") else net_d.load_state_dict(ckptD, strict=strict)
         else: logger.warning(translations["not_using_pretrain"].format(dg="D"))
 
     scheduler_g, scheduler_d = torch.optim.lr_scheduler.ExponentialLR(optim_g, gamma=config.train.lr_decay, last_epoch=epoch_str - 2), torch.optim.lr_scheduler.ExponentialLR(optim_d, gamma=config.train.lr_decay, last_epoch=epoch_str - 2)
@@ -297,21 +289,19 @@ def run(rank, n_gpus, experiment_dir, pretrainG, pretrainD, pitch_guidance, cust
     optim_g.step(); optim_d.step()
     cache = []
 
+    def to_device(x):
+        return x.cuda(device_id, non_blocking=True) if device.type == "cuda" else x.to(device)
+
     for info in train_loader:
+        reference = (to_device(info[0]), to_device(info[1]))
+
         if pitch_guidance:
-            if energy_use:
-                phone, phone_lengths, pitch, pitchf, _, _, _, _, sid, energy = info
-                reference = (phone.cuda(device_id, non_blocking=True), phone_lengths.cuda(device_id, non_blocking=True), pitch.cuda(device_id, non_blocking=True), pitchf.cuda(device_id, non_blocking=True), sid.cuda(device_id, non_blocking=True), energy.cuda(device_id, non_blocking=True)) if device.type == "cuda" else (phone.to(device), phone_lengths.to(device), pitch.to(device), pitchf.to(device), sid.to(device), energy.to(device))
-            else:
-                phone, phone_lengths, pitch, pitchf, _, _, _, _, sid = info
-                reference = (phone.cuda(device_id, non_blocking=True), phone_lengths.cuda(device_id, non_blocking=True), pitch.cuda(device_id, non_blocking=True), pitchf.cuda(device_id, non_blocking=True), sid.cuda(device_id, non_blocking=True), None) if device.type == "cuda" else (phone.to(device), phone_lengths.to(device), pitch.to(device), pitchf.to(device), sid.to(device), None)
-        else: 
-            if energy_use:
-                phone, phone_lengths, _, _, _, _, sid, energy = info
-                reference = (phone.cuda(device_id, non_blocking=True), phone_lengths.cuda(device_id, non_blocking=True), None, None, sid.cuda(device_id, non_blocking=True), energy.cuda(device_id, non_blocking=True)) if device.type == "cuda" else (phone.to(device), phone_lengths.to(device), None, None, sid.to(device), energy.to(device))
-            else:
-                phone, phone_lengths, _, _, _, _, sid = info
-                reference = (phone.cuda(device_id, non_blocking=True), phone_lengths.cuda(device_id, non_blocking=True), None, None, sid.cuda(device_id, non_blocking=True), None) if device.type == "cuda" else (phone.to(device), phone_lengths.to(device), None, None, sid.to(device), None)
+            reference += (to_device(info[2]), to_device(info[3]), to_device(info[8]))
+            reference += (to_device(info[9]),) if energy_use else (None,)
+        else:
+            reference += (None, None, to_device(info[6]))
+            reference += (to_device(info[7]),) if energy_use else (None,)
+
         break
 
     for epoch in range(epoch_str, total_epoch + 1):
@@ -345,39 +335,39 @@ def train_and_evaluate(rank, epoch, hps, nets, optims, scaler, train_loader, wri
     else: data_iterator = enumerate(train_loader)
 
     epoch_recorder = EpochRecorder()
+
     autocast_enabled = main_config.is_half and device.type == "cuda"
     autocast_device = "cpu" if str(device.type).startswith("ocl") else device.type
-
+    autocast_dtype = torch.float32 if not autocast_enabled else (torch.bfloat16 if main_config.brain else torch.float16)
+    
     with tqdm(total=len(train_loader), leave=False) as pbar:
         for batch_idx, info in data_iterator:
             if device.type == "cuda" and not cache_data_in_gpu: info = [tensor.cuda(device_id, non_blocking=True) for tensor in info]  
             elif device.type == "ocl" and not cache_data_in_gpu: info = [tensor.to(device_id, non_blocking=True) for tensor in info]  
             else: info = [tensor.to(device) for tensor in info]
 
-            if pitch_guidance: 
-                if energy_use:phone, phone_lengths, pitch, pitchf, spec, spec_lengths, wave, _, sid, energy = info
-                else:
-                    energy = None
-                    phone, phone_lengths, pitch, pitchf, spec, spec_lengths, wave, _, sid = info
+            phone, phone_lengths = info[0], info[1]
+            if pitch_guidance:
+                pitch, pitchf = info[2], info[3]
+                spec, spec_lengths, wave, sid = info[4], info[5], info[6], info[8]
+                energy = info[9] if energy_use else None
             else:
-                pitch, pitchf = None, None
-                if energy_use: phone, phone_lengths, spec, spec_lengths, wave, _, sid, energy = info
-                else:
-                    energy = None
-                    phone, phone_lengths, spec, spec_lengths, wave, _, sid = info
+                pitch = pitchf = None
+                spec, spec_lengths, wave, sid = info[2], info[3], info[4], info[6]
+                energy = info[7] if energy_use else None
 
-            with autocast(autocast_device , enabled=autocast_enabled):
+            with autocast(autocast_device , enabled=autocast_enabled, dtype=autocast_dtype):
                 y_hat, ids_slice, _, z_mask, (_, z_p, m_p, logs_p, _, logs_q) = net_g(phone, phone_lengths, pitch, pitchf, spec, spec_lengths, sid, energy)
                 mel = spec_to_mel_torch(spec, config.data.filter_length, config.data.n_mel_channels, config.data.sample_rate, config.data.mel_fmin, config.data.mel_fmax)
                 y_mel = slice_segments(mel, ids_slice, config.train.segment_size // config.data.hop_length, dim=3)
 
-                with autocast(autocast_device, enabled=autocast_enabled):
+                with autocast(autocast_device, enabled=autocast_enabled, dtype=autocast_dtype):
                     y_hat_mel = mel_spectrogram_torch(y_hat.float().squeeze(1), config.data.filter_length, config.data.n_mel_channels, config.data.sample_rate, config.data.hop_length, config.data.win_length, config.data.mel_fmin, config.data.mel_fmax)
                 
                 wave = slice_segments(wave, ids_slice * config.data.hop_length, config.train.segment_size, dim=3)
                 y_d_hat_r, y_d_hat_g, _, _ = net_d(wave, y_hat.detach())
 
-                with autocast(autocast_device, enabled=autocast_enabled):
+                with autocast(autocast_device, enabled=autocast_enabled, dtype=autocast_dtype):
                     loss_disc, losses_disc_r, losses_disc_g = discriminator_loss(y_d_hat_r, y_d_hat_g)
 
             optim_d.zero_grad()
@@ -386,10 +376,10 @@ def train_and_evaluate(rank, epoch, hps, nets, optims, scaler, train_loader, wri
             grad_norm_d = clip_grad_value(net_d.parameters(), None)
             scaler.step(optim_d)
 
-            with autocast(autocast_device, enabled=autocast_enabled):
+            with autocast(autocast_device, enabled=autocast_enabled, dtype=autocast_dtype):
                 y_d_hat_r, y_d_hat_g, fmap_r, fmap_g = net_d(wave, y_hat)
 
-                with autocast(autocast_device, enabled=autocast_enabled):     
+                with autocast(autocast_device, enabled=autocast_enabled, dtype=autocast_dtype):     
                     loss_mel = F.l1_loss(y_mel, y_hat_mel) * config.train.c_mel
                     loss_kl = (kl_loss(z_p, logs_q, m_p, logs_p, z_mask) * config.train.c_kl)
 

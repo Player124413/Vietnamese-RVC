@@ -8,18 +8,21 @@ import parselmouth
 import numba as nb
 import numpy as np
 
-from librosa import yin, pyin
 from scipy.signal import medfilt
+from librosa import yin, pyin, piptrack
 
 sys.path.append(os.getcwd())
 
-from main.library.predictors.RMVPE import RMVPE
-from main.library.predictors.WORLD import PYWORLD
+from main.library.utils import get_providers
+from main.library.predictors.FCN.FCN import FCN
 from main.library.predictors.FCPE.FCPE import FCPE
-from main.library.predictors.SWIPE import swipe, stonemask
+from main.library.predictors.CREPE.CREPE import CREPE
+from main.library.predictors.RMVPE.RMVPE import RMVPE
+from main.library.predictors.WORLD.WORLD import PYWORLD
 from main.app.variables import configs, logger, translations
-from main.library.predictors.CREPE import CREPE, mean, median
-from main.inference.conversion.utils import Autotune, proposal_f0_up_key
+from main.library.predictors.CREPE.filter import mean, median
+from main.library.predictors.WORLD.SWIPE import swipe, stonemask
+from main.inference.conversion.utils import autotune_f0, proposal_f0_up_key
 
 @nb.jit(nopython=True)
 def post_process(tf0, f0, f0_up_key, manual_x_pad, f0_mel_min, f0_mel_max, manual_f0 = None):
@@ -47,20 +50,19 @@ def post_process(tf0, f0, f0_up_key, manual_x_pad, f0_mel_min, f0_mel_max, manua
     return np.rint(f0_mel).astype(np.int32), f0
 
 class Generator:
-    def __init__(self, sample_rate = 16000, hop_length = 160, f0_min = 50, f0_max = 1100, is_half = False, device = "cpu", providers = None, f0_onnx_mode = False, del_onnx_model = True):
+    def __init__(self, sample_rate = 16000, hop_length = 160, f0_min = 50, f0_max = 1100, is_half = False, device = "cpu", f0_onnx_mode = False, del_onnx_model = True):
         self.sample_rate = sample_rate
         self.hop_length = hop_length
         self.f0_min = f0_min
         self.f0_max = f0_max
         self.is_half = is_half
         self.device = device
-        self.providers = providers
+        self.providers = get_providers() if f0_onnx_mode else None
         self.f0_onnx_mode = f0_onnx_mode
         self.del_onnx_model = del_onnx_model
         self.window = 160
+        self.batch_size = 512
         self.ref_freqs = [49.00, 51.91, 55.00, 58.27, 61.74, 65.41, 69.30, 73.42, 77.78, 82.41, 87.31, 92.50, 98.00, 103.83, 110.00, 116.54, 123.47, 130.81, 138.59, 146.83, 155.56, 164.81, 174.61, 185.00, 196.00,  207.65, 220.00, 233.08, 246.94, 261.63, 277.18, 293.66, 311.13, 329.63, 349.23, 369.99, 392.00, 415.30, 440.00, 466.16, 493.88, 523.25, 554.37, 587.33, 622.25, 659.25, 698.46, 739.99, 783.99, 830.61, 880.00, 932.33, 987.77, 1046.50]
-        self.autotune = Autotune(self.ref_freqs)
-        self.note_dict = self.autotune.note_dict
 
     def calculator(self, x_pad, f0_method, x, f0_up_key = 0, p_len = None, filter_radius = 3, f0_autotune = False, f0_autotune_strength = 1, manual_f0 = None, proposal_pitch = False, proposal_pitch_threshold = 255.0):
         if p_len is None: p_len = x.shape[0] // self.window
@@ -78,7 +80,7 @@ class Generator:
 
         if f0_autotune: 
             logger.debug(translations["startautotune"])
-            f0 = Autotune.autotune_f0(self, f0, f0_autotune_strength)
+            f0 = autotune_f0(self.ref_freqs, f0, f0_autotune_strength)
 
         return post_process(
             self.sample_rate // self.window, 
@@ -104,26 +106,30 @@ class Generator:
     
     def compute_f0(self, f0_method, x, p_len, filter_radius):
         return {
-            "pm": lambda: self.get_f0_pm(x, p_len), 
+            "pm-ac": lambda: self.get_f0_pm(x, p_len, filter_radius=filter_radius, mode="ac"), 
+            "pm-cc": lambda: self.get_f0_pm(x, p_len, filter_radius=filter_radius, mode="cc"), 
+            "pm-shs": lambda: self.get_f0_pm(x, p_len, filter_radius=filter_radius, mode="shs"), 
             "dio": lambda: self.get_f0_pyworld(x, p_len, filter_radius, "dio"), 
             "mangio-crepe-tiny": lambda: self.get_f0_mangio_crepe(x, p_len, "tiny"), 
             "mangio-crepe-small": lambda: self.get_f0_mangio_crepe(x, p_len, "small"), 
             "mangio-crepe-medium": lambda: self.get_f0_mangio_crepe(x, p_len, "medium"), 
             "mangio-crepe-large": lambda: self.get_f0_mangio_crepe(x, p_len, "large"), 
             "mangio-crepe-full": lambda: self.get_f0_mangio_crepe(x, p_len, "full"), 
-            "crepe-tiny": lambda: self.get_f0_crepe(x, p_len, "tiny"), 
-            "crepe-small": lambda: self.get_f0_crepe(x, p_len, "small"), 
-            "crepe-medium": lambda: self.get_f0_crepe(x, p_len, "medium"), 
-            "crepe-large": lambda: self.get_f0_crepe(x, p_len, "large"), 
-            "crepe-full": lambda: self.get_f0_crepe(x, p_len, "full"), 
-            "fcpe": lambda: self.get_f0_fcpe(x, p_len), 
-            "fcpe-legacy": lambda: self.get_f0_fcpe(x, p_len, legacy=True), 
-            "rmvpe": lambda: self.get_f0_rmvpe(x, p_len), 
-            "rmvpe-legacy": lambda: self.get_f0_rmvpe(x, p_len, legacy=True), 
+            "crepe-tiny": lambda: self.get_f0_crepe(x, p_len, "tiny", filter_radius=filter_radius), 
+            "crepe-small": lambda: self.get_f0_crepe(x, p_len, "small", filter_radius=filter_radius), 
+            "crepe-medium": lambda: self.get_f0_crepe(x, p_len, "medium", filter_radius=filter_radius), 
+            "crepe-large": lambda: self.get_f0_crepe(x, p_len, "large", filter_radius=filter_radius), 
+            "crepe-full": lambda: self.get_f0_crepe(x, p_len, "full", filter_radius=filter_radius), 
+            "fcpe": lambda: self.get_f0_fcpe(x, p_len, filter_radius=filter_radius), 
+            "fcpe-legacy": lambda: self.get_f0_fcpe(x, p_len, legacy=True, filter_radius=filter_radius), 
+            "rmvpe": lambda: self.get_f0_rmvpe(x, p_len, filter_radius=filter_radius), 
+            "rmvpe-legacy": lambda: self.get_f0_rmvpe(x, p_len, legacy=True, filter_radius=filter_radius), 
             "harvest": lambda: self.get_f0_pyworld(x, p_len, filter_radius, "harvest"), 
-            "yin": lambda: self.get_f0_yin(x, p_len, mode="yin"), 
-            "pyin": lambda: self.get_f0_yin(x, p_len, mode="pyin"), 
-            "swipe": lambda: self.get_f0_swipe(x, p_len)
+            "yin": lambda: self.get_f0_librosa(x, p_len, mode="yin"), 
+            "pyin": lambda: self.get_f0_librosa(x, p_len, mode="pyin"), 
+            "piptrack": lambda: self.get_f0_librosa(x, p_len, mode="piptrack"), 
+            "swipe": lambda: self.get_f0_swipe(x, p_len, filter_radius=filter_radius),
+            "fcn": lambda: self.get_f0_fcn(x, p_len, filter_radius=filter_radius)
         }[f0_method]()
     
     def get_f0_hybrid(self, methods_str, x, p_len, filter_radius):
@@ -150,18 +156,32 @@ class Generator:
 
         return resampled_stack[0] if len(resampled_stack) == 1 else np.nanmedian(np.vstack(resampled_stack), axis=0)
     
-    def get_f0_pm(self, x, p_len):
-        f0 = (
-            parselmouth.Sound(
-                x, 
-                self.sample_rate
-            ).to_pitch_ac(
-                time_step=160 / self.sample_rate * 1000 / 1000, 
-                voicing_threshold=0.6, 
-                pitch_floor=self.f0_min, 
-                pitch_ceiling=self.f0_max
-            ).selected_array["frequency"]
+    def get_f0_pm(self, x, p_len, filter_radius=3, mode="ac"):
+        model = parselmouth.Sound(
+            x, 
+            self.sample_rate
         )
+
+        time_step = self.window / self.sample_rate * 1000 / 1000
+        model_mode = {"ac": model.to_pitch_ac, "cc": model.to_pitch_cc, "shs": model.to_pitch_shs}.get(mode, model.to_pitch_ac)
+
+        if mode != "shs":
+            f0 = (
+                model_mode(
+                    time_step=time_step, 
+                    voicing_threshold=filter_radius / 10 * 2, 
+                    pitch_floor=self.f0_min, 
+                    pitch_ceiling=self.f0_max
+                ).selected_array["frequency"]
+            )
+        else:
+            f0 = (
+                model_mode(
+                    time_step=time_step,
+                    minimum_pitch=self.f0_min,
+                    maximum_frequency_component=self.f0_max
+                ).selected_array["frequency"]
+            )
 
         pad_size = (p_len - len(f0) + 1) // 2
 
@@ -198,7 +218,7 @@ class Generator:
 
         return self._resize_f0(f0.squeeze(0).cpu().float().numpy(), p_len)
     
-    def get_f0_crepe(self, x, p_len, model="full"):
+    def get_f0_crepe(self, x, p_len, model="full", filter_radius=3):
         if not hasattr(self, "crepe"):
             self.crepe = CREPE(
                 os.path.join(
@@ -207,7 +227,7 @@ class Generator:
                 ), 
                 model_size=model, 
                 hop_length=self.hop_length, 
-                batch_size=512, 
+                batch_size=self.batch_size, 
                 f0_min=self.f0_min, 
                 f0_max=self.f0_max, 
                 device=self.device, 
@@ -220,12 +240,12 @@ class Generator:
         f0, pd = self.crepe.compute_f0(torch.tensor(np.copy(x))[None].float(), pad=True)
         if self.f0_onnx_mode and self.del_onnx_model: del self.crepe.model, self.crepe
 
-        f0, pd = mean(f0, 3), median(pd, 3)
+        f0, pd = mean(f0, filter_radius), median(pd, filter_radius)
         f0[pd < 0.1] = 0
 
         return self._resize_f0(f0[0].cpu().numpy(), p_len)
     
-    def get_f0_fcpe(self, x, p_len, legacy=False):
+    def get_f0_fcpe(self, x, p_len, legacy=False, filter_radius=3):
         if not hasattr(self, "fcpe"): 
             self.fcpe = FCPE(
                 configs, 
@@ -239,7 +259,7 @@ class Generator:
                 dtype=torch.float32, 
                 device=self.device, 
                 sample_rate=self.sample_rate, 
-                threshold=0.03 if legacy else 0.006, 
+                threshold=(filter_radius / 100) if legacy else (filter_radius / 1000 * 2), 
                 providers=self.providers, 
                 onnx=self.f0_onnx_mode, 
                 legacy=legacy
@@ -250,7 +270,7 @@ class Generator:
 
         return f0
     
-    def get_f0_rmvpe(self, x, p_len, legacy=False):
+    def get_f0_rmvpe(self, x, p_len, legacy=False, filter_radius=3):
         if not hasattr(self, "rmvpe"): 
             self.rmvpe = RMVPE(
                 os.path.join(
@@ -263,9 +283,10 @@ class Generator:
                 providers=self.providers
             )
 
-        f0 = self.rmvpe.infer_from_audio_with_pitch(x, thred=0.03, f0_min=self.f0_min, f0_max=self.f0_max) if legacy else self.rmvpe.infer_from_audio(x, thred=0.03)
+        filter_radius = filter_radius / 100
+        f0 = self.rmvpe.infer_from_audio_with_pitch(x, thred=filter_radius, f0_min=self.f0_min, f0_max=self.f0_max) if legacy else self.rmvpe.infer_from_audio(x, thred=filter_radius)
+        
         if self.f0_onnx_mode and self.del_onnx_model: del self.rmvpe.model, self.rmvpe
-
         return self._resize_f0(f0, p_len)
     
     def get_f0_pyworld(self, x, p_len, filter_radius, model="harvest"):
@@ -296,13 +317,14 @@ class Generator:
 
         return self._resize_f0(f0, p_len)
     
-    def get_f0_swipe(self, x, p_len):
+    def get_f0_swipe(self, x, p_len, filter_radius=3):
         f0, t = swipe(
             x.astype(np.float32), 
             self.sample_rate, 
             f0_floor=self.f0_min, 
             f0_ceil=self.f0_max, 
-            frame_period=1000 * self.window / self.sample_rate
+            frame_period=1000 * self.window / self.sample_rate,
+            sTHR=filter_radius / 10
         )
 
         return self._resize_f0(
@@ -315,17 +337,65 @@ class Generator:
             p_len
         )
     
-    def get_f0_yin(self, x, p_len, mode="yin"):
-        self.if_yin = mode == "yin"
-        self.yin = yin if self.if_yin else pyin
+    def get_f0_librosa(self, x, p_len, mode="yin"):
+        if mode != "piptrack":
+            self.if_yin = mode == "yin"
+            self.yin = yin if self.if_yin else pyin
 
-        f0 = self.yin(
-            x.astype(np.float32), 
-            sr=self.sample_rate, 
-            fmin=self.f0_min, 
-            fmax=self.f0_max, 
-            hop_length=self.hop_length
-        )
+            f0 = self.yin(
+                x.astype(np.float32), 
+                sr=self.sample_rate, 
+                fmin=self.f0_min, 
+                fmax=self.f0_max, 
+                hop_length=self.hop_length
+            )
 
-        if not self.if_yin: f0 = f0[0]
+            if not self.if_yin: f0 = f0[0]
+        else:
+            pitches, magnitudes = piptrack(
+                y=x.astype(np.float32),
+                sr=self.sample_rate,
+                fmin=self.f0_min,
+                fmax=self.f0_max,
+                hop_length=self.hop_length,
+            )
+
+            max_indexes = np.argmax(magnitudes, axis=0)
+            f0 = pitches[max_indexes, range(magnitudes.shape[1])]
+
+        return self._resize_f0(f0, p_len)
+    
+    def get_f0_fcn(self, x, p_len, filter_radius=3):
+        if not hasattr(self, "fcn"):
+            self.fcn = FCN(
+                os.path.join(
+                    configs["predictors_path"], 
+                    f"fcn.{'onnx' if self.f0_onnx_mode else 'pt'}"
+                ), 
+                hop_length=self.hop_length, 
+                batch_size=self.batch_size, 
+                f0_min=self.f0_min, 
+                f0_max=self.f0_max, 
+                device=self.device, 
+                sample_rate=self.sample_rate, 
+                providers=self.providers, 
+                onnx=self.f0_onnx_mode, 
+            )
+
+        x = x.astype(np.float32)
+        x /= np.quantile(np.abs(x), 0.999)
+
+        audio = torch.unsqueeze(torch.from_numpy(x).to(self.device, copy=True), dim=0)
+        if audio.ndim == 2 and audio.shape[0] > 1: audio = torch.mean(audio, dim=0, keepdim=True).detach()
+
+        f0, pd = self.fcn.compute_f0(audio.detach())
+        if self.f0_onnx_mode and self.del_onnx_model: del self.fcn.model, self.fcn
+
+        f0, pd = mean(f0, filter_radius), median(pd, filter_radius)
+        f0[pd < 0.1] = 0
+
+        f0 = f0[0].cpu().numpy()
+        for index, pitch in enumerate(f0):
+            f0[index] = pitch * 2.0190475097926434038940242706786
+
         return self._resize_f0(f0, p_len)

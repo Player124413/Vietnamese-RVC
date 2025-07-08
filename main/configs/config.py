@@ -29,6 +29,7 @@ class Config:
         self.gpu_mem = None
         self.per_preprocess = 3.7
         self.is_half = self.is_fp16()
+        self.brain = self.configs.get("brain", False)
         self.cpu_mode = self.configs.get("cpu_mode", False)
         if self.cpu_mode: self.device = "cpu"
         self.x_pad, self.x_query, self.x_center, self.x_max = self.device_config()

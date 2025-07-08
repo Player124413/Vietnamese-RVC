@@ -31,7 +31,7 @@ Dự án này là một công cụ chuyển đổi giọng nói đơn giản, d�
 
 - Tạo dữ liệu huấn luyện (Từ đường dẫn liên kết)
 
-- Huấn luyện mô hình (v1/v2, bộ mã hóa chất lượng cao)
+- Huấn luyện mô hình (v1/v2, bộ mã hóa chất lượng cao, huấn luyện năng lượng)
 
 - Dung hợp mô hình
 
@@ -49,9 +49,9 @@ Dự án này là một công cụ chuyển đổi giọng nói đơn giản, d�
 
 - Mô hình ONNX RVC cũng sẽ hỗ trợ chỉ mục để suy luận
 
-**Phương thức trích xuất cao độ: `pm, dio, mangio-crepe-tiny, mangio-crepe-small, mangio-crepe-medium, mangio-crepe-large, mangio-crepe-full, crepe-tiny, crepe-small, crepe-medium, crepe-large, crepe-full, fcpe, fcpe-legacy, rmvpe, rmvpe-legacy, harvest, yin, pyin, swipe`**
+**Phương thức trích xuất cao độ: `pm-ac, pm-cc, pm-shs, dio, mangio-crepe-tiny, mangio-crepe-small, mangio-crepe-medium, mangio-crepe-large, mangio-crepe-full, crepe-tiny, crepe-small, crepe-medium, crepe-large, crepe-full, fcpe, fcpe-legacy, rmvpe, rmvpe-legacy, harvest, yin, pyin, swipe, piptrack, fcn`**
 
-**Các mô hình trích xuất nhúng: `contentvec_base, hubert_base, japanese_hubert_base, korean_hubert_base, chinese_hubert_base, portuguese_hubert_base, spin`**
+**Các mô hình trích xuất nhúng: `contentvec_base, hubert_base, vietnamese_hubert_base, japanese_hubert_base, korean_hubert_base, chinese_hubert_base, portuguese_hubert_base, spin`**
 
 - **Các mô hình trích xuất cao độ đều có phiên bản tăng tốc ONNX trừ các phương thức hoạt động bằng trình bao bọc.** 
 - **Các mô hình trích xuất đều có thể kết hợp với nhau để tạo ra cảm giác mới mẻ, ví dụ: `hybrid[rmvpe+harvest]`.**
@@ -175,9 +175,19 @@ Vietnamese-RVC-main
 │   │       │   └── mute.wav
 │   │       ├── v1_extracted
 │   │       │   ├── mute.npy
+│   │       │   ├── mute_chinese.npy
+│   │       │   ├── mute_japanese.npy
+│   │       │   ├── mute_korean.npy
+│   │       │   ├── mute_portuguese.npy
+│   │       │   ├── mute_vietnamese.npy
 │   │       │   └── mute_spin.npy
 │   │       └── v2_extracted
 │   │           ├── mute.npy
+│   │           ├── mute_chinese.npy
+│   │           ├── mute_japanese.npy
+│   │           ├── mute_korean.npy
+│   │           ├── mute_portuguese.npy
+│   │           ├── mute_vietnamese.npy
 │   │           └── mute_spin.npy
 │   ├── models
 │   │   ├── embedders
@@ -261,8 +271,14 @@ Vietnamese-RVC-main
 │   │   ├── audio_effects.py
 │   │   ├── create_dataset.py
 │   │   ├── create_index.py
-│   │   ├── extract.py
 │   │   ├── separator_music.py
+│   │   ├── extracting
+│   │   │   ├── embedding.py
+│   │   │   ├── extract.py
+│   │   │   ├── feature.py
+│   │   │   ├── preparing_files.py
+│   │   │   ├── rms.py
+│   │   │   └── setup_path.py
 │   │   ├── training
 │   │   │   ├── train.py
 │   │   │   ├── data_utils.py
@@ -300,7 +316,14 @@ Vietnamese-RVC-main
 │   │   │   ├── nsf_hifigan.py
 │   │   │   └── refinegan.py
 │   │   ├── predictors
-│   │   │   ├── CREPE.py
+│   │   │   ├── CREPE
+│   │   │   │   ├── CREPE.py
+│   │   │   │   ├── filter.py
+│   │   │   │   └── model.py
+│   │   │   ├── FCN
+│   │   │   │   ├── FCN.py
+│   │   │   │   ├── convert.py
+│   │   │   │   └── model.py
 │   │   │   ├── FCPE
 │   │   │   │   ├── attentions.py
 │   │   │   │   ├── encoder.py
@@ -308,10 +331,15 @@ Vietnamese-RVC-main
 │   │   │   │   ├── stft.py
 │   │   │   │   ├── utils.py
 │   │   │   │   └── wav2mel.py
-│   │   │   ├── Generator.py
-│   │   │   ├── RMVPE.py
-│   │   │   ├── SWIPE.py
-│   │   │   └── WORLD.py
+│   │   │   ├── RMVPE
+│   │   │   │   ├── RMVPE.py
+│   │   │   │   ├── deepunet.py
+│   │   │   │   ├── e2e.py
+│   │   │   │   └── mel.py
+│   │   │   ├── WORLD
+│   │   │   │   ├── WORLD.py
+│   │   │   │   └── SWIPE.py
+│   │   │   └── Generator.py
 │   │   ├── speaker_diarization
 │   │   │   ├── audio.py
 │   │   │   ├── ECAPA_TDNN.py
@@ -420,14 +448,16 @@ Tài liệu này trình bày chi tiết các phương pháp trích xuất cao đ
 | dio                | PYWORLD        | Thích hợp với Rap         | Kém chính xác với tần số cao | Trung bình         | Trung bình         |
 | harvest            | PYWORLD        | Chính xác hơn DIO         | Xử lý chậm hơn               | Cao                | Rất cao            |
 | crepe              | Deep Learning  | Chính xác cao             | Yêu cầu GPU                  | Rất cao            | Rất cao            |
-| mangio-crepe       | crepe finetune | Tối ưu hóa cho RVC        | Đôi khi kém crepe gốc        | Trung bình đến cao | Trung bình đến cao |
+| mangio-crepe       | crepe nofilter | Tối ưu hóa cho RVC        | Đôi khi kém crepe gốc        | Trung bình đến cao | Trung bình đến cao |
 | fcpe               | Deep Learning  | Chính xác, thời gian thực | Cần GPU mạnh                 | Khá                | Trung bình         |
 | fcpe-legacy        | Old            | Chính xác, thời gian thực | Cũ hơn                       | Khá                | Trung bình         |
 | rmvpe              | Deep Learning  | Hiệu quả với giọng hát    | Tốn tài nguyên               | Rất cao            | Xuất sắc           |
-| rmvpe-legacy       | Old            | Hỗ trợ hệ thống cũ        | Cũ hơn                       | Cao                | Khá                |
+| rmvpe-legacy       | Old            | Tính toán với Fmin-max    | Cũ hơn                       | Cao                | Khá                |
 | yin                | Librosa        | Đơn giản, hiệu quả        | Dễ lỗi bội                   | Trung bình         | Thấp               |
 | pyin               | Librosa        | Ổn định hơn YIN           | Tính toán phức tạp hơn       | Khá                | Khá                |
 | swipe              | WORLD          | Độ chính xác cao          | Nhạy cảm với nhiễu           | Cao                | Khá                |
+| piptrack           | Librosa        | Nhanh                     | Kém chính xác                | Thấp               | Thấp               |
+| fcn                | Deep Learning  | Không Rõ                  | F0 Thấp                      | Không Rõ           | Không Rõ           |
 
 # Báo cáo lỗi
 

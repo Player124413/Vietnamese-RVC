@@ -7,7 +7,7 @@ sys.path.append(os.getcwd())
 
 from main.app.core.process import zip_file
 from main.app.core.training import preprocess, extract, create_index, training
-from main.app.variables import translations, model_name, index_path, method_f0, embedders_mode, embedders_model, pretrainedD, pretrainedG
+from main.app.variables import translations, model_name, index_path, method_f0, embedders_mode, embedders_model, pretrainedD, pretrainedG, config
 from main.app.core.ui import gr_warning, visible, unlock_f0, hoplength_show, change_models_choices, get_gpu_info, visible_embedders, pitch_guidance_lock, vocoders_lock, unlock_ver, unlock_vocoder, change_pretrained_choices, gpu_number_str, shutil_move
 
 def training_model_tab():
@@ -92,8 +92,8 @@ def training_model_tab():
                     with gr.Row():
                         vocoders = gr.Radio(label=translations["vocoder"], info=translations["vocoder_info"], choices=["Default", "MRF-HiFi-GAN", "RefineGAN"], value="Default", interactive=True) 
                     with gr.Row():
-                        deterministic = gr.Checkbox(label=translations["deterministic"], info=translations["deterministic_info"], value=False, interactive=True)
-                        benchmark = gr.Checkbox(label=translations["benchmark"], info=translations["benchmark_info"], value=False, interactive=True)
+                        deterministic = gr.Checkbox(label=translations["deterministic"], info=translations["deterministic_info"], value=False, interactive=config.device.startswith("cuda"))
+                        benchmark = gr.Checkbox(label=translations["benchmark"], info=translations["benchmark_info"], value=False, interactive=config.device.startswith("cuda"))
                     with gr.Row():
                         optimizer = gr.Radio(label=translations["optimizer"], info=translations["optimizer_info"], value="AdamW", choices=["AdamW", "RAdam"], interactive=True)
                     with gr.Row():

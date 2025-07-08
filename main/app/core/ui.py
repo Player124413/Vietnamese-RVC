@@ -1,5 +1,4 @@
 import os
-import re
 import sys
 import json
 import torch
@@ -56,7 +55,7 @@ def change_pretrained_choices():
     pretrainD = sorted([model for model in os.listdir(configs["pretrained_custom_path"]) if model.endswith(".pth") and "D" in model])
     pretrainG = sorted([model for model in os.listdir(configs["pretrained_custom_path"]) if model.endswith(".pth") and "G" in model])
 
-    return [{"choices": pretrainD, "value": pretrainD[0], "__type__": "update"}, {"choices": pretrainG, "value": pretrainG[0], "__type__": "update"}]
+    return [{"choices": pretrainD, "value": pretrainD[0] if len(pretrainD) >= 1 else "", "__type__": "update"}, {"choices": pretrainG, "value": pretrainG[0] if len(pretrainG) >= 1 else "", "__type__": "update"}]
 
 def change_choices_del():
     return [{"choices": sorted(list(model for model in os.listdir(configs["weights_path"]) if model.endswith(".pth") and not model.startswith("G_") and not model.startswith("D_"))), "__type__": "update"}, {"choices": sorted([os.path.join(configs["logs_path"], f) for f in os.listdir(configs["logs_path"]) if "mute" not in f and os.path.isdir(os.path.join(configs["logs_path"], f))]), "__type__": "update"}]
@@ -104,17 +103,14 @@ def index_strength_show(index):
     return {"visible": index != "" and os.path.exists(index), "value": 0.5, "__type__": "update"}
 
 def hoplength_show(method, hybrid_method=None):
-    show_hop_length_method = ["mangio-crepe-tiny", "mangio-crepe-small", "mangio-crepe-medium", "mangio-crepe-large", "mangio-crepe-full", "fcpe", "fcpe-legacy", "yin", "pyin"]
+    visible = False
 
-    if method in show_hop_length_method: visible = True
-    elif method == "hybrid":
-        methods_str = re.search("hybrid\[(.+)\]", hybrid_method)
-        if methods_str: methods = [method.strip() for method in methods_str.group(1).split("+")]
+    for m in ["mangio-crepe", "fcpe", "yin", "piptrack", "fcn"]:
+        if m in method: visible = True
+        if m in hybrid_method: visible = True
 
-        for i in methods:
-            visible = i in show_hop_length_method
-            if visible: break
-    else: visible = False
+        if visible: break
+        else: visible = False
     
     return {"visible": visible, "__type__": "update"}
 

@@ -14,8 +14,7 @@ from scipy.signal import correlate, hilbert
 
 sys.path.append(os.getcwd())
 
-from main.configs.config import Config
-translations = Config().translations
+from main.app.variables import translations
 
 OPERATING_SYSTEM = platform.system()
 SYSTEM_ARCH = platform.platform()
@@ -25,18 +24,10 @@ AUTO_PHASE = "Automatic"
 POSITIVE_PHASE = "Positive Phase"
 NEGATIVE_PHASE = "Negative Phase"
 NONE_P = ("None",)
-LOW_P = ("Shifts: Low",)
-MED_P = ("Shifts: Medium",)
-HIGH_P = ("Shifts: High",)
-VHIGH_P = "Shifts: Very High"
-MAXIMUM_P = "Shifts: Maximum"
 BASE_PATH_RUB = sys._MEIPASS if getattr(sys, 'frozen', False) else os.path.dirname(os.path.abspath(__file__))
 DEVNULL = open(os.devnull, 'w') if six.PY2 else subprocess.DEVNULL
 MAX_SPEC = "Max Spec"
 MIN_SPEC = "Min Spec"
-LIN_ENSE = "Linear Ensemble"
-MAX_WAV = MAX_SPEC
-MIN_WAV = MIN_SPEC
 AVERAGE = "Average"
 
 is_macos = False

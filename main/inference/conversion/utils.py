@@ -11,18 +11,13 @@ sys.path.append(os.getcwd())
 
 from main.library import opencl
 
-class Autotune:
-    def __init__(self, ref_freqs):
-        self.ref_freqs = ref_freqs
-        self.note_dict = self.ref_freqs
+def autotune_f0(note_dict, f0, f0_autotune_strength):
+    autotuned_f0 = np.zeros_like(f0)
 
-    def autotune_f0(self, f0, f0_autotune_strength):
-        autotuned_f0 = np.zeros_like(f0)
+    for i, freq in enumerate(f0):
+        autotuned_f0[i] = freq + (min(note_dict, key=lambda x: abs(x - freq)) - freq) * f0_autotune_strength
 
-        for i, freq in enumerate(f0):
-            autotuned_f0[i] = freq + (min(self.note_dict, key=lambda x: abs(x - freq)) - freq) * f0_autotune_strength
-
-        return autotuned_f0
+    return autotuned_f0
 
 def change_rms(source_audio, source_rate, target_audio, target_rate, rate):
     rms2 = F.interpolate(torch.from_numpy(librosa.feature.rms(y=target_audio, frame_length=target_rate // 2 * 2, hop_length=target_rate // 2)).float().unsqueeze(0), size=target_audio.shape[0], mode="linear").squeeze()

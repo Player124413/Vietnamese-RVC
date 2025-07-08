@@ -12,13 +12,9 @@ from pydub import AudioSegment
 sys.path.append(os.getcwd())
 
 from main.library import opencl
-from main.configs.config import Config
 from main.library.uvr5_lib.spec_utils import normalize
 
-translations = Config().translations
-
 class CommonSeparator:
-    ALL_STEMS = "All Stems"
     VOCAL_STEM = "Vocals"
     INST_STEM = "Instrumental"
     OTHER_STEM = "Other"
@@ -26,32 +22,12 @@ class CommonSeparator:
     DRUM_STEM = "Drums"
     GUITAR_STEM = "Guitar"
     PIANO_STEM = "Piano"
-    SYNTH_STEM = "Synthesizer"
-    STRINGS_STEM = "Strings"
-    WOODWINDS_STEM = "Woodwinds"
-    BRASS_STEM = "Brass"
-    WIND_INST_STEM = "Wind Inst"
-    NO_OTHER_STEM = "No Other"
-    NO_BASS_STEM = "No Bass"
-    NO_DRUM_STEM = "No Drums"
-    NO_GUITAR_STEM = "No Guitar"
-    NO_PIANO_STEM = "No Piano"
-    NO_SYNTH_STEM = "No Synthesizer"
-    NO_STRINGS_STEM = "No Strings"
-    NO_WOODWINDS_STEM = "No Woodwinds"
-    NO_WIND_INST_STEM = "No Wind Inst"
-    NO_BRASS_STEM = "No Brass"
     PRIMARY_STEM = "Primary Stem"
     SECONDARY_STEM = "Secondary Stem"
     LEAD_VOCAL_STEM = "lead_only"
     BV_VOCAL_STEM = "backing_only"
-    LEAD_VOCAL_STEM_I = "with_lead_vocals"
-    BV_VOCAL_STEM_I = "with_backing_vocals"
-    LEAD_VOCAL_STEM_LABEL = "Lead Vocals"
-    BV_VOCAL_STEM_LABEL = "Backing Vocals"
     NO_STEM = "No "
     STEM_PAIR_MAPPER = {VOCAL_STEM: INST_STEM, INST_STEM: VOCAL_STEM, LEAD_VOCAL_STEM: BV_VOCAL_STEM, BV_VOCAL_STEM: LEAD_VOCAL_STEM, PRIMARY_STEM: SECONDARY_STEM}
-    NON_ACCOM_STEMS = (VOCAL_STEM, OTHER_STEM, BASS_STEM, DRUM_STEM, GUITAR_STEM, PIANO_STEM, SYNTH_STEM, STRINGS_STEM, WOODWINDS_STEM, BRASS_STEM, WIND_INST_STEM)
 
     def __init__(self, config):
         self.logger = config.get("logger")
@@ -122,7 +98,6 @@ class CommonSeparator:
         self.cached_sources_map[model_architecture] = {**self.cached_sources_map.get(model_architecture, {}), **{model_name: sources}}
 
     def prepare_mix(self, mix):
-        audio_path = mix
         if not isinstance(mix, np.ndarray):
             mix, _ = librosa.load(mix, mono=False, sr=self.sample_rate)
         else:

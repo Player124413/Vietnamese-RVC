@@ -67,7 +67,8 @@ class PreProcess:
 
     def process_audio(self, path, idx0, sid, cut_preprocess, process_effects, clean_dataset, clean_strength):
         try:
-            audio = load_audio(logger, path, self.sr)
+            audio = load_audio(path, self.sr)
+
             if process_effects: 
                 audio = signal.lfilter(self.b_high, self.a_high, audio)
                 audio = self._normalize_audio(audio)
@@ -134,8 +135,10 @@ def preprocess_training_set(input_root, sr, num_processes, exp_dir, per, cut_pre
 def main():
     args = parse_arguments()
     experiment_directory = os.path.join(configs["logs_path"], args.model_name)
+
     num_processes = args.cpu_cores
     num_processes = 2 if num_processes is None else int(num_processes)
+
     dataset, sample_rate, cut_preprocess, preprocess_effects, clean_dataset, clean_strength = args.dataset_path, args.sample_rate, args.cut_preprocess, args.process_effects, args.clean_dataset, args.clean_strength
     os.makedirs(experiment_directory, exist_ok=True)
 

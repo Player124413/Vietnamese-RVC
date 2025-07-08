@@ -7,8 +7,7 @@ import functools
 
 sys.path.append(os.getcwd())
 
-from main.configs.config import Config
-translations = Config().translations
+from main.app.variables import translations
 
 def load_model(path_or_package, strict=False):
     if isinstance(path_or_package, dict): package = path_or_package
@@ -16,7 +15,7 @@ def load_model(path_or_package, strict=False):
         with warnings.catch_warnings():
             warnings.simplefilter("ignore")
 
-            package = torch.load(path_or_package, map_location="cpu")
+            package = torch.load(path_or_package, map_location="cpu", weights_only=False)
     else: raise ValueError(f"{translations['type_not_valid']} {path_or_package}.")
 
     klass = package["klass"]

@@ -46,7 +46,7 @@ def load_model(name = "base", device = "cpu"):
     alignment_heads = _ALIGNMENT_HEADS[name]
 
     with open(checkpoint_file, "rb") as fp:
-        checkpoint = torch.load(fp, map_location=device)
+        checkpoint = torch.load(fp, map_location=device, weights_only=True)
 
     del checkpoint_file
 

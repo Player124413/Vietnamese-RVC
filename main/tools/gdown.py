@@ -11,8 +11,7 @@ from urllib.parse import urlparse, parse_qs, unquote
 
 sys.path.append(os.getcwd())
 
-from main.configs.config import Config
-translations = Config().translations
+from main.app.variables import translations
 
 def parse_url(url):
     parsed = urlparse(url)
@@ -53,58 +52,67 @@ def _get_session(use_cookies, return_cookies_file=False):
                 sess.cookies[k] = v
     return (sess, cookies_file) if return_cookies_file else sess
 
-def gdown_download(url=None, id=None, output=None):
-    if not (id is None) ^ (url is None): raise ValueError(translations["gdown_value_error"])
-    if id is not None: url = f"{codecs.decode('uggcf://qevir.tbbtyr.pbz/hp?vq=', 'rot13')}{id}"
+def gdown_download(url=None, output=None):
+    file_id = None
 
-    url_origin = url
-    sess, cookies_file = _get_session(use_cookies=True, return_cookies_file=True)
-    gdrive_file_id, is_gdrive_download_link = parse_url(url)
+    if url is None: raise ValueError(translations["gdown_value_error"])
 
-    if gdrive_file_id:
-        url = f"{codecs.decode('uggcf://qevir.tbbtyr.pbz/hp?vq=', 'rot13')}{gdrive_file_id}"
+    if "/file/d/" in url: file_id = url.split("/d/")[1].split("/")[0]
+    elif "open?id=" in url: file_id = url.split("open?id=")[1].split("/")[0]
+    elif "/download?id=" in url: file_id = url.split("/download?id=")[1].split("&")[0]
+
+    if file_id:
+        url = f"{codecs.decode('uggcf://qevir.tbbtyr.pbz/hp?vq=', 'rot13')}{file_id}"
         url_origin = url
-        is_gdrive_download_link = True
 
-    while 1:
-        res = sess.get(url, stream=True, verify=True)
-        if url == url_origin and res.status_code == 500:
-            url = f"{codecs.decode('uggcf://qevir.tbbtyr.pbz/bcra?vq=', 'rot13')}{gdrive_file_id}"
-            continue
+        sess, cookies_file = _get_session(use_cookies=True, return_cookies_file=True)
+        gdrive_file_id, is_gdrive_download_link = parse_url(url)
 
-        os.makedirs(os.path.dirname(cookies_file), exist_ok=True)
-        with open(cookies_file, "w") as f:
-            json.dump([(k, v) for k, v in sess.cookies.items() if not k.startswith("download_warning_")], f, indent=2)
+        if gdrive_file_id:
+            url = f"{codecs.decode('uggcf://qevir.tbbtyr.pbz/hp?vq=', 'rot13')}{gdrive_file_id}"
+            url_origin = url
+            is_gdrive_download_link = True
 
-        if "Content-Disposition" in res.headers: break
-        if not (gdrive_file_id and is_gdrive_download_link): break
+        while 1:
+            res = sess.get(url, stream=True, verify=True)
+            if url == url_origin and res.status_code == 500:
+                url = f"{codecs.decode('uggcf://qevir.tbbtyr.pbz/bcra?vq=', 'rot13')}{gdrive_file_id}"
+                continue
+
+            os.makedirs(os.path.dirname(cookies_file), exist_ok=True)
+            with open(cookies_file, "w") as f:
+                json.dump([(k, v) for k, v in sess.cookies.items() if not k.startswith("download_warning_")], f, indent=2)
+
+            if "Content-Disposition" in res.headers: break
+            if not (gdrive_file_id and is_gdrive_download_link): break
+
+            try:
+                url = get_url_from_gdrive_confirmation(res.text)
+            except Exception as e:
+                raise Exception(e)
+
+        if gdrive_file_id and is_gdrive_download_link:
+            content_disposition = unquote(res.headers["Content-Disposition"])
+            filename_from_url = (re.search(r"filename\*=UTF-8''(.*)", content_disposition) or re.search(r'filename=["\']?(.*?)["\']?$', content_disposition)).group(1).replace(os.path.sep, "_")
+        else: filename_from_url = os.path.basename(url)
+
+        output = os.path.join(output or ".", filename_from_url)
+        tmp_file = tempfile.mktemp(suffix=tempfile.template, prefix=os.path.basename(output), dir=os.path.dirname(output))
+        f = open(tmp_file, "ab")
+
+        if tmp_file is not None and f.tell() != 0: res = sess.get(url, headers={"Range": f"bytes={f.tell()}-"}, stream=True, verify=True)
 
         try:
-            url = get_url_from_gdrive_confirmation(res.text)
-        except Exception as e:
-            raise Exception(e)
+            with tqdm.tqdm(desc=os.path.basename(output), total=int(res.headers.get("Content-Length", 0)), ncols=100, unit="byte") as pbar:
+                for chunk in res.iter_content(chunk_size=512 * 1024):
+                    f.write(chunk)
+                    pbar.update(len(chunk))
 
-    if gdrive_file_id and is_gdrive_download_link:
-        content_disposition = unquote(res.headers["Content-Disposition"])
-        filename_from_url = (re.search(r"filename\*=UTF-8''(.*)", content_disposition) or re.search(r'filename=["\']?(.*?)["\']?$', content_disposition)).group(1).replace(os.path.sep, "_")
-    else: filename_from_url = os.path.basename(url)
+                pbar.close()
+                if tmp_file: f.close()
+        finally:
+            os.rename(tmp_file, output)
+            sess.close()
 
-    output = os.path.join(output or ".", filename_from_url)
-    tmp_file = tempfile.mktemp(suffix=tempfile.template, prefix=os.path.basename(output), dir=os.path.dirname(output))
-    f = open(tmp_file, "ab")
-
-    if tmp_file is not None and f.tell() != 0: res = sess.get(url, headers={"Range": f"bytes={f.tell()}-"}, stream=True, verify=True)
-    print(translations["to"], os.path.abspath(output), file=sys.stderr)
-
-    try:
-        with tqdm.tqdm(total=int(res.headers.get("Content-Length", 0)), ncols=100, unit="byte") as pbar:
-            for chunk in res.iter_content(chunk_size=512 * 1024):
-                f.write(chunk)
-                pbar.update(len(chunk))
-
-            pbar.close()
-            if tmp_file: f.close()
-    finally:
-        os.rename(tmp_file, output)
-        sess.close()
-    return output
+        return output
+    return None

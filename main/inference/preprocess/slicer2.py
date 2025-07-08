@@ -54,6 +54,7 @@ class Slicer:
                 clip_start = pos_r
 
             silence_start = None
+
         total_frames = rms_list.shape[0]
         if (silence_start is not None and total_frames - silence_start >= self.min_interval): sil_tags.append((rms_list[silence_start : min(total_frames, silence_start + self.max_sil_kept) + 1].argmin() + silence_start, total_frames + 1))
 

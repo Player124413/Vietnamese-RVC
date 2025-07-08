@@ -27,9 +27,11 @@ sys.modules["fairseq.data"] = fairseq_data
 sys.modules["fairseq.data.dictionary"] = fairseq_data_dictionary
 
 def load_model(filename):
-    state = torch.load(filename, map_location="cpu")
-    model = HubertModel(HubertConfig(**state['cfg']['model']))
+    state = torch.load(filename, map_location="cpu", weights_only=False)
+
+    model = HubertModel(HubertConfig(**state['cfg']['model']), num_classes=int(state['model']['label_embs_concat'].shape[0]))
     model.load_state_dict(state['model'], strict=False)
+
     return model
 
 def softmax(x, dim, onnx_trace = False):
@@ -1197,7 +1199,62 @@ class BaseFairseqModel(nn.Module):
         self.eval()
 
 class HubertConfig:
-    def __init__(self, _name, label_rate, encoder_layers_1, logit_temp_ctr, num_negatives, cross_sample_negatives, ctr_layers, extractor_mode = "default", encoder_layers = 12, encoder_embed_dim = 768, encoder_ffn_embed_dim = 3072, encoder_attention_heads = 12, activation_fn = "gelu", layer_type = "transformer", dropout = 0.1, attention_dropout = 0.1, activation_dropout = 0.0, encoder_layerdrop = 0.0, dropout_input = 0.0, dropout_features = 0.0, final_dim = 0, untie_final_proj = False, layer_norm_first = False, conv_feature_layers = "[(512,10,5)] + [(512,3,2)] * 4 + [(512,2,2)] * 2", conv_bias = False, logit_temp = 0.1, target_glu = False, feature_grad_mult = 1.0, mask_length = 10, mask_prob = 0.65, mask_selection = "static", mask_other = 0.0, no_mask_overlap = False, mask_min_space = 1, mask_channel_length = 10, mask_channel_prob = 0.0, mask_channel_selection = "static", mask_channel_other = 0.0, no_mask_channel_overlap = False, mask_channel_min_space = 1, conv_pos = 128, conv_pos_groups = 16, conv_pos_batch_norm = False, latent_temp = (2, 0.5, 0.999995), skip_masked = False, skip_nomask = False, checkpoint_activations = False, required_seq_len_multiple = 2, depthwise_conv_kernel_size = 31, attn_type = "", pos_enc_type = "abs", fp16 = False):
+    def __init__(
+        self, 
+        _name = None, 
+        label_rate = 50, 
+        encoder_layers_1 = 3, 
+        logit_temp_ctr = 0.1, 
+        num_negatives = 100, 
+        cross_sample_negatives = 0, 
+        ctr_layers = [-6],
+        crop_seq_to_multiple = 1,
+        extractor_mode = "default", 
+        encoder_layers = 12, 
+        encoder_embed_dim = 768, 
+        encoder_ffn_embed_dim = 3072, 
+        encoder_attention_heads = 12, 
+        activation_fn = "gelu", 
+        layer_type = "transformer", 
+        dropout = 0.1, 
+        attention_dropout = 0.1, 
+        activation_dropout = 0.0, 
+        encoder_layerdrop = 0.0, 
+        dropout_input = 0.0, 
+        dropout_features = 0.0, 
+        final_dim = 0, 
+        untie_final_proj = False, 
+        layer_norm_first = False, 
+        conv_feature_layers = "[(512,10,5)] + [(512,3,2)] * 4 + [(512,2,2)] * 2", 
+        conv_bias = False, 
+        logit_temp = 0.1, 
+        target_glu = False, 
+        feature_grad_mult = 1.0, 
+        mask_length = 10, 
+        mask_prob = 0.65, 
+        mask_selection = "static", 
+        mask_other = 0.0, 
+        no_mask_overlap = False, 
+        mask_min_space = 1, 
+        mask_channel_length = 10, 
+        mask_channel_prob = 0.0, 
+        mask_channel_selection = "static", 
+        mask_channel_other = 0.0, 
+        no_mask_channel_overlap = False, 
+        mask_channel_min_space = 1, 
+        conv_pos = 128, 
+        conv_pos_groups = 16, 
+        conv_pos_batch_norm = False, 
+        latent_temp = (2, 0.5, 0.999995), 
+        skip_masked = False, 
+        skip_nomask = False, 
+        checkpoint_activations = False, 
+        required_seq_len_multiple = 2, 
+        depthwise_conv_kernel_size = 31, 
+        attn_type = "", 
+        pos_enc_type = "abs", 
+        fp16 = False
+    ):
         self._name = _name
         self.label_rate = label_rate
         self.encoder_layers_1 = encoder_layers_1
@@ -1205,6 +1262,7 @@ class HubertConfig:
         self.num_negatives = num_negatives
         self.cross_sample_negatives = cross_sample_negatives
         self.ctr_layers = ctr_layers
+        self.crop_seq_to_multiple = crop_seq_to_multiple
         self.extractor_mode = extractor_mode
         self.encoder_layers = encoder_layers
         self.encoder_embed_dim = encoder_embed_dim
@@ -1216,7 +1274,7 @@ class HubertConfig:
         self.attention_dropout = attention_dropout
         self.activation_dropout = activation_dropout
         self.encoder_layerdrop = encoder_layerdrop
-        self.dropout_input = encoder_layerdrop
+        self.dropout_input = dropout_input
         self.dropout_features = dropout_features
         self.final_dim = final_dim
         self.untie_final_proj = untie_final_proj
@@ -1252,7 +1310,7 @@ class HubertConfig:
         self.fp16 = fp16
 
 class HubertModel(BaseFairseqModel):
-    def __init__(self, cfg):
+    def __init__(self, cfg, num_classes):
         super().__init__()
         feature_enc_layers = eval(cfg.conv_feature_layers)
         self.embed = feature_enc_layers[-1][0]
@@ -1286,7 +1344,7 @@ class HubertModel(BaseFairseqModel):
         if cfg.target_glu: self.target_glu = nn.Sequential(nn.Linear(final_dim, final_dim * 2), nn.GLU())
         self.untie_final_proj = cfg.untie_final_proj
         self.final_proj = nn.Linear(cfg.encoder_embed_dim, final_dim)
-        self.num_classes = [504]
+        self.num_classes = [num_classes]
         self.label_embs_concat = nn.Parameter(torch.FloatTensor(sum(self.num_classes), final_dim))
         nn.init.uniform_(self.label_embs_concat)
 

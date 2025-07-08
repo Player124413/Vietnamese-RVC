@@ -22,7 +22,7 @@ def hook_on_loading_state_dict_checkpoint(state_dict):
     return map_old_state_dict_weights(state_dict, KEYS_MAPPING)
 
 def torch_patched_state_dict_load(path, device="cpu"):
-    return hook_on_loading_state_dict_checkpoint(torch.load(path, map_location=device))
+    return hook_on_loading_state_dict_checkpoint(torch.load(path, map_location=device, weights_only=False))
 
 @main_process_only
 def torch_save(obj, path):
@@ -58,9 +58,9 @@ def _cycliclrloader(obj, path, end_of_epoch):
     del end_of_epoch  
 
     try:
-        obj.load_state_dict(torch.load(path, map_location="cpu"), strict=True)
+        obj.load_state_dict(torch.load(path, map_location="cpu", weights_only=False), strict=True)
     except TypeError:
-        obj.load_state_dict(torch.load(path, map_location="cpu"))
+        obj.load_state_dict(torch.load(path, map_location="cpu", weights_only=False))
 
 DEFAULT_LOAD_HOOKS = {torch.nn.Module: torch_recovery, torch.optim.Optimizer: torch_recovery, torch.optim.lr_scheduler.ReduceLROnPlateau: torch_recovery, torch.cuda.amp.grad_scaler.GradScaler: torch_recovery}
 DEFAULT_SAVE_HOOKS = { torch.nn.Module: torch_save, torch.optim.Optimizer: torch_save, torch.optim.lr_scheduler.ReduceLROnPlateau: torch_save, torch.cuda.amp.grad_scaler.GradScaler: torch_save}
@@ -519,5 +519,5 @@ class InputNormalization(torch.nn.Module):
     @mark_as_loader
     def _load(self, path, end_of_epoch=False):
         del end_of_epoch  
-        stats = torch.load(path, map_location="cpu")
+        stats = torch.load(path, map_location="cpu", weights_only=False)
         self._load_statistics_dict(stats)

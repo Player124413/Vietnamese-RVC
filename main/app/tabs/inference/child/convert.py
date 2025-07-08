@@ -90,7 +90,7 @@ def convert_tab():
                                         index_strength_chbox = gr.Checkbox(label=translations["save_index_2"], value=True, interactive=True)
                                         resample_sr_chbox = gr.Checkbox(label=translations["save_resample"], value=True, interactive=True)
                                         filter_radius_chbox = gr.Checkbox(label=translations["save_filter"], value=True, interactive=True)
-                                        volume_envelope_chbox = gr.Checkbox(label=translations["save_envelope"], value=True, interactive=True)
+                                        rms_mix_rate_chbox = gr.Checkbox(label=translations["save_envelope"], value=True, interactive=True)
                                         protect_chbox = gr.Checkbox(label=translations["save_protect"], value=True, interactive=True)
                                         split_audio_chbox = gr.Checkbox(label=translations["save_split"], value=True, interactive=True)
                                         formant_shifting_chbox = gr.Checkbox(label=translations["formantshift"], value=True, interactive=True)
@@ -109,7 +109,7 @@ def convert_tab():
                     proposal_pitch_threshold = gr.Slider(minimum=50.0, maximum=1200.0, label=translations["proposal_pitch_threshold"], info=translations["proposal_pitch_threshold_info"], value=255.0, step=0.1, interactive=True, visible=proposal_pitch.value)
                     f0_autotune_strength = gr.Slider(minimum=0, maximum=1, label=translations["autotune_rate"], info=translations["autotune_rate_info"], value=1, step=0.1, interactive=True, visible=autotune.value)
                     filter_radius = gr.Slider(minimum=0, maximum=7, label=translations["filter_radius"], info=translations["filter_radius_info"], value=3, step=1, interactive=True)
-                    volume_envelope = gr.Slider(minimum=0, maximum=1, label=translations["volume_envelope"], info=translations["volume_envelope_info"], value=1, step=0.1, interactive=True)
+                    rms_mix_rate = gr.Slider(minimum=0, maximum=1, label=translations["rms_mix_rate"], info=translations["rms_mix_rate_info"], value=1, step=0.1, interactive=True)
                     protect = gr.Slider(minimum=0, maximum=1, label=translations["protect"], info=translations["protect_info"], value=0.5, step=0.01, interactive=True)
                 with gr.Row():
                     formant_qfrency = gr.Slider(value=1.0, label=translations["formant_qfrency"], info=translations["formant_qfrency"], minimum=0.0, maximum=16.0, step=0.1, interactive=True, visible=False)
@@ -139,7 +139,7 @@ def convert_tab():
                 index_strength, 
                 resample_sr, 
                 filter_radius, 
-                volume_envelope, 
+                rms_mix_rate, 
                 protect, 
                 split_audio, 
                 f0_autotune_strength, 
@@ -154,7 +154,7 @@ def convert_tab():
                 index_strength, 
                 resample_sr, 
                 filter_radius, 
-                volume_envelope, 
+                rms_mix_rate, 
                 protect, 
                 split_audio, 
                 f0_autotune_strength, 
@@ -175,7 +175,7 @@ def convert_tab():
                 index_strength, 
                 resample_sr, 
                 filter_radius, 
-                volume_envelope, 
+                rms_mix_rate, 
                 protect, 
                 split_audio, 
                 f0_autotune_strength, 
@@ -185,7 +185,7 @@ def convert_tab():
                 index_strength_chbox, 
                 resample_sr_chbox, 
                 filter_radius_chbox, 
-                volume_envelope_chbox, 
+                rms_mix_rate_chbox, 
                 protect_chbox, 
                 split_audio_chbox, 
                 formant_shifting_chbox, 
@@ -220,7 +220,6 @@ def convert_tab():
         refresh0.click(fn=change_audios_choices, inputs=[input_audio0], outputs=[input_audio0])
         model_index.change(fn=index_strength_show, inputs=[model_index], outputs=[index_strength])
     with gr.Row():
-        audio_select.change(fn=lambda: visible(True), inputs=[], outputs=[convert_button_2])
         convert_button.click(fn=lambda: visible(False), inputs=[], outputs=[convert_button])
         convert_button_2.click(fn=lambda: [visible(False), visible(False)], inputs=[], outputs=[audio_select, convert_button_2])
     with gr.Row():
@@ -252,7 +251,7 @@ def convert_tab():
                 custom_embedders,
                 resample_sr,
                 filter_radius,
-                volume_envelope,
+                rms_mix_rate,
                 protect,
                 split_audio,
                 f0_autotune_strength,
@@ -266,7 +265,7 @@ def convert_tab():
                 proposal_pitch,
                 proposal_pitch_threshold
             ],
-            outputs=[audio_select, main_convert, backing_convert, main_backing, original_convert, vocal_instrument, convert_button],
+            outputs=[audio_select, main_convert, backing_convert, main_backing, original_convert, vocal_instrument, convert_button, convert_button_2],
             api_name="convert_selection"
         )
         convert_button_2.click(
@@ -294,7 +293,7 @@ def convert_tab():
                 custom_embedders,
                 resample_sr,
                 filter_radius,
-                volume_envelope,
+                rms_mix_rate,
                 protect,
                 split_audio,
                 f0_autotune_strength,

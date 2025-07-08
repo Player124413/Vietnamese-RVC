@@ -15,6 +15,7 @@ def Mediafire_Download(url, output=None, filename=None):
     try:
         with requests.get(BeautifulSoup(sess.get(url).content, "html.parser").find(id="downloadButton").get("href"), stream=True) as r:
             r.raise_for_status()
+
             with open(output_file, "wb") as f:
                 total_length = int(r.headers.get('content-length'))
                 download_progress = 0
@@ -22,8 +23,10 @@ def Mediafire_Download(url, output=None, filename=None):
                 for chunk in r.iter_content(chunk_size=1024):
                     download_progress += len(chunk)
                     f.write(chunk)
+
                     sys.stdout.write(f"\r[{filename}]: {int(100 * download_progress/total_length)}% ({round(download_progress/1024/1024, 2)}mb/{round(total_length/1024/1024, 2)}mb)")
                     sys.stdout.flush()
+
         sys.stdout.write("\n")
         return output_file
     except Exception as e:

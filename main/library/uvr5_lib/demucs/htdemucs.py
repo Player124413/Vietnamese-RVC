@@ -13,12 +13,10 @@ from torch.nn import functional as F
 
 sys.path.append(os.getcwd())
 
-from main.configs.config import Config
+from main.app.variables import translations
 from main.library.uvr5_lib.demucs.states import capture_init
 from main.library.uvr5_lib.demucs.demucs import rescale_module
 from main.library.uvr5_lib.demucs.hdemucs import pad1d, spectro, ispectro, wiener, ScaledEmbedding, HEncLayer, MultiWrap, HDecLayer
-
-translations = Config().translations
 
 def create_sin_embedding(length, dim, shift = 0, device="cpu", max_period=10000):
     assert dim % 2 == 0

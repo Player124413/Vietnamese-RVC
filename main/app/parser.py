@@ -3,9 +3,6 @@ import sys
 
 sys.path.append(os.getcwd())
 
-os.environ["TORCH_FORCE_NO_WEIGHTS_ONLY_LOAD"] = "1"
-os.environ["TORCH_FORCE_WEIGHTS_ONLY_LOAD"] = "0"
-
 try:
     argv = sys.argv[1]
 except IndexError:
@@ -101,7 +98,7 @@ elif argv_is_allows[9] in argv:
             - `--pitch` (mặc định: `0`): Điều chỉnh cao độ.
             - `--filter_radius` (mặc định: `3`): Độ mượt của đường F0.
             - `--index_rate` (mặc định: `0.5`): Tỷ lệ sử dụng chỉ mục giọng nói.
-            - `--volume_envelope` (mặc định: `1`): Hệ số điều chỉnh biên độ âm lượng.
+            - `--rms_mix_rate` (mặc định: `1`): Hệ số điều chỉnh biên độ âm lượng.
             - `--protect` (mặc định: `0.33`): Bảo vệ phụ âm.
 
         2. Cấu hình mẫu (frame hop):

@@ -20,8 +20,7 @@ translations = config.translations
 configs_json = os.path.join("main", "configs", "config.json")
 configs = json.load(open(configs_json, "r"))
 
-if logger.hasHandlers(): logger.handlers.clear()
-else:
+if not logger.hasHandlers():
     console_handler = logging.StreamHandler()
     console_formatter = logging.Formatter(fmt="\n%(asctime)s.%(msecs)03d | %(levelname)s | %(module)s | %(message)s", datefmt="%Y-%m-%d %H:%M:%S")
     console_handler.setFormatter(console_formatter)
@@ -45,10 +44,10 @@ models = {}
 model_options = {}
 
 method_f0 = ["mangio-crepe-full", "crepe-full", "fcpe", "rmvpe", "harvest", "pyin", "hybrid"]
-method_f0_full = ["pm", "dio", "mangio-crepe-tiny", "mangio-crepe-small", "mangio-crepe-medium", "mangio-crepe-large", "mangio-crepe-full", "crepe-tiny", "crepe-small", "crepe-medium", "crepe-large", "crepe-full", "fcpe", "fcpe-legacy", "rmvpe", "rmvpe-legacy", "harvest", "yin", "pyin", "swipe", "hybrid"]
+method_f0_full = ["pm-ac", "pm-cc", "pm-shs", "dio", "mangio-crepe-tiny", "mangio-crepe-small", "mangio-crepe-medium", "mangio-crepe-large", "mangio-crepe-full", "crepe-tiny", "crepe-small", "crepe-medium", "crepe-large", "crepe-full", "fcpe", "fcpe-legacy", "rmvpe", "rmvpe-legacy", "harvest", "yin", "pyin", "swipe", "piptrack", "fcn", "hybrid"]
 
 embedders_mode = ["fairseq", "onnx", "transformers", "spin"]
-embedders_model = ["contentvec_base", "hubert_base", "japanese_hubert_base", "korean_hubert_base", "chinese_hubert_base", "portuguese_hubert_base", "custom"]
+embedders_model = ["contentvec_base", "hubert_base", "vietnamese_hubert_base", "japanese_hubert_base", "korean_hubert_base", "chinese_hubert_base", "portuguese_hubert_base", "custom"]
 
 paths_for_files = sorted([os.path.abspath(os.path.join(root, f)) for root, _, files in os.walk(configs["audios_path"]) for f in files if os.path.splitext(f)[1].lower() in (".wav", ".mp3", ".flac", ".ogg", ".opus", ".m4a", ".mp4", ".aac", ".alac", ".wma", ".aiff", ".webm", ".ac3")])
 
@@ -85,20 +84,23 @@ if "--allow_all_disk" in sys.argv and sys.platform == "win32":
     allow_disk = win32api.GetLogicalDriveStrings().split('\x00')[:-1]
 else: allow_disk = []
 
-if os.path.exists(csv_path): reader = list(csv.DictReader(open(csv_path, newline='', encoding='utf-8')))
-else:
-    reader = list(csv.DictReader([line.decode('utf-8') for line in urllib.request.urlopen(codecs.decode("uggcf://qbpf.tbbtyr.pbz/fcernqfurrgf/q/1gNHnDeRULtEfz1Yieaw14USUQjWJy0Oq9k0DrCrjApb/rkcbeg?sbezng=pfi&tvq=1977693859", "rot13")).readlines()]))
-    writer = csv.DictWriter(open(csv_path, mode='w', newline='', encoding='utf-8'), fieldnames=reader[0].keys())
-    writer.writeheader()
-    writer.writerows(reader)
+try:
+    if os.path.exists(csv_path): reader = list(csv.DictReader(open(csv_path, newline='', encoding='utf-8')))
+    else:
+        reader = list(csv.DictReader([line.decode('utf-8') for line in urllib.request.urlopen(codecs.decode("uggcf://qbpf.tbbtyr.pbz/fcernqfurrgf/q/1gNHnDeRULtEfz1Yieaw14USUQjWJy0Oq9k0DrCrjApb/rkcbeg?sbezng=pfi&tvq=1977693859", "rot13")).readlines()]))
+        writer = csv.DictWriter(open(csv_path, mode='w', newline='', encoding='utf-8'), fieldnames=reader[0].keys())
+        writer.writeheader()
+        writer.writerows(reader)
 
-for row in reader:
-    filename = row['Filename']
-    url = None
+    for row in reader:
+        filename = row['Filename']
+        url = None
 
-    for value in row.values():
-        if isinstance(value, str) and "huggingface" in value:
-            url = value
-            break
+        for value in row.values():
+            if isinstance(value, str) and "huggingface" in value:
+                url = value
+                break
 
-    if url: models[filename] = url
+        if url: models[filename] = url
+except:
+    pass

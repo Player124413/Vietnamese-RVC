@@ -13,12 +13,10 @@ from tqdm import tqdm
 
 sys.path.append(os.getcwd())
 
-from main.configs.config import Config
 from main.library.uvr5_lib import spec_utils
 from main.library.uvr5_lib.common_separator import CommonSeparator
 
 warnings.filterwarnings("ignore")
-translations = Config().translations
 
 class MDXSeparator(CommonSeparator):
     def __init__(self, common_config, arch_config):

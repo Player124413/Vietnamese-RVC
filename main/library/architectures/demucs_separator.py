@@ -10,13 +10,11 @@ from hashlib import sha256
 
 sys.path.append(os.getcwd())
 
-from main.configs.config import Config
+from main.app.variables import config
 from main.library.uvr5_lib import spec_utils, common_separator
 from main.library.uvr5_lib.demucs import hdemucs, states, apply
 
 warnings.filterwarnings("ignore")
-config = Config()
-translations = config.translations
 sys.path.insert(0, os.path.join(os.getcwd(), "main", "library", "uvr5_lib"))
 
 DEMUCS_4_SOURCE_MAPPER = {common_separator.CommonSeparator.BASS_STEM: 0, common_separator.CommonSeparator.DRUM_STEM: 1, common_separator.CommonSeparator.OTHER_STEM: 2, common_separator.CommonSeparator.VOCAL_STEM: 3}

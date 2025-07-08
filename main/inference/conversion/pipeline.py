@@ -11,9 +11,9 @@ from scipy import signal
 sys.path.append(os.getcwd())
 
 from main.app.variables import translations
+from main.library.utils import extract_features
 from main.library.predictors.Generator import Generator
 from main.inference.extracting.rms import RMSEnergyExtractor
-from main.library.utils import get_providers, extract_features
 from main.inference.conversion.utils import change_rms, clear_gpu_cache, get_onnx_argument
 
 bh, ah = signal.butter(N=5, Wn=48, btype="high", fs=16000)
@@ -32,20 +32,19 @@ class Pipeline:
         self.t_query = self.sample_rate * self.x_query
         self.t_center = self.sample_rate * self.x_center
         self.t_max = self.sample_rate * self.x_max
-        self.time_step = self.window / self.sample_rate * 1000
         self.f0_min = 50
         self.f0_max = 1100
-        self.f0_mel_min = 1127 * np.log(1 + self.f0_min / 700)
-        self.f0_mel_max = 1127 * np.log(1 + self.f0_max / 700)
         self.device = config.device
         self.is_half = config.is_half
 
     def voice_conversion(self, model, net_g, sid, audio0, pitch, pitchf, index, big_npy, index_rate, version, protect, energy):
-        feats = (torch.from_numpy(audio0).half() if self.is_half else torch.from_numpy(audio0).float())
         pitch_guidance = pitch != None and pitchf != None
         energy_use = energy != None
 
-        if feats.dim() == 2: feats = feats.mean(-1)
+        feats = torch.from_numpy(audio0)
+        feats = feats.half() if self.is_half else feats.float()
+
+        feats = feats.mean(-1) if feats.dim() == 2 else feats
         assert feats.dim() == 1, feats.dim()
         feats = feats.view(1, -1)
 
@@ -57,10 +56,10 @@ class Pipeline:
             elif self.embed_suffix == ".onnx": feats = extract_features(model, feats.to(self.device), version).to(self.device)
             elif self.embed_suffix == ".safetensors":
                 logits = model(feats.to(self.device))["last_hidden_state"]
-                feats = (model.final_proj(logits[0]).unsqueeze(0) if version == "v1" else logits)
+                feats = model.final_proj(logits[0]).unsqueeze(0) if version == "v1" else logits
             else: raise ValueError(translations["option_not_valid"])
 
-            if protect < 0.5 and pitch_guidance: feats0 = feats.clone()
+            feats0 = feats.clone() if protect < 0.5 and pitch_guidance else None
 
             if (not isinstance(index, type(None)) and not isinstance(big_npy, type(None)) and index_rate != 0):
                 npy = feats[0].cpu().numpy()
@@ -75,20 +74,18 @@ class Pipeline:
                 feats = (torch.from_numpy(npy).unsqueeze(0).to(self.device) * index_rate + (1 - index_rate) * feats)
 
             feats = F.interpolate(feats.permute(0, 2, 1), scale_factor=2).permute(0, 2, 1)
-            if protect < 0.5 and pitch_guidance: feats0 = F.interpolate(feats0.permute(0, 2, 1), scale_factor=2).permute(0, 2, 1)
-            p_len = audio0.shape[0] // self.window
+            p_len = min(audio0.shape[0] // self.window, feats.shape[1])
 
-            if feats.shape[1] < p_len:
-                p_len = feats.shape[1]
-                if pitch_guidance: pitch, pitchf = pitch[:, :p_len], pitchf[:, :p_len]
-                if energy_use: energy = energy[:, :p_len]
+            if pitch_guidance: pitch, pitchf = pitch[:, :p_len], pitchf[:, :p_len]
+            if energy_use: energy = energy[:, :p_len]
 
-            if protect < 0.5 and pitch_guidance:
+            if feats0 is not None:
                 pitchff = pitchf.clone()
                 pitchff[pitchf > 0] = 1
                 pitchff[pitchf < 1] = protect
                 pitchff = pitchff.unsqueeze(-1)
 
+                feats0 = F.interpolate(feats0.permute(0, 2, 1), scale_factor=2).permute(0, 2, 1)
                 feats = (feats * pitchff + feats0 * (1 - pitchff)).to(feats0.dtype)
 
             p_len = torch.tensor([p_len], device=self.device).long()
@@ -129,12 +126,12 @@ class Pipeline:
             )
 
         if self.embed_suffix == ".pt": del padding_mask
-        del feats, p_len, net_g, model
+        del feats, feats0, p_len
 
         clear_gpu_cache()
         return audio1
     
-    def pipeline(self, logger, model, net_g, sid, audio, f0_up_key, f0_method, file_index, index_rate, pitch_guidance, filter_radius, volume_envelope, version, protect, hop_length, f0_autotune, f0_autotune_strength, suffix, embed_suffix, f0_file=None, f0_onnx=False, pbar=None, proposal_pitch=False, proposal_pitch_threshold=255.0, energy_use=False):
+    def pipeline(self, logger, model, net_g, sid, audio, f0_up_key, f0_method, file_index, index_rate, pitch_guidance, filter_radius, rms_mix_rate, version, protect, hop_length, f0_autotune, f0_autotune_strength, suffix, embed_suffix, f0_file=None, f0_onnx=False, pbar=None, proposal_pitch=False, proposal_pitch_threshold=255.0, energy_use=False):
         self.suffix = suffix
         self.embed_suffix = embed_suffix
 
@@ -185,7 +182,7 @@ class Pipeline:
 
         if pbar: pbar.update(1)
         if pitch_guidance:
-            if not hasattr(self, "f0_generator"): self.f0_generator = Generator(self.sample_rate, hop_length, self.f0_min, self.f0_max, self.is_half, self.device, get_providers(), f0_onnx, f0_onnx)
+            if not hasattr(self, "f0_generator"): self.f0_generator = Generator(self.sample_rate, hop_length, self.f0_min, self.f0_max, self.is_half, self.device, f0_onnx, f0_onnx)
             pitch, pitchf = self.f0_generator.calculator(self.x_pad, f0_method, audio_pad, f0_up_key, p_len, filter_radius, f0_autotune, f0_autotune_strength, manual_f0=inp_f0, proposal_pitch=proposal_pitch, proposal_pitch_threshold=proposal_pitch_threshold)
 
             if self.device == "mps": pitchf = pitchf.astype(np.float32)
@@ -242,7 +239,8 @@ class Pipeline:
         audio_opt = np.concatenate(audio_opt)
         if pbar: pbar.update(1)
 
-        if volume_envelope != 1: audio_opt = change_rms(audio, self.sample_rate, audio_opt, self.sample_rate, volume_envelope)
+        if rms_mix_rate != 1: audio_opt = change_rms(audio, self.sample_rate, audio_opt, self.sample_rate, rms_mix_rate)
+
         audio_max = np.abs(audio_opt).max() / 0.99
         if audio_max > 1: audio_opt /= audio_max
 
