@@ -16,15 +16,19 @@ except:
 
 torch_available = pytorch_ocl != None
 
+def check_amd_gpu(gpu):
+    for i in ["RX", "AMD", "Vega", "Radeon", "FirePro"]:
+        return i in gpu
+
 def get_amd_gpu_windows():
     try:
-        return [gpu.strip() for gpu in subprocess.check_output("wmic path win32_VideoController get name", shell=True).decode().split('\n')[1:] if 'AMD' in gpu or 'Radeon' in gpu or 'Vega' in gpu]
+        return [gpu.strip() for gpu in subprocess.check_output("wmic path win32_VideoController get name", shell=True).decode().split('\n')[1:] if check_amd_gpu(gpu)]
     except:
         return []
 
 def get_amd_gpu_linux():
     try:
-        return [gpu for gpu in subprocess.check_output("lspci | grep VGA", shell=True).decode().split('\n') if 'AMD' in gpu or 'Radeon' in gpu or 'Vega' in gpu]
+        return [gpu for gpu in subprocess.check_output("lspci | grep VGA", shell=True).decode().split('\n') if check_amd_gpu(gpu)]
     except:
         return []
 
